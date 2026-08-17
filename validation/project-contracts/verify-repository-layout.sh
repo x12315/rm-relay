@@ -21,6 +21,10 @@ assert_path_absent() {
 }
 
 for required_file in \
+    CONTRIBUTING.md \
+    LICENSE \
+    README.md \
+    ROADMAP.md \
     container-images/embedded-development/README.md \
     container-images/embedded-development/Dockerfile \
     container-images/embedded-development/docker-bake.hcl \
@@ -34,6 +38,8 @@ for required_file in \
     examples/deterministic-pi-control/CMakeLists.txt \
     examples/deterministic-pi-control/CMakePresets.json \
     examples/deterministic-pi-control/portable-controller/README.md \
+    docs/community/README.md \
+    docs/community/why-rm-relay.md \
     docs/user-guide/build-native.md \
     docs/operator-guide/build-and-verify-images.md \
     docs/operator-guide/repository-boundaries.md \
