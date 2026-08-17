@@ -1,0 +1,10 @@
+.DS_Store
+/AGENTS.md
+/docs/superpowers/
+build/
+build-*/
+*.bin
+*.elf
+*.map
+compile_commands.json
+CMakeUserPresets.json
