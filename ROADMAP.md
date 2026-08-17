@@ -9,7 +9,8 @@ Issue 追踪；只有取得真实证据的能力才会写入支持矩阵。
 ## 1. 完成嵌入式实板调试闭环
 
 使用合适的 SWD 连接完成 RoboMaster C 实板烧录、写入校验、启动观察和源码调试。随后
-根据 RM 队伍的真实设备补充 STM32 板卡与调试后端，保持 board profile 与项目结构分离。
+根据 RM 队伍的真实设备补充 STM32 板卡与调试后端，并完善 Windows、macOS、Linux 的
+宿主接入和 VS Code/VSCodium 配置。board profile 继续与项目结构分离。
 
 ## 2. 发布开发镜像与快速体验服务
 

@@ -1,7 +1,8 @@
 # 镜像构建与验证
 
-本页面向镜像维护者和构建服务部署者。开发者使用镜像时从根目录
-[README](../../README.md#快速上手) 开始，不需要理解镜像内部安装过程。
+本页供镜像维护者和构建服务部署者使用。普通开发者从根目录的
+[本地 Docker 快速开始](../../README.md#本地-docker-快速开始)进入即可，不必了解镜像
+内部的安装过程。
 
 ## 唯一构建入口
 
@@ -83,8 +84,8 @@ docker run --rm mcu-dev/toolchain:local sh -lc \
    /usr/local/lib/embedded-development/smoke/verify-embedded-tools.sh'
 ```
 
-这两项检查不仅打印版本，还会让 host GCC、host Clang 与 `arm-none-eabi-g++` 实际
-编译同一份 C++20 contract probe。镜像标签可用以下命令审查：
+这两项检查会打印版本，并让 host GCC、host Clang 与 `arm-none-eabi-g++` 实际编译
+同一份 C++20 contract probe。镜像标签可用以下命令审查：
 
 ```bash
 docker inspect mcu-dev/toolchain:local --format \
@@ -101,14 +102,14 @@ sh validation/project-contracts/verify-toolchain-source-policy.sh
 sh validation/project-contracts/verify-project-builds.sh
 ```
 
-第二条命令会在项目模板和 PI 示例中分别运行 Clang、GCC、ASan/UBSan 与 F407
-交叉编译 workflow。只有镜像能力与消费者构建都通过，才能认为镜像变更可交付。
+`verify-project-builds.sh` 会在项目模板和 PI 示例中分别运行 Clang、GCC、ASan/UBSan
+与 F407 交叉编译 workflow。只有镜像能力与消费者构建都通过，才能认为镜像变更可交付。
 
 ## 发布与云构建扩展点
 
 本仓库当前不实现自动发布和云编译服务。未来扩展应保持以下边界：
 
 - 构建服务负责选择 builder、注入 registry tag、缓存和凭据；
-- 本目录继续拥有工具版本、Dockerfile、Bake target 和 smoke contract；
+- 工具版本、Dockerfile、Bake target 和 smoke contract 继续在本目录定义；
 - 用户模板和示例作为镜像消费者，不被复制进镜像；
 - CI 配置可以独立成子库，但不得重新定义镜像内容。

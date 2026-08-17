@@ -1,7 +1,7 @@
 # embedded-development 镜像产品
 
-本目录是 MCU 开发工具链镜像的产品边界，面向镜像维护者和构建服务部署者。普通开发者
-只需要使用发布好的 `mcu-dev/toolchain` 镜像，不需要修改这里的 Dockerfile。
+这里维护 MCU 开发工具链镜像，供镜像维护者和构建服务部署者使用。普通开发者只需使用
+构建好的 `mcu-dev/toolchain` 镜像，不需要修改 Dockerfile。
 
 ## 交付内容
 

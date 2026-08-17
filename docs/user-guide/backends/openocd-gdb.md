@@ -39,7 +39,7 @@ openocd -f openocd/boards/robomaster-c.cfg -c "init; shutdown"
 
 ## 实板调试验收
 
-取得正确 SWD 转接线后，OpenOCD 应识别 ST-Link 与 STM32F407。GDB 使用
+建立可靠的 SWD 连接后，OpenOCD 应识别 ST-Link 与 STM32F407。GDB 使用
 PI 示例的 `robomaster-c-pi-control-example.elf` 执行 `load`，在
 `pi_control_example_observation_ready` 设置断点并读取：
 

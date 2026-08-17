@@ -33,14 +33,14 @@
 RoboMaster C 是首个 board profile，不是项目核心。新增 STM32 或 STC 设备时增加
 对应工具链与设备配置；不会用一块板的目录结构约束其他设备。
 
-## 暂不交付的能力
+## 当前没有纳入的能力
 
 - runtime 镜像只在出现具体应用运行依赖后引入；当前拆分价值不足。
-- SSH/rsync 远程部署优先级较高，但不属于本分支。
+- SSH/rsync 远程部署已经进入路线图，仓库尚未提供实现。
 - Windows 的宿主 OpenOCD 与 WSL2/USBIPD 路径需后续在真实机器验证。
 - Apple `container` 可作为普通 OCI 运行时的实验项，不作为当前 USB/ST-Link 后端。
-- Agent Skill 或 MCP server 只有在人工流程稳定、重复且确有收益后再实现；当前标准 CLI
-  和文档是基本途径。
+- Agent Skill 或 MCP server 只用于已经稳定、重复的流程。当前仍以标准 CLI 和文档为准。
 
-IDE 是用户负责的编辑和调试前端。仓库可以给出接入示例，但不打包 IDE、用户扩展或
-个人配置。
+IDE 只负责编辑和调试体验。项目可以提供 VS Code/VSCodium 的工作区、任务和调试预设，
+但这些配置必须调用现有的 CMake、OpenOCD 和 GDB 入口，不能另建一套构建逻辑。工具链
+镜像不打包 IDE、用户扩展或个人配置。

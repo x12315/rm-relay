@@ -1,6 +1,6 @@
 # 镜像版本基线
 
-本目录记录 `embedded-development` 的产品级版本契约，不再逐个锁定 APT 包。
+这里记录 `embedded-development` 的产品级版本契约。APT 包不逐个锁定版本。
 
 `versions.env` 固定 Ubuntu LTS 系列、native GCC major、Arm GNU release 和 uv 版本。
 Ubuntu APT 包跟随 `noble`、`noble-updates` 与 `noble-security`；每次发布镜像中的实际

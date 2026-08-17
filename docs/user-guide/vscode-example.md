@@ -1,8 +1,8 @@
 # VS Code / Cortex-Debug 接入示例
 
-仓库不提交 `.vscode/` 或 `.devcontainer/`，也不自动安装扩展。IDE 配置属于用户层；
-构建、测试和调试契约仍以 Docker、CMake Presets、OpenOCD 和 GDB 命令为准。
-外部 OpenOCD 的启动方式和验收标准见
+仓库当前还没有一键生成 IDE 配置，只提供可复制的 VS Code/Cortex-Debug 片段，也不
+自动安装扩展。编辑器最终仍调用 Docker、CMake Presets、OpenOCD 和 GDB，不会形成
+另一套构建或调试流程。外部 OpenOCD 的启动方式和验收标准见
 [OpenOCD/GDB 烧录与调试后端](backends/openocd-gdb.md)。
 
 以下片段可由用户放入自己的 `.vscode/launch.json`。它假设 VS Code 打开的

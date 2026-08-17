@@ -12,13 +12,13 @@ build target。
 `compute-dev` 是未来承载普通 Linux、视觉、ROS 2、NVIDIA 或 AXERA 能力的家族名，
 不是当前镜像，也不与 MCU 工具链耦合。
 
-普通开发者通常直接使用已发布或由实验室维护者构建的 `mcu-dev/toolchain` 镜像。
-如需在本机生成当前开发标签，再使用以下命令。
+公开镜像尚未发布。体验当前基线时，需要在本机或战队的构建服务器上生成
+`mcu-dev/toolchain:local`。正式镜像发布后，普通用户可以直接从国内 OCI Registry
+拉取固定版本，不必重复执行完整构建。
 
-普通用户优先拉取实验室发布到国内 OCI 仓库的版本镜像。直接执行 Dockerfile 属于维护者
-路径，仍可能访问 GitHub、GHCR 等少量上游来源。
+## 按宿主架构构建
 
-## Apple Silicon 本机构建
+Apple Silicon 使用：
 
 ```bash
 docker buildx bake \
@@ -26,7 +26,7 @@ docker buildx bake \
   mcu-dev-arm64 --load
 ```
 
-## x86_64 Linux 本机构建
+x86_64 Linux 使用：
 
 ```bash
 docker buildx bake \
