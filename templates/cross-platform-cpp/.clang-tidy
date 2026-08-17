@@ -1,0 +1,10 @@
+Checks: >
+  -*,
+  clang-analyzer-*,
+  bugprone-branch-clone,
+  bugprone-infinite-loop,
+  bugprone-use-after-move,
+  performance-*
+WarningsAsErrors: '*'
+HeaderFilterRegex: 'portable-code/.*'
+FormatStyle: file

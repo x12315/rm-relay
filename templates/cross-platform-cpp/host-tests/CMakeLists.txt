@@ -1,0 +1,3 @@
+add_executable(cycle_processor_test cycle_processor_test.cpp)
+target_link_libraries(cycle_processor_test PRIVATE cross_platform_starter::portable_code)
+add_test(NAME portable_code.cycle_processor COMMAND cycle_processor_test)

@@ -1,0 +1,4 @@
+add_library(portable_code STATIC src/cycle_processor.cpp)
+add_library(cross_platform_starter::portable_code ALIAS portable_code)
+target_include_directories(portable_code PUBLIC include)
+target_link_libraries(portable_code PUBLIC project_options)

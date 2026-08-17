@@ -1,0 +1,3 @@
+add_executable(pi_controller_test pi_controller_test.cpp)
+target_link_libraries(pi_controller_test PRIVATE pi_control_example::portable_controller)
+add_test(NAME pi_control_example.pi_controller COMMAND pi_controller_test)

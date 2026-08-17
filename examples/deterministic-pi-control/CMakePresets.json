@@ -1,0 +1,105 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 28, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "native-clang",
+      "displayName": "Native Clang Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/native-clang",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "native-gcc",
+      "displayName": "Native GCC Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/native-gcc",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "gcc-14",
+        "CMAKE_CXX_COMPILER": "g++-14",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "native-asan",
+      "inherits": "native-clang",
+      "displayName": "Native Clang ASan/UBSan",
+      "binaryDir": "${sourceDir}/build/native-asan",
+      "cacheVariables": { "ENABLE_SANITIZERS": "ON" }
+    },
+    {
+      "name": "stm32f407-robomaster-c",
+      "displayName": "RoboMaster C / STM32F407IGH6",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/stm32f407-robomaster-c",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/arm-none-eabi-gcc.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BOARD_PROFILE": "${sourceDir}/cmake/board-profiles/robomaster-c.cmake",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "native-clang", "configurePreset": "native-clang" },
+    { "name": "native-gcc", "configurePreset": "native-gcc" },
+    { "name": "native-asan", "configurePreset": "native-asan" },
+    { "name": "stm32f407-robomaster-c", "configurePreset": "stm32f407-robomaster-c" }
+  ],
+  "testPresets": [
+    {
+      "name": "native-clang",
+      "configurePreset": "native-clang",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "native-gcc",
+      "configurePreset": "native-gcc",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "native-asan",
+      "configurePreset": "native-asan",
+      "output": { "outputOnFailure": true }
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "native-clang",
+      "steps": [
+        { "type": "configure", "name": "native-clang" },
+        { "type": "build", "name": "native-clang" },
+        { "type": "test", "name": "native-clang" }
+      ]
+    },
+    {
+      "name": "native-gcc",
+      "steps": [
+        { "type": "configure", "name": "native-gcc" },
+        { "type": "build", "name": "native-gcc" },
+        { "type": "test", "name": "native-gcc" }
+      ]
+    },
+    {
+      "name": "native-asan",
+      "steps": [
+        { "type": "configure", "name": "native-asan" },
+        { "type": "build", "name": "native-asan" },
+        { "type": "test", "name": "native-asan" }
+      ]
+    },
+    {
+      "name": "stm32f407-robomaster-c",
+      "steps": [
+        { "type": "configure", "name": "stm32f407-robomaster-c" },
+        { "type": "build", "name": "stm32f407-robomaster-c" }
+      ]
+    }
+  ]
+}

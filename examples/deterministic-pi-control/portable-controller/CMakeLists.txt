@@ -1,0 +1,4 @@
+add_library(pi_control_example_portable_controller STATIC src/pi_controller.cpp)
+add_library(pi_control_example::portable_controller ALIAS pi_control_example_portable_controller)
+target_include_directories(pi_control_example_portable_controller PUBLIC include)
+target_link_libraries(pi_control_example_portable_controller PUBLIC project_options)
