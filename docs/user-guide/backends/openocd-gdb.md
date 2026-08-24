@@ -57,5 +57,9 @@ g_pi_control_observed_fault: 0
 若只看到 LED 或串口输出，可以另记 `boot-observed`，不能据此声称断点和变量观察链路
 已经通过。
 
+RoboMaster C 已在 macOS 使用 ST-Link V2、OpenOCD 0.12.0 和容器内 GDB 15.1 完成
+该验收：目标电压稳定在 3.3 V，STM32F407 被识别，断点命中，观测命令为
+`0.451500028`，故障标志为 `0`。
+
 OpenOCD 的 adapter 与 GDB server 参数以
 [OpenOCD 官方文档](https://openocd.org/doc/html/)为准。
