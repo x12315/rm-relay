@@ -33,9 +33,10 @@ RM 队伍的成员和工程经验随赛季快速流动。一套环境如果只�
 测试和 MCU 固件中复用相同控制逻辑的 PI 示例。镜像覆盖 `linux/amd64` 与
 `linux/arm64`，真实主机验证目前以 Apple Silicon macOS 为主。
 
-STM32F407 和 RoboMaster C 已能完成交叉编译；RoboMaster C 的 ROM DFU 已在 macOS
-完成只读枚举，OpenOCD/GDB 配置尚待使用 SWD 实板完成烧录和源码调试闭环。支持状态以
-[支持矩阵](docs/user-guide/support-matrix.md)为准，不能从工具存在推导硬件已经验证。
+STM32F407 和 RoboMaster C 已能完成交叉编译；RoboMaster C 已在 macOS 通过 ROM DFU
+完成写入与回读校验，并通过 ST-Link、OpenOCD 和 GDB 完成固件加载、断点与变量检查。
+支持状态以[支持矩阵](docs/user-guide/support-matrix.md)为准，不能从一个平台的结果推导
+其他平台已经验证。
 
 RoboMaster C 是首个支持的 board profile，不是项目结构中心。开发镜像只提供工具链，
 不包含机器人应用 runtime 或 IDE；编辑器可以消费 CMake Presets 和调试配置，但不是

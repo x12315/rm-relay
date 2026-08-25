@@ -57,8 +57,9 @@ arm-none-eabi-size \
 - `boot-observed`：复位后已观察到约定的启动行为。
 - `debug-tested`：调试器已连接、命中观察点并核对约定状态。
 
-两组状态不可相互替代。当前 F407 固件为 `cross-compiled`，macOS DFU 为
-`detected`，OpenOCD/GDB 配置为 `configured`；其余四个硬件状态尚未完成验证。
+两组状态不可相互替代。当前 F407 固件为 `cross-compiled`；RoboMaster C 已在 macOS
+通过 DFU 达到 `flash-verified`，并通过 OpenOCD/GDB 达到 `debug-tested`。Linux 与
+Windows 的真实 USB 和调试链路仍待分别验证。
 
 ## 配置分层与新增设备
 

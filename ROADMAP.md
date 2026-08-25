@@ -4,13 +4,14 @@
 Issue 追踪；只有取得真实证据的能力才会写入支持矩阵。
 
 当前已建立 STM32 嵌入式开发基线，包括双架构开发镜像、跨平台 CMake 项目模板、PI
-控制示例、STM32F407 交叉编译和初步烧录调试配置。
+控制示例、STM32F407 交叉编译，以及 RoboMaster C 在 macOS 上的 DFU 烧录校验和
+OpenOCD/GDB 源码调试闭环。
 
-## 1. 完成嵌入式实板调试闭环
+## 1. 扩展嵌入式实板调试支持
 
-使用合适的 SWD 连接完成 RoboMaster C 实板烧录、写入校验、启动观察和源码调试。随后
-根据 RM 队伍的真实设备补充 STM32 板卡与调试后端，并完善 Windows、macOS、Linux 的
-宿主接入和 VS Code/VSCodium 配置。board profile 继续与项目结构分离。
+RoboMaster C 已完成首个 macOS 实板闭环。下一步根据 RM 队伍的真实设备补充 STM32
+板卡与调试后端，并完善 Windows、Linux 的宿主接入和 VS Code/VSCodium 配置。
+board profile 继续与项目结构分离。
 
 ## 2. 发布开发镜像与快速体验服务
 

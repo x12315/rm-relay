@@ -39,21 +39,21 @@ RoboMaster Development Board Type C User Manual 为准。
 ## SWD 与独立 ST-Link
 
 SWD 需要可靠连接 `SWDIO`、`SWCLK`、`GND` 和 `VTref 3.3V`。板端是 Molex
-PicoBlade 1.25 mm 插座，不能因为间距相同而购买 JST-GH 线束。当前 OpenOCD/GDB
-配置已经建立，但尚无通过该接口完成 `debug-tested` 的实板记录。
+PicoBlade 1.25 mm 插座，不能因为间距相同而购买 JST-GH 线束。该接口已在 macOS
+使用独立 ST-Link、宿主 OpenOCD 和容器 GDB 完成 `debug-tested`。
 
 ## 当前验证边界
 
 ```text
 固件构建：cross-compiled
-macOS + dfu-util：detected
-OpenOCD + GDB：configured
-flashed / flash-verified / boot-observed / debug-tested：未执行
+macOS + dfu-util：flash-verified
+macOS + OpenOCD/GDB：debug-tested
+Linux / Windows 实板链路：未验证
 ```
 
-当前验证保留了原厂固件。除非使用者明确决定覆盖用户 Flash，否则只执行
-[dfu-util 后端](../backends/dfu-util.md)的枚举步骤。具备可靠 SWD 连接后，可按
-[OpenOCD/GDB 后端](../backends/openocd-gdb.md)完成后续验证。
+烧录会覆盖用户 Flash。只读枚举与实际写入的边界见
+[dfu-util 后端](../backends/dfu-util.md)；源码调试流程见
+[OpenOCD/GDB 后端](../backends/openocd-gdb.md)。
 
 ## 参考资料
 
