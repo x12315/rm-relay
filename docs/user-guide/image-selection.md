@@ -9,8 +9,9 @@ Clang/GCC、GDB、CTest、Sanitizers、clang-format、clang-tidy、Python 和 uv
 `dfu-util`，用于 Arm bare-metal 交叉编译、烧录和调试。当前只交付这两个
 build target。
 
-`compute-dev` 是未来承载普通 Linux、视觉、ROS 2、NVIDIA 或 AXERA 能力的家族名，
-不是当前镜像，也不与 MCU 工具链耦合。
+算力侧环境未来会按普通 Linux、原生 C++ 视觉、ROS 2、导航和厂商 runtime 形成有限的
+官方 profile，不使用一个全家桶镜像承载所有能力。这些 profile 尚未交付，也不与 MCU
+工具链耦合。设计边界见[环境与 profile](../architecture/environments-and-profiles.md)。
 
 公开镜像尚未发布。体验当前基线时，需要在本机或战队的构建服务器上生成
 `mcu-dev/toolchain:local`。正式镜像发布后，普通用户可以直接从国内 OCI Registry
@@ -83,5 +84,6 @@ docker run --rm -it \
   USB 设备。
 - Windows 当前仅为规划平台，需在真实 Windows 主机验证后才能更新支持状态。
 
-烧录和调试使用工具原生命令；项目不增加统一 CLI。任何写入操作都应先根据设备文档
-确认芯片、接口、alternate setting（DFU 备用接口）和目标地址。
+当前嵌入式基线直接使用工具原生命令。后续 mise 任务只会组织同一批 CMake、OpenOCD、
+GDB 和 DFU 入口，不另建构建或调试协议。任何写入操作都应先根据设备文档确认芯片、
+接口、alternate setting（DFU 备用接口）和目标地址。

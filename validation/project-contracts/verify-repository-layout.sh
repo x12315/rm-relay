@@ -40,6 +40,12 @@ for required_file in \
     examples/deterministic-pi-control/portable-controller/README.md \
     docs/community/README.md \
     docs/community/why-rm-relay.md \
+    docs/architecture/README.md \
+    docs/architecture/environments-and-profiles.md \
+    docs/architecture/builds-and-outputs.md \
+    docs/architecture/targets-and-sessions.md \
+    docs/architecture/service-topology.md \
+    docs/reference/development-contracts.md \
     docs/user-guide/build-native.md \
     docs/operator-guide/build-and-verify-images.md \
     docs/operator-guide/repository-boundaries.md \
