@@ -45,10 +45,11 @@ RoboMaster C 是首个 board profile，不是项目核心。新增 STM32 或 STC
 
 ## 已设计但尚未实现
 
-- mise 统一任务入口与官方 profile/Template 模型；
+- mise 项目任务、`rm-relay` 客户端与官方 profile/Template 模型；
 - 国内 OCI Registry、远程 workspace 构建和邀请制体验实例；
 - 算力侧 development/runtime 环境与跨架构 sysroot；
-- 物理/虚拟 Linux target、Development Session 与数据取回；
+- 物理 Linux target 的 `rm-relay-node`、受控容器、Mutagen 传输与数据取回；
+- 基于 K3s namespace 的多用户虚拟 target；
 - Windows 的宿主 OpenOCD 与 WSL2/USBIPD 路径。
 
 这些能力属于基本开发链路，不能因为尚未实现而写成项目外能力。比赛用持久部署、开机
@@ -56,7 +57,7 @@ RoboMaster C 是首个 board profile，不是项目核心。新增 STM32 或 STC
 [后续可选模块](../../ROADMAP.md#后续可选模块)。
 
 IDE 只负责编辑和调试体验。项目可以提供 VS Code/VSCodium、Dev Container 的工作区、
-任务和调试预设，但这些配置必须调用 mise、CMake、OpenOCD、GDB 和 SSH 等已有入口，
+任务和调试预设，但这些配置必须调用 mise、`rm-relay`、CMake、OpenOCD 和 GDB 等已有入口，
 不能另建构建逻辑。任何镜像都不打包 IDE、用户扩展或个人配置。
 
 Apple `container` 可以作为普通 OCI runtime 的实验项，不作为当前 USB/ST-Link 后端。

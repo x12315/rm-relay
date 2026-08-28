@@ -15,19 +15,24 @@ RM Relay 配置 → BuildKit → development/runtime image → Registry
 
 ## 构建入口
 
-mise 是统一任务入口，不是构建系统。实际构建继续使用社区原生工具：
+mise 是项目任务入口，`rm-relay` 只协调跨容器、跨机器和 target 相关操作。实际编译仍由
+社区原生工具完成：
 
 ```text
 mise
-├── CMake Presets → CMake → Ninja
-├── colcon → ament/CMake → Ninja
-├── CTest / colcon test
-└── ccache
+├── 原生任务
+│   ├── CMake Presets → CMake → Ninja
+│   ├── colcon → ament/CMake → Ninja
+│   └── CTest / colcon test
+└── rm-relay
+    ├── local / remote build backend
+    └── target 接入
 ```
 
 CMake 是通用 C/C++ 项目的构建能力上限。ROS 2 workspace 在外层使用 colcon，不再引入
 Meson、Xmake、Bazel、Nix 或另一套自定义构建描述作为官方基线。用户仍可直接调用原生
-CMake、colcon 和 Ninja，mise 不能成为封闭入口。
+CMake、colcon 和 Ninja，mise 与 `rm-relay` 都不能成为封闭入口。ccache 通过 CMake
+compiler launcher 或 colcon 的底层 CMake 参数接入，不改变构建图。
 
 ## 本地与远程 backend
 
@@ -47,8 +52,9 @@ CMake、colcon 和 Ninja，mise 不能成为封闭入口。
 ```
 
 远程 backend 使用 BuildKit 的 context 传输、cache 和输出导出能力。服务端运行由 RM Relay
-维护的固定 workspace 构建定义，用户项目不因此增加一份应用 Dockerfile。构建服务不长期
-托管源码 workspace，也不保存项目特有的构建知识。
+维护的固定 workspace 构建定义，用户项目不因此增加一份应用 Dockerfile。BuildKit 的
+local exporter 将结果直接写回客户端指定目录；RM Relay 不在这段链路上维护另一套传输包
+或文件同步协议。构建服务不长期托管源码 workspace，也不保存项目特有的构建知识。
 
 远程构建完成后，输出必须回到开发者工作区，再由本地任务送往 target。构建服务器不会直接
 部署物理设备或虚拟设备。这条边界保证本地 Docker 与远程服务可以共享下游流程，也允许各项
@@ -102,8 +108,13 @@ backend 管理
 Build Output 是项目资产；cache 只是加速手段。切换 builder 或清空 cache 不得改变构建
 语义。首版不在本地和远端之间同步 cache，也不把 cache 传到 target。
 
-ccache 是显式依赖，不是 CMake 默认能力。CMake 通过 compiler launcher 接入它；cache
-namespace 需要包含项目、profile 和工具链信息，具体布局由构建 backend 管理。
+ccache 是显式依赖，不是 CMake 默认能力。远程 backend 在可信的战队或邀请制实例中，可以
+让使用同一环境与工具链的用户共享 ccache；ccache 会按编译器、参数和输入内容判断命中，
+不把不同项目的输出直接混用。项目 build tree 仍相互隔离。
+
+本地 ccache 只保存在开发者电脑，不与服务器同步。未来若开放不受信任的公共构建服务，
+可以改成公共只读种子 cache 加用户私有写 cache。无论采用哪种布局，cache 都是可删除的
+加速资产，不能参与权限判断，也不能成为构建正确性的前提。
 
 ## 跨架构构建
 

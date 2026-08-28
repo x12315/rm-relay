@@ -43,7 +43,7 @@ for required_file in \
     docs/architecture/README.md \
     docs/architecture/environments-and-profiles.md \
     docs/architecture/builds-and-outputs.md \
-    docs/architecture/targets-and-sessions.md \
+    docs/architecture/targets-and-access.md \
     docs/architecture/service-topology.md \
     docs/reference/development-contracts.md \
     docs/user-guide/build-native.md \
@@ -64,7 +64,8 @@ for absent_path in \
     embedded-dev-docker \
     examples/shared_core \
     examples/native \
-    examples/stm32f407; do
+    examples/stm32f407 \
+    docs/architecture/targets-and-sessions.md; do
     assert_path_absent "${absent_path}"
 done
 

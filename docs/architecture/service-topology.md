@@ -1,8 +1,8 @@
 # 服务拓扑
 
-RM Relay 依赖服务器，但“一台服务器”不是一个产品组件。同一台机器可以承载多个职责不同
-的容器；资源充足后，这些职责也可以迁移到不同节点。服务边界由输入、权限和生命周期决定，
-不由物理机器数量决定。
+RM Relay 依赖服务器，但“一台服务器”不是一个产品组件。同一台 x86 机器可以承载多个
+职责不同的服务；资源充足后，这些职责也可以迁移到不同节点。边界由输入、权限和生命周期
+决定，不由物理机器数量决定。
 
 ```text
 环境供应
@@ -10,118 +10,112 @@ RM Relay 依赖服务器，但“一台服务器”不是一个产品组件。�
                                ├── development image
                                └── runtime image
 
-日常开发
+日常构建
 development image ─┐
                    ▼
-开发者 CLI → workspace 构建器 → Build Output → 返回本地
-local/team/invite                                  │
-                                                   ▼
-                                            target adapter
-                                            ├──物理设备
-                                            └──虚拟执行器
-                                                   ▲
-                                                   │
-                                             runtime image
+开发者 CLI → workspace builder → Build Output → 返回本地
+                   │
+                   └── server-side cache
+
+培训与体验
+开发者 CLI → K3s API → user namespace → virtual target
+                                            └── isolated storage
 ```
 
-图中的箭头表示职责与数据流，不要求所有服务常驻，也不要求它们部署在同一台机器。
+服务器上不设置首版自研的 `rm-relay-server`。RM Relay 提供可复现的 Compose、K3s 配置、
+profile 和验证方法；战队运维人员负责机器、网络、账号、容量、备份和服务可用性。
 
 ## 服务角色
 
 ### 环境镜像构建器
 
 它消费 RM Relay 的 Dockerfile、mise 能力配置和 Bake target，生产固定版本的官方镜像。
-这项服务由维护者或 CI 使用，不向普通开发者暴露，也不编译用户每天修改的 workspace。
+这项服务由维护者或 CI 使用，不向普通开发者开放，也不编译用户每天修改的 workspace。
 
-跨架构镜像生产所需的 BuildKit builder、QEMU、cache 和签名发布都属于这一角色。
+跨架构镜像生产所需的 BuildKit builder、QEMU、cache 和镜像发布属于这一角色。
 
 ### OCI Registry
 
-Registry 保存 development、runtime 和经战队审查的派生镜像。Registry 不保存用户源码、
-普通 Build Output 或 Session 数据。国内部署优先承载大体积镜像流量，少量源码仍可从上游
-获取。
+Registry 保存 development、runtime 和经战队审查的派生镜像，不保存用户源码、普通
+Build Output 或 target 数据。RM Relay 只依赖标准 OCI 能力，不绑定商业平台；国内实例
+优先承载大体积镜像流量，少量上游源码仍可按项目需要获取。
 
-RM Relay 只依赖标准 OCI 能力，不绑定某个商业平台。Registry 的部署、备份和访问策略在
-功能实现后进入 operator guide。
+### workspace builder
 
-### workspace 构建器
+workspace builder 取得固定 development image 和用户源码快照，运行 CMake、colcon、测试
+或交叉编译，再由 BuildKit 把 Build Output 返回客户端。服务端可以长期保存 BuildKit
+cache、ccache 和依赖 cache，不能把临时 workspace 当作源码真相源。
 
-workspace 构建器取得固定 development image 和用户源码快照，运行 CMake、colcon、测试
-及交叉编译，然后把 Build Output 返回客户端。服务端可以保留 BuildKit cache、ccache 和
-依赖 cache，不能把远程 workspace 当作源码真相源。
+镜像构建器和 workspace builder 可以共享 BuildKit 基础设施，但不是同一项服务：前者生产
+环境，后者消费环境。入口、权限、cache 与验证应分别配置。
 
-镜像构建器和 workspace 构建器可以共享 BuildKit 基础设施，但它们不是同一项服务：前者
-生产环境，后者消费环境。两者应拥有不同入口、权限、cache namespace 和验证方法。
+在战队内部和邀请制实例中，同一环境与工具链可以共享 ccache；job workspace 和 build tree
+仍按任务隔离。本地 cache 与服务器 cache 互不同步。
 
-### 虚拟执行器
+### K3s 虚拟 target 服务
 
-虚拟执行器按需创建 Linux virtual target，用于培训、快速体验和没有真实设备时的链路
-验证。它消费与物理 Linux target 相同的本地 Build Output 和 runtime profile，不接受构建
-服务器私下直传产物。
+K3s 只负责多用户虚拟 target，不接管 Registry、workspace builder 或物理设备。每位用户
+或租户取得范围受限的 Kubernetes credential，并对应独立 namespace：
 
-首版虚拟 target 只承诺应用 runtime 层；需要完整模拟目标宿主机时，后续可以增加 VM 类型
-的 provider。虚拟执行器不要求默认采用 Docker-in-Docker，也不应把宿主 Docker socket
-直接交给用户任务。
+```text
+user identity
+└── namespace
+    ├── virtual target runtime
+    ├── resource quota
+    ├── isolated storage
+    └── RBAC policy
+```
+
+K3s API 本身就是这项服务的编排平面，因此首版不再开发用户数据库、调度器或虚拟设备控制
+服务。`rm-relay` 隐藏 Kubernetes 细节，战队运维人员负责安装升级 K3s、发放凭据、设置
+namespace、配额、存储和安全策略。
+
+这种隔离适合战队内部或受邀队伍的培训环境，不足以承载匿名不受信任代码。公开服务需要
+更强 sandbox、身份、配额和合规设计，属于后续模块。
 
 ## 三种接入方式
 
-一般开发者使用同一套 mise 任务，只切换 backend：
+一般开发者使用同一套 mise task 和 `rm-relay` CLI，只切换基础设施来源：
 
-```text
-local
-开发者电脑上的 Docker 与宿主调试后端
+| 方式 | 基础设施 | 适用场景 |
+|---|---|---|
+| local | 开发者电脑上的 Docker、cache 和宿主调试后端 | 熟悉 Docker 的个人开发 |
+| team | 战队 Registry、workspace builder 与 K3s virtual target | 队内长期使用和培训 |
+| invite | 维护者暂时提供的同类服务 | 友队试用和设计验证 |
 
-team
-战队内部的 Registry、workspace 构建器和可选虚拟执行器
+“快速体验”是远程构建与虚拟 target 串联后的结果，不是浏览器 IDE 或另一套在线编译 API。
+当前邀请制实例只服务本战队和受邀友队。公开注册和匿名多租户不属于首版。
 
-invite
-项目维护者临时提供给受邀战队的同类服务
-```
-
-“快速体验”是这些组件串联后的使用结果，不是一项独立的 Web 服务。它通过项目标准任务
-入口发起，不建设浏览器 IDE，也不另写一套在线编译 API。
-
-当前远程试用采用邀请制：独立 SSH 公钥、SSH tunnel 和明确的服务账号。它只服务本战队
-与受邀友队，不开放注册，也不把内部 BuildKit 裸露给互联网。公网多租户需要身份、配额、
-任务隔离和合规设计，列入后续可选模块。
-
-## 客户端是控制端
-
-远程构建不会改变开发者电脑的角色：
+## 客户端仍是控制端
 
 ```text
 本地源码
   ↓
-远程 workspace 构建
+local / remote workspace build
   ↓
 Build Output 返回本地
   ↓
 客户端选择 target 并传输
   ↓
-客户端直连 target shell / debugger
+客户端直连 shell / debugger，接收开发数据
 ```
 
-构建服务器不处在 target 的实时调试、ROS 数据或 Session 数据回传链路中。特殊网络可以
-使用 SSH jump host，但这只是连接方式，不改变组件职责。
+构建服务器不进入 target 的实时调试、ROS 数据或文件回传链路。K3s 虚拟 target 也消费
+客户端持有的 Build Output，不接受 workspace builder 私下直传产物。这样，本地、远程构建
+和不同 target 后端可以独立替换。
 
-## 首版不建设控制平台
+## 部署边界
 
-服务端需要由 RM Relay 提供可复现配置、固定镜像、cache 目录、资源限制、启动方法和
-smoke 验证；不因此自研以下组件：
+固定服务可以由 Compose 管理；需要多用户资源隔离和按需 runtime 时才使用 K3s。引入 K3s
+不意味着把整套服务器迁入 Kubernetes。
 
-- Web 管理界面；
-- 用户数据库；
-- 通用调度器；
-- 自定义文件同步协议；
-- 浏览器开发环境；
-- 常驻于每个项目的复杂 agent；
-- 与成熟工具重复的构建 daemon。
+首版不自研以下设施：
 
-mise 负责用户入口，BuildKit 负责构建平面，Compose 管理 Session runtime，OpenSSH 提供
-连接。Dev Containers 保留为 IDE 与第三方远程开发工具的兼容标准，不成为另一套构建事实
-源。
+- Web 管理界面和浏览器开发环境；
+- 服务器用户数据库与通用任务队列；
+- 文件同步协议和网络 overlay；
+- 面向匿名用户的公共 sandbox；
+- 常驻于每个用户项目的复杂 agent。
 
-## 尚未定案
-
-workspace 构建器的具体部署文件、并发模型、磁盘配额、BuildKit 安全参数和服务发现方式尚未
-确定。当前文档只固定服务职责和数据流，operator guide 应在实现并验证后再给出部署命令。
+workspace builder 的部署文件、并发限制、磁盘配额、BuildKit 安全参数，以及 K3s 的存储和
+凭据发放方式尚未定案。operator guide 只会在相应配置经过实际部署验证后给出命令。
