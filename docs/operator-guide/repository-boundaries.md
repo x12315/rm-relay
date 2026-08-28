@@ -1,4 +1,8 @@
-# 开发环境架构边界
+# 仓库资产与产品边界
+
+本页说明仓库中的资产如何分工。项目整体技术拓扑见
+[开发平台架构](../architecture/README.md)，稳定术语与生命周期见
+[开发契约参考](../reference/development-contracts.md)。
 
 ## 资产类型与受众
 
@@ -19,10 +23,16 @@
 仓库按能力而不是团队名称组织环境：
 
 - `mcu-dev`：裸机/RTOS 目标的交叉编译、烧录与调试。
-- `compute-dev`：未来普通 Linux、视觉、ROS 2、NVIDIA 或 AXERA 等算力侧环境的家族名。
+- 算力侧 profile：未来分别覆盖普通 Linux、原生 C++ 视觉、ROS 2 视觉、导航和厂商
+  runtime，不用一个 `compute-dev` 全家桶承载所有能力。
 
-当前只实现 `base` 和 `mcu-dev`。未来视觉算法可能拆成多个 compute profile，
-不应因此把 ROS 2 当作整个算力侧的唯一边界。
+当前只实现 `base` 和 `mcu-dev`。嵌入式目标不需要 Linux runtime；未来算力侧每个正式
+profile 则要提供匹配的 development/runtime 环境。runtime 只包含通用运行依赖，不打包
+用户应用。
+
+底层能力由 Dockerfile 与 mise 配置分段，最终成品组合只在 Bake 中定义。普通成员选择
+官方 profile；项目特有扩展通过 mise overlay 构建成派生镜像，不能在运行中的容器内临时
+修改环境。
 
 ## 用户项目的源码依赖方向
 
@@ -33,14 +43,23 @@
 RoboMaster C 是首个 board profile，不是项目核心。新增 STM32 或 STC 设备时增加
 对应工具链与设备配置；不会用一块板的目录结构约束其他设备。
 
-## 当前没有纳入的能力
+## 已设计但尚未实现
 
-- runtime 镜像只在出现具体应用运行依赖后引入；当前拆分价值不足。
-- SSH/rsync 远程部署已经进入路线图，仓库尚未提供实现。
-- Windows 的宿主 OpenOCD 与 WSL2/USBIPD 路径需后续在真实机器验证。
-- Apple `container` 可作为普通 OCI 运行时的实验项，不作为当前 USB/ST-Link 后端。
-- Agent Skill 或 MCP server 只用于已经稳定、重复的流程。当前仍以标准 CLI 和文档为准。
+- mise 项目任务、`rm-relay` 客户端与官方 profile/Template 模型；
+- 国内 OCI Registry、远程 workspace 构建和邀请制体验实例；
+- 算力侧 development/runtime 环境与跨架构 sysroot；
+- 物理 Linux target 的 `rm-relay-node`、受控容器、Mutagen 传输与数据取回；
+- 基于 K3s namespace 的多用户虚拟 target；
+- Windows 的宿主 OpenOCD 与 WSL2/USBIPD 路径。
 
-IDE 只负责编辑和调试体验。项目可以提供 VS Code/VSCodium 的工作区、任务和调试预设，
-但这些配置必须调用现有的 CMake、OpenOCD 和 GDB 入口，不能另建一套构建逻辑。工具链
-镜像不打包 IDE、用户扩展或个人配置。
+这些能力属于基本开发链路，不能因为尚未实现而写成项目外能力。比赛用持久部署、开机
+自启、批量分发、目标系统镜像和公网多租户则位于
+[后续可选模块](../../ROADMAP.md#后续可选模块)。
+
+IDE 只负责编辑和调试体验。项目可以提供 VS Code/VSCodium、Dev Container 的工作区、
+任务和调试预设，但这些配置必须调用 mise、`rm-relay`、CMake、OpenOCD 和 GDB 等已有入口，
+不能另建构建逻辑。任何镜像都不打包 IDE、用户扩展或个人配置。
+
+Apple `container` 可以作为普通 OCI runtime 的实验项，不作为当前 USB/ST-Link 后端。
+Agent Skill 或 MCP server 只封装已经稳定、重复的操作；架构仍以标准配置、CLI、文档和
+可执行验证为准。

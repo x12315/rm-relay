@@ -5,11 +5,13 @@
 
 > [!IMPORTANT]
 > 项目仍在建设。目前可用的是 STM32 嵌入式开发基线；快速体验服务器、IDE 一键配置、
-> 战队部署方案和 Linux 应用开发环境尚未交付。路线图表达建设方向，不代表已经支持。
+> 战队部署方案、Linux 应用环境、远程构建、目标设备接入和数据回收尚未交付。路线图和
+> 架构文档表达建设方向，不代表已经支持。
 
 RM 队伍的成员和工程经验随赛季快速流动。一套环境如果只能由少数人安装、升级和排错，
 很容易在交接后失效。RM Relay 将重复出现的工具链配置、项目入口和验证方法整理成可复现
-的公共基础设施，让新人能开始使用，也让队伍有能力继续维护。
+的公共基础设施。项目的完整边界从开发环境延伸到目标设备上的受控开发环境；用户负责应用
+源码和启动方式，平台负责构建、传输、调试接入与开发数据回收。
 
 ## 项目原则
 
@@ -38,17 +40,18 @@ STM32F407 和 RoboMaster C 已能完成交叉编译；RoboMaster C 已在 macOS 
 支持状态以[支持矩阵](docs/user-guide/support-matrix.md)为准，不能从一个平台的结果推导
 其他平台已经验证。
 
-RoboMaster C 是首个支持的 board profile，不是项目结构中心。开发镜像只提供工具链，
-不包含机器人应用 runtime 或 IDE；编辑器可以消费 CMake Presets 和调试配置，但不是
-构建的唯一真相源。
+RoboMaster C 是首个支持的 board profile，不是项目结构中心。当前嵌入式镜像只提供
+工具链，不包含 IDE。未来算力侧会分别提供 development 与匹配的 runtime 环境，但仍不
+打包用户应用；编辑器可以消费 CMake Presets 和调试配置，不能成为构建的唯一真相源。
 
 ## 使用方式
 
-### 快速体验（规划中）
+### 远程快速体验（规划中）
 
-面向没有本地开发环境的初学者。公共服务器将允许用户通过网络体验编译和基础验证，计划
-由 [@x12315](https://github.com/x12315) 部署与维护，不承诺生产级可用性。完成试用后，
-推荐联系战队维护者部署长期使用的内部服务。
+面向没有本地开发环境的初学者。首个实例计划由
+[@x12315](https://github.com/x12315) 部署，只向本战队与受邀友队开放，用于验证远程编译
+和虚拟 target 链路。它与本地、战队服务器使用同一 CLI，不建设浏览器 IDE，也不承诺
+生产级可用性。公开注册和面向陌生用户的强隔离服务属于后续方向。
 
 ### 本地 Docker（当前可用）
 
@@ -57,8 +60,8 @@ RoboMaster C 是首个支持的 board profile，不是项目结构中心。开�
 
 ### 战队部署（规划中）
 
-面向战队运维人员，在战队服务器上托管镜像与远程编译能力，为成员提供稳定入口。部署
-文档尚未交付；当前维护者可以先参考
+面向战队运维人员，在战队服务器上组合 Registry、远程 workspace 构建与 K3s 虚拟 target，
+为成员提供稳定入口。部署文档尚未交付；当前维护者可以先参考
 [镜像构建与验证](docs/operator-guide/build-and-verify-images.md)。
 
 ## 本地 Docker 快速开始
@@ -84,8 +87,10 @@ STM32F407/RoboMaster C 交叉编译。进一步操作见：
 - [STM32 固件构建](docs/user-guide/build-stm32.md)
 - [烧录、调试与平台支持](docs/user-guide/support-matrix.md)
 
-维护项目或参与建设时，阅读[仓库资产边界](docs/operator-guide/repository-boundaries.md)、
-[项目路线](ROADMAP.md)、[社区工作](docs/community/README.md)与[贡献指南](CONTRIBUTING.md)。
+想先理解项目将如何工作，阅读[开发平台架构](docs/architecture/README.md)和
+[开发契约参考](docs/reference/development-contracts.md)。维护项目或参与建设时，再阅读
+[仓库资产边界](docs/operator-guide/repository-boundaries.md)、[项目路线](ROADMAP.md)、
+[社区工作](docs/community/README.md)与[贡献指南](CONTRIBUTING.md)。
 
 ## 发起与许可证
 
