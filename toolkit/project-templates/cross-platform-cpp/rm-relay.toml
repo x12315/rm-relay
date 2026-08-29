@@ -1,0 +1,20 @@
+schema_version = 1
+project_id = ""
+default_profile = "embedded-stm32f407-robomaster-c"
+
+[[builds]]
+profile = "embedded-stm32f407-robomaster-c"
+mise_config = "mise.toml"
+task = "rm-relay:build:stm32f407-robomaster-c"
+
+[[builds.outputs]]
+role = "firmware.elf"
+path = "robomaster-c-starter.elf"
+
+[[builds.outputs]]
+role = "firmware.bin"
+path = "robomaster-c-starter.bin"
+
+[[builds.outputs]]
+role = "linker.map"
+path = "robomaster-c-starter.map"

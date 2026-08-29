@@ -26,9 +26,11 @@ for required_file in \
     README.md \
     ROADMAP.md \
     toolkit/README.md \
+    toolkit/go.mod \
     toolkit/cmd/rm-relay/.gitkeep \
     toolkit/cmd/rm-relay-node/.gitkeep \
-    toolkit/internal/.gitkeep \
+    toolkit/internal/project/config.go \
+    toolkit/internal/profile/catalog.go \
     toolkit/container-images/embedded-development/README.md \
     toolkit/container-images/embedded-development/Dockerfile \
     toolkit/container-images/embedded-development/docker-bake.hcl \
@@ -37,7 +39,10 @@ for required_file in \
     toolkit/project-templates/cross-platform-cpp/README.md \
     toolkit/project-templates/cross-platform-cpp/CMakeLists.txt \
     toolkit/project-templates/cross-platform-cpp/CMakePresets.json \
+    toolkit/project-templates/cross-platform-cpp/rm-relay.toml \
     toolkit/project-templates/cross-platform-cpp/portable-code/README.md \
+    toolkit/profiles/embedded-stm32f407-robomaster-c/profile.toml \
+    toolkit/profiles/embedded-stm32f407-robomaster-c/mise.toml \
     toolkit/openocd/boards/robomaster-c.cfg \
     examples/deterministic-pi-control/README.md \
     examples/deterministic-pi-control/CMakeLists.txt \
