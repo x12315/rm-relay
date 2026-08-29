@@ -70,11 +70,29 @@ development image      供 local/remote backend 消费
 
 目前仓库已经实现 Dockerfile/Bake 这部分：作为环境输出的 `base` 与 `mcu-dev` 都有
 `linux/amd64`、`linux/arm64` target。Dockerfile 中的其他 helper stage 只为这些输出准备
-文件。mise 能力片段、正式 Template 和派生环境流程仍待实现。
+文件。mise 能力片段、正式 Dev Container Template 和派生环境流程仍待实现。
 
 环境镜像不打包 IDE、用户扩展或个人配置。Dev Container Template 可以给 VS Code 等编辑器
 提供 mount、设备和任务建议，但必须继续调用 mise、CMake、OpenOCD 等已有入口，不能建立
 另一套构建真相源。
+
+## 两类核心 Template 固定不同入口
+
+Project Template 与 Dev Container Template 都属于 RM Relay 的核心资产，但不解决同一个
+问题：
+
+| 核心资产 | 固定的入口 | 消费方式 | 当前状态 |
+|---|---|---|---|
+| Project Template | 用户项目的源码、CMake、测试和目标配置结构 | 当前由用户复制并改名；未来也可由 `rm-relay init` 交互式生成 | `templates/cross-platform-cpp/` 已实现 |
+| Dev Container Template | profile 对应的 environment、mount、设备接入和 IDE 建议 | 用户按 profile 创建 development container | 尚未实现 |
+
+Project Template 与项目声明、profile 和 Build Output 契约共同演进，不能作为可选插件拆出核心
+仓库。Dev Container Template 也属于 profile 的环境交付，不等同于某个 IDE 的专用配置。
+
+IDE 和 Agent integration 位于另一层。未来可以用独立的 `rm-relay-integrations` 仓库交付少量
+由用户一次性手动导入的 VS Code/VSCodium 配置和可标准安装的 Agent Skill，但它们只消费
+公开 CLI、schema、profile 名称和模板契约；`rm-relay` 不反向依赖它们。integration 不得复制
+构建、烧录或调试逻辑，也不成为 `rm-relay init` 和核心开发链路的前提。
 
 ## 项目依赖通过派生镜像进入
 

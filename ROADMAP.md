@@ -28,8 +28,7 @@ Build Output 返回本地
 ## 1. 扩展嵌入式实板调试支持
 
 RoboMaster C 已完成首个 macOS 实板闭环。下一步根据 RM 队伍的真实设备补充 STM32
-板卡与调试后端，并完善 Windows、Linux 的宿主接入和 VS Code/VSCodium 配置。board
-profile 继续与项目结构分离。
+板卡与调试后端，并完善 Windows、Linux 的宿主接入。board profile 继续与项目结构分离。
 
 ## 2. 建立统一入口与 profile 模型
 
@@ -40,6 +39,25 @@ profile 继续与项目结构分离。
 环境镜像通过 Dockerfile 能力层与 Bake 官方 profile 组合；每个正式 profile 提供独立
 Dev Container Template，项目扩展以 mise overlay 构建成不可变的派生镜像。当前嵌入式
 模板和示例迁移到这套入口后，再用相同方法扩展算力侧环境。
+
+Project Template 继续作为核心资产：用户当前可以复制并改名，未来也可由 `rm-relay init`
+通过交互式向导生成和配置。Dev Container Template 同样属于核心 profile 契约，不作为 IDE
+插件拆分。
+
+### 可选 IDE 与 Agent integration
+
+可选 integration 不阻塞基本开发链路，也不在当前阶段创建仓库。满足以下条件后，再设计并
+建立独立的 `rm-relay-integrations`：
+
+- `rm-relay init` 已能稳定生成项目；
+- profile 名称、项目声明 schema、Project Template 和 Build Output 边界已经稳定；
+- CLI 提供适合 IDE 和 Agent 消费的机器可读结果；
+- 核心仓库能用 contract test 验证外部 integration 没有复制构建、烧录或调试逻辑。
+
+当前[VS Code 示例](docs/user-guide/vscode-example.md)只是可复制的参考片段，不是一键导入或
+独立发布的 integration package。未来仓库只交付由用户一次性手动导入的少量
+VS Code/VSCodium 配置，以及通过 npm/Skills 等标准方式安装的 Agent Skill。它单向依赖
+`rm-relay` 的公开契约；具体目录、Skill 内容、发布命令、CI 和支持列表留到启动时设计。
 
 ## 3. 发布镜像与远程构建体验
 
