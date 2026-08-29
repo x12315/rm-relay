@@ -1,7 +1,7 @@
 # Target 接入与数据链路
 
-本文从 Build Output 已经回到本地的位置开始，说明它如何进入物理或虚拟设备，以及 shell、
-debugger 和开发数据如何回到开发者电脑。构建这一输出的过程见
+本文从 Build Output 已经回到开发机的位置开始，说明它如何进入物理或虚拟设备，以及 shell、
+debugger 和开发数据如何回到开发机。构建这一输出的过程见
 [构建与输出](builds-and-outputs.md)。
 
 > [!IMPORTANT]
@@ -9,10 +9,10 @@ debugger 和开发数据如何回到开发者电脑。构建这一输出的过�
 > adapter 与 `rm-relay-node` 仍是设计基线；真实支持状态见
 > [支持矩阵](../user-guide/support-matrix.md)。
 
-## Target 从本地 Build Output 接手
+## Target 从开发机 Build Output 接手
 
 ```text
-Build Output（本地）
+Build Output（开发机）
         │
         ▼
 target adapter
@@ -30,7 +30,7 @@ adapter 不强迫它们共享容器、目录、daemon 或生命周期。MCU 没�
 
 | 角色 | 所在侧 | 负责 | 不负责 |
 |---|---|---|---|
-| Target adapter | 开发者客户端 | 消费本地 Build Output；把统一能力请求转换为对应 target 操作 | 保存唯一项目资产；管理 build backend |
+| Target adapter | 开发机 | 消费开发机上的 Build Output；把统一能力请求转换为对应 target 操作 | 保存唯一项目资产；管理 build backend |
 | Target provider | 目标侧或远程基础设施 | 管理 Target/Target Environment 的生命周期、内部状态和资源 | 构建用户源码；定义应用启动方式 |
 
 物理 Linux 的 provider 角色由 `rm-relay-node` 承担；virtual target provider 以 K3s namespace
@@ -38,21 +38,21 @@ adapter 不强迫它们共享容器、目录、daemon 或生命周期。MCU 没�
 OpenOCD、DFU、serial 或 GDB 后端。Adapter/provider 的具体接口尚未确定，但这条责任边界
 不会随协议选择改变。
 
-## 开发者电脑保持控制权
+## 开发机保持控制权
 
 Target 链路中的方向是固定的：
 
 ```text
-源码与构建请求   本地 → local / remote backend
-Build Output      remote backend → 本地 → target
-shell / debugger  本地 ↔ target
-Managed Data      target → 本地
+源码与构建请求   开发机 → local / remote backend
+Build Output      remote backend → 开发机 → target
+shell / debugger  开发机 ↔ target
+Managed Data      target → 开发机
 ```
 
 Workspace builder 不成为 debugger 或数据中转站。特殊网络可以增加独立 jump host，但不能
 把 target 的实时连接变成构建服务职责。
 
-Linux 调试可以使用 target 中的 GDB/gdbserver 或 debugpy；IDE 保留本地源码，并根据稳定
+Linux 调试可以使用 target 中的 GDB/gdbserver 或 debugpy；IDE 保留开发机源码，并根据稳定
 构建路径映射 symbols。ROS CLI、日志、trace、bag 和可视化由用户在应用层选择。RM Relay
 提供 Target Environment、交互入口、调试连接和受管数据路径，不解析应用进程结构。
 
@@ -62,7 +62,7 @@ Linux 调试可以使用 target 中的 GDB/gdbserver 或 debugpy；IDE 保留本
 与 `arm64`。设计中，`rm-relay-node` 以原生 `.deb` 安装在宿主机：
 
 ```text
-开发者电脑上的 rm-relay
+开发机上的 rm-relay
         │
         ▼
 物理宿主机上的 rm-relay-node
@@ -90,8 +90,8 @@ Build Job 结束或用户程序退出都不会销毁它。
 物理 Linux target 的首个传输设计采用 Mutagen：
 
 ```text
-本地 Build Output ── Mutagen ──→ target 输入目录
-本地数据目录       ←─ Mutagen ─── target 数据目录
+开发机 Build Output ── Mutagen ──→ target 输入目录
+开发机数据目录       ←─ Mutagen ─── target 数据目录
 ```
 
 Mutagen session 已经保存连接与同步状态，RM Relay 不再维护平行的 Development Session
@@ -135,7 +135,7 @@ Docker-in-Docker。它只承诺应用 runtime 层；kernel、驱动、物理设�
 ## MCU target
 
 MCU adapter 把固件交给 OpenOCD、ROM DFU、serial bootloader 或厂商兼容工具，再由 GDB
-连接调试后端。USB 设备位于开发者电脑还是远程调试主机，由 host profile 决定。
+连接调试后端。USB 设备位于开发机还是远程调试主机，由 host profile 决定。
 
 MCU 不安装 `rm-relay-node`，不运行 Mutagen，也没有 Linux Target Environment。Board
 profile 直接声明可用的 flash、reset、serial 和 debug 后端。当前 RoboMaster C 已在 macOS
@@ -146,7 +146,7 @@ profile 直接声明可用的 flash、reset、serial 和 debug 后端。当前 R
 | 问题 | 物理 Linux | 虚拟 Linux | MCU |
 |---|---|---|---|
 | 环境载体 | 可重建 container | namespace 内 runtime | 固件自身 |
-| 接入管理者 | `rm-relay-node` | virtual target provider | 本地/host adapter |
+| 接入管理者 | `rm-relay-node` | virtual target provider | 开发机侧 adapter |
 | 结果传入 | Mutagen（首个设计） | provider 内部传输待定 | flash/debug backend |
 | 数据返回 | Managed Data 同步 | 隔离 storage 返回 | serial/debugger 等设备链路 |
 | 不能替代的证据 | 真实设备、驱动、kernel | 物理宿主行为 | 其他 OS/板卡实测 |
@@ -154,5 +154,5 @@ profile 直接声明可用的 flash、reset、serial 和 debug 后端。当前 R
 ## 仍待组件设计确定的内容
 
 Target adapter 接口、`rm-relay-node` 通信协议、Mutagen 同步模式、目标宿主内部目录和 K3s
-内部传输方式尚未确定。实现必须保留本页的外部边界：本地是控制端；物理环境可重建；同步
+内部传输方式尚未确定。实现必须保留本页的外部边界：开发机是控制端；物理环境可重建；同步
 状态由 Mutagen 管理；虚拟隔离由 K3s 管理；应用启动由用户项目决定。

@@ -15,10 +15,10 @@ RM Relay 解决的是开发链路问题，不是机器人应用问题。用户�
 启动它；RM Relay 让同一份项目声明能在固定环境中构建，并把可部署结果送到不同 target，
 同时保留调试和数据返回路径。
 
-一轮开发从本地开始，也在本地收口：
+一轮开发从开发机开始，也在开发机收口：
 
 ```text
-本地源码与项目声明
+开发机上的源码与项目声明
         │
         ▼
 选择 development profile
@@ -27,13 +27,25 @@ RM Relay 解决的是开发链路问题，不是机器人应用问题。用户�
 local backend 或 remote workspace builder
         │
         ▼
-Build Output 返回本地
+Build Output 返回开发机
         │
         ▼
 target adapter ──→ MCU / 物理 Linux / 虚拟 Linux
         │                         │
-        └──── shell、debugger、Managed Data ────→ 本地
+        └──── shell、debugger、Managed Data ────→ 开发机
 ```
+
+这条链路固定使用三个部署角色：
+
+| 名称 | 准确定义 | 主要状态与入口 |
+|---|---|---|
+| **开发机** | 保存项目并发起开发操作的机器 | 源码、项目声明、Build Output、已取回数据，以及 `rm-relay`、mise、Mutagen、OpenOCD、GDB 等客户端入口 |
+| **编译服务器** | 接收源码快照并执行远程构建的机器 | Workspace builder、BuildKit、ccache 和依赖 cache；结果必须返回开发机 |
+| **目标机** | 最终执行用户程序或固件的设备 | MCU、物理 Linux target 或虚拟 Linux target，以及它们提供的运行、交互和调试能力 |
+
+这些名称按职责划分，不表示必须准备三台物理机器。本地构建时，开发机同时承担编译；培训
+服务也可以把编译服务器与虚拟目标机部署在同一台服务器上。物理位置可以合并，源码归属、
+构建状态和 target 状态的责任边界不能合并。
 
 这里有四个第一次阅读就要知道的术语：
 
@@ -42,10 +54,10 @@ target adapter ──→ MCU / 物理 Linux / 虚拟 Linux
   CMake Install Tree 或 ROS 2 Install Space。
 - **Target**：接收 Build Output 并提供 flash、shell、transfer 或 debug 等开发能力的物理或
   虚拟设备。
-- **Managed Data**：应用写入受管目录、需要从 target 取回本地的日志、trace、bag 等开发
+- **Managed Data**：应用写入受管目录、需要从 target 取回开发机的日志、trace、bag 等开发
   数据。
 
-这条链路最重要的约束是：源码、项目声明、Build Output 和已取回的数据以开发者电脑为
+这条链路最重要的约束是：源码、项目声明、Build Output 和已取回的数据以开发机为
 真相源。远程服务和 target 可以保留 cache 或暂存数据，但不能成为唯一资产位置。
 
 ## 沿开发闭环理解四个责任面
@@ -53,7 +65,8 @@ target adapter ──→ MCU / 物理 Linux / 虚拟 Linux
 ### 1. 环境先固定“用什么构建”
 
 Development profile 固定工具链、依赖、目标架构和兼容基线。项目需要额外依赖时，要从
-官方环境构建派生镜像；不能在运行中的正式容器里临时安装，从而让本地与远程得到不同环境。
+官方环境构建派生镜像；不能在运行中的正式容器里临时安装，从而让开发机与编译服务器得到
+不同环境。
 
 当前仓库已经把 `base` 和 `mcu-dev` 作为可选择的环境 stage，并分别为 `linux/amd64`、
 `linux/arm64` 定义了 Bake target。算力侧 development/runtime 环境、mise 能力层、官方
@@ -66,14 +79,14 @@ Local backend 和 remote backend 消费相同的项目声明与 development prof
 CMake、colcon、Ninja、CTest 等原生工具；`mise` 组织常用任务，未来的 `rm-relay` 只编排
 跨容器、跨机器和 target 相关操作。
 
-两种 backend 的共同出口都是本地 Build Output。Remote workspace 是一次性工作区，服务端
-cache 可以删除；workspace builder 不直接把结果部署到 target。当前 MCU 模板仍直接从
+两种 backend 的共同出口都是开发机上的 Build Output。Remote workspace 是一次性工作区，
+服务端 cache 可以删除；workspace builder 不直接把结果部署到 target。当前 MCU 模板仍直接从
 `build/stm32f407-robomaster-c/firmware/` 使用 ELF/BIN/MAP，统一的 `install/<profile>`
 边界尚未落地。设计与现状的差异见[构建与输出](builds-and-outputs.md)。
 
 ### 3. Target 接入回答“结果去哪里、如何调试”
 
-Build Output 回到本地后，target adapter 才接手。三类 target 共享能力名称，不共享内部
+Build Output 回到开发机后，target adapter 才接手。三类 target 共享能力名称，不共享内部
 实现：
 
 ```text
@@ -84,8 +97,8 @@ rm-relay
     └── 虚拟 Linux：调用基于 K3s 的 virtual target provider
 ```
 
-Adapter 选择实现并把本地 Build Output、shell 或 debug 请求转换为对应操作；provider 管理
-target 或 Target Environment 的生命周期与内部状态。MCU 没有独立 provider daemon。
+Adapter 选择实现并把开发机上的 Build Output、shell 或 debug 请求转换为对应操作；provider
+管理 target 或 Target Environment 的生命周期与内部状态。MCU 没有独立 provider daemon。
 
 | Target | 适合的实现 | 开发能力 |
 |---|---|---|
@@ -94,7 +107,7 @@ target 或 Target Environment 的生命周期与内部状态。MCU 没有独立 
 | 虚拟 Linux | K3s namespace 与 virtual target provider | shell、transfer、应用 runtime、数据回收 |
 
 MCU 不模拟 Linux 容器或 daemon；虚拟 target 也不复制物理宿主机的 kernel、驱动和设备。
-Debugger 默认由开发者电脑直连 target，不经过 workspace builder。各 target 的生命周期和
+Debugger 默认由开发机直连 target，不经过 workspace builder。各 target 的生命周期和
 数据路径见[Target 接入与数据链路](targets-and-access.md)。
 
 ### 4. 服务部署回答“哪些角色放在哪些机器上”
@@ -112,12 +125,12 @@ RM Relay 首版复用 BuildKit、Registry、Compose 和 K3s 已有控制面，�
 
 | 对象 | 真相源或管理者 | 不应承担的责任 |
 |---|---|---|
-| 应用源码、算法、项目声明 | 用户项目与本地 Git | 由远程 builder 或 target 长期托管 |
+| 应用源码、算法、项目声明 | 开发机上的用户项目与 Git | 由远程 builder 或 target 长期托管 |
 | Development/runtime 环境 | RM Relay profile 与镜像配置 | 在运行中的正式容器里临时改变 |
 | Build Job | local/remote backend | 直接部署 target 或保存唯一源码 |
-| Build Output | 本地项目工作区 | 混入 build tree、cache 或服务端内部路径 |
+| Build Output | 开发机上的项目工作区 | 混入 build tree、cache 或服务端内部路径 |
 | Target Environment | `rm-relay-node` 或 virtual target provider | 定义用户应用的启动与进程模型 |
-| Managed Data | 取回后由本地工作区保管 | 永久依赖 target 保存唯一副本 |
+| Managed Data | 取回后由开发机上的工作区保管 | 永久依赖 target 保存唯一副本 |
 
 跨组件共用的名称、身份、目录和生命周期属于查阅信息，集中在
 [开发契约参考](../reference/development-contracts.md)，不在每篇专题里重复定义。
@@ -126,7 +139,7 @@ RM Relay 首版复用 BuildKit、Registry、Compose 和 K3s 已有控制面，�
 
 后续组件设计可以更换工具或协议，但不能破坏以下边界：
 
-1. **本地是真相源。** 远程构建只处理源码快照；Build Output 先回本地，再进入 target。
+1. **开发机是真相源。** 远程构建只处理源码快照；Build Output 先回开发机，再进入 target。
 2. **环境可复现。** 正式依赖在镜像构建时固化；Linux development/runtime 环境共享兼容
    lineage。
 3. **Build Output 是交接面。** Target adapter 不读取带中间文件和绝对路径的 build tree；
@@ -167,7 +180,7 @@ sandbox 不阻塞当前开发闭环，见[路线图的后续可选模块](../../
 |---|---|
 | Profile 如何组合，development/runtime 如何保持兼容 | [环境与 profile](environments-and-profiles.md) |
 | Local/remote build 如何共享入口，哪些文件属于 Build Output | [构建与输出](builds-and-outputs.md) |
-| 三类 target 如何接入，数据和调试如何返回本地 | [Target 接入与数据链路](targets-and-access.md) |
+| 三类 target 如何接入，数据和调试如何返回开发机 | [Target 接入与数据链路](targets-and-access.md) |
 | Registry、builder 和 K3s 应如何部署 | [服务拓扑](service-topology.md) |
 | 某个术语、身份、目录或生命周期的准确契约 | [开发契约参考](../reference/development-contracts.md) |
 | 现在究竟支持哪些平台和后端 | [支持矩阵](../user-guide/support-matrix.md) |

@@ -6,6 +6,34 @@
 [开发平台架构](../architecture/README.md)，当前支持状态见
 [支持矩阵](../user-guide/support-matrix.md)。
 
+## RM Relay 的仓库边界
+
+RM Relay 按能够独立演进的产品边界拆分仓库，而不是按可执行文件、部署位置或生成的制品
+拆分。客户端、目标机 daemon、adapter、公共契约和核心 Template 即使生成不同制品，也
+归属主仓库；相应功能交付后，必须随同一 RM Relay release 完成组合验证。
+
+```text
+rm-relay-integrations ──消费公开 CLI 与契约──→ rm-relay
+
+rm-relay-environments ──发布环境镜像──→ OCI Registry
+```
+
+| 仓库 | 组织的资产 | 不组织的资产 | 当前状态 |
+|---|---|---|---|
+| `rm-relay` | `rm-relay` CLI、`rm-relay-node`、公共契约、Project Template、Dev Container Template，以及端到端验证和部署配置 | 可选 IDE/Agent integration；形成独立发布边界后的环境定义 | 当前主仓库 |
+| `rm-relay-environments` | 官方默认与社区环境定义、共享构建能力、profile 与 image 的映射、构建和兼容性验证、发布配置 | OCI image blob、用户源码、核心 CLI 和 Template | 规划中，尚未创建 |
+| `rm-relay-integrations` | 可一次性导入的 VS Code/VSCodium 配置，以及通过标准渠道安装的 Agent Skill | 构建、烧录、调试实现；Project Template 和 Dev Container Template | 规划中，尚未创建 |
+
+`rm-relay-environments` 保存能够审查、构建和验证的环境定义；构建后的 image blob 发布到
+OCI Registry。普通用户选择 profile，不直接管理这两个底层位置。当前
+[`toolkit/container-images/`](../../toolkit/container-images/) 仍留在主仓库，等 profile 契约、
+独立验证和发布流程稳定后再迁移。
+
+`rm-relay-integrations` 只消费 `rm-relay` 的公开 CLI、schema、profile 名称和模板契约，核心
+链路不能反向依赖它。当前只有[可复制的 VS Code 参考片段](../user-guide/vscode-example.md)，
+尚未交付 integration package。两个规划仓库的建设条件见
+[路线图](../../ROADMAP.md#2-建立统一入口与-profile-模型)。
+
 ## 套件实现与交付资产
 
 | 内容 | 位置 | 当前职责 |
