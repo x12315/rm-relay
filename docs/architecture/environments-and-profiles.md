@@ -36,9 +36,9 @@ common
 ```
 
 能力层按技术组成划分，不按战队小组或某块开发板划分。RoboMaster C、特定相机 SDK 和
-AX650N 分别属于 board、vendor 或 target profile，不能反向决定仓库拓扑。这些名称描述
-兼容维度：board 约束硬件与烧录/调试后端，vendor 约束厂商 SDK/runtime，target 约束目标
-宿主与运行环境；具体 schema 尚未确定。
+AX650N 分别形成 board、vendor 和 target 兼容维度，不能反向决定仓库拓扑：board 约束硬件
+与烧录/调试后端，vendor 约束厂商 SDK/runtime，target 约束目标宿主与运行环境；具体 schema
+尚未确定。
 
 算力侧按普通 Linux、原生 C++ 视觉、ROS 2 视觉、导航和 vendor runtime 等真实场景形成
 有限的独立 profile，不发布单一 `compute-dev` 全家桶，也不把 ROS 2 当作全部 PC 或边缘
@@ -148,8 +148,9 @@ ABI 契约保持一致。具体构建关系见[跨架构构建](builds-and-outpu
 | 构建、测试、调试工具 | 设备节点、权限、网络 |
 | target package 基线 | 时钟、实时调度、GPU/NPU 驱动兼容性 |
 
-每个算力侧 target profile 都必须声明这些宿主要求。Host contract 的 schema 尚未确定；在
-schema 和实机验证完成前，“镜像能构建”只能证明环境被配置，不能证明目标硬件兼容。
+每个面向算力侧 target 的 RM Relay Profile 都必须声明这些宿主要求。Host contract 的 schema
+尚未确定；在 schema 和实机验证完成前，“镜像能构建”只能证明环境被配置，不能证明目标
+硬件兼容。
 
 ## 本页保留的设计边界
 

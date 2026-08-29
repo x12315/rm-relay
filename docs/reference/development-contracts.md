@@ -22,6 +22,10 @@
 | Target Environment | Linux target 中承载用户程序的受控环境 | `rm-relay-node` 或 virtual target provider |
 | Managed Data | 用户放入受管目录、需要从 target 返回本地的开发数据 | 取回后由本地保管；此前由 target 暂存 |
 
+本文的 **RM Relay Profile** 指平台层的验证组合。用户项目中的
+`cmake/target-profiles/` 只描述 MCU 架构与 ABI，是 CMake 配置目录，不是另一类 RM Relay
+Profile。
+
 Build Output 沿用现有构建系统的输出形式：
 
 | 项目类型 | Build Output |
