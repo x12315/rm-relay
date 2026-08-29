@@ -2,7 +2,7 @@
 
 这里记录 `embedded-development` 的产品级版本契约。APT 包不逐个锁定版本。
 
-`versions.env` 固定 Ubuntu LTS 系列、native GCC major、Arm GNU release 和 uv 版本。
+`versions.env` 固定 Ubuntu LTS 系列、native GCC major、Arm GNU release、mise 和 uv 版本。
 Ubuntu APT 包跟随 `noble`、`noble-updates` 与 `noble-security`；每次发布镜像中的实际
 求解结果保存为：
 
@@ -29,3 +29,7 @@ Ubuntu APT 包跟随 `noble`、`noble-updates` 与 `noble-security`；每次发�
 
 APT 必须继续使用 `/usr/share/keyrings/ubuntu-archive-keyring.gpg`。不得使用
 `Trusted: yes`、`AllowUnauthenticated` 或 `AllowInsecureRepositories`。
+
+mise 使用上游 MIT 许可证发布的官方 Linux tarball。Dockerfile 对 amd64 和 arm64 分别校验
+SHA-256，只安装包内的 `mise/bin/mise`；升级版本时必须同时更新两个架构的 archive hash。
+上游发布页为 <https://github.com/jdx/mise/releases>。

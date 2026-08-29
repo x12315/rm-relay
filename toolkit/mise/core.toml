@@ -1,0 +1,4 @@
+min_version = "2026.8.14"
+
+[settings]
+task.run_auto_install = false

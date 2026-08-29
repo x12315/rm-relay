@@ -13,7 +13,7 @@ assert_command() {
 }
 
 for command_name in cmake ninja clang clang++ clang-format clang-tidy \
-    gcc-14 g++-14 gdb git python3 uv uvx; do
+    gcc-14 g++-14 gdb git mise python3 uv uvx; do
     assert_command "${command_name}"
 done
 
@@ -26,6 +26,7 @@ ninja --version
 clang --version
 gcc-14 --version
 uv --version | grep -F "${UV_VERSION}"
+mise --version | grep -F "${MISE_VERSION}"
 
 temporary_directory="$(mktemp -d)"
 case "${temporary_directory}" in

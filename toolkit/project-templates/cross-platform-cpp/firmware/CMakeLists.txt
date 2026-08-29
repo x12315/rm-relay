@@ -20,3 +20,9 @@ add_custom_command(TARGET robomaster-c-starter POST_BUILD
           "${CMAKE_CURRENT_BINARY_DIR}/robomaster-c-starter.bin"
   COMMAND "${CMAKE_SIZE}" "$<TARGET_FILE:robomaster-c-starter>"
   VERBATIM)
+
+install(TARGETS robomaster-c-starter RUNTIME DESTINATION .)
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/robomaster-c-starter.bin"
+  "${CMAKE_CURRENT_BINARY_DIR}/robomaster-c-starter.map"
+  DESTINATION .)

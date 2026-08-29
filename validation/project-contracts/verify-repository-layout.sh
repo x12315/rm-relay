@@ -36,10 +36,12 @@ for required_file in \
     toolkit/container-images/embedded-development/docker-bake.hcl \
     toolkit/container-images/embedded-development/locks/README.md \
     toolkit/container-images/embedded-development/locks/versions.env \
+    toolkit/mise/core.toml \
     toolkit/project-templates/cross-platform-cpp/README.md \
     toolkit/project-templates/cross-platform-cpp/CMakeLists.txt \
     toolkit/project-templates/cross-platform-cpp/CMakePresets.json \
     toolkit/project-templates/cross-platform-cpp/rm-relay.toml \
+    toolkit/project-templates/cross-platform-cpp/mise.toml \
     toolkit/project-templates/cross-platform-cpp/portable-code/README.md \
     toolkit/profiles/embedded-stm32f407-robomaster-c/profile.toml \
     toolkit/profiles/embedded-stm32f407-robomaster-c/mise.toml \

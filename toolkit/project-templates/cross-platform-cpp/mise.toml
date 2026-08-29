@@ -1,0 +1,9 @@
+min_version = "2026.8.14"
+
+[tasks."rm-relay:build:stm32f407-robomaster-c"]
+description = "交叉编译并导出 RoboMaster C 固件"
+run = [
+  'cmake --preset "$RM_RELAY_CMAKE_PRESET"',
+  'cmake --build --preset "$RM_RELAY_CMAKE_PRESET"',
+  'cmake --install "build/$RM_RELAY_CMAKE_PRESET" --prefix "$RM_RELAY_OUTPUT_DIR"',
+]

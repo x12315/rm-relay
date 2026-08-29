@@ -55,6 +55,25 @@ RUN case "${TARGETARCH}" in \
         xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
+RUN . /opt/embedded-development/versions.env \
+    && case "${TARGETARCH}" in \
+        amd64) mise_architecture=x64; mise_archive_sha256="${MISE_ARCHIVE_SHA256_AMD64}" ;; \
+        arm64) mise_architecture=arm64; mise_archive_sha256="${MISE_ARCHIVE_SHA256_ARM64}" ;; \
+        *) printf 'unsupported TARGETARCH for mise: %s\n' "${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && mise_temporary_directory="$(mktemp -d)" \
+    && trap 'rm -rf -- "${mise_temporary_directory}"' EXIT HUP INT TERM \
+    && mise_archive="${mise_temporary_directory}/mise.tar.gz" \
+    && curl --fail --location --retry 5 --retry-all-errors \
+       "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-${mise_architecture}.tar.gz" \
+       --output "${mise_archive}" \
+    && printf '%s  %s\n' "${mise_archive_sha256}" "${mise_archive}" \
+       | sha256sum --check --strict \
+    && tar --extract --gzip --file "${mise_archive}" \
+       --directory "${mise_temporary_directory}" mise/bin/mise \
+    && install --mode 0755 \
+       "${mise_temporary_directory}/mise/bin/mise" /usr/local/bin/mise
+
 COPY --from=uv /uv /uvx /usr/local/bin/
 COPY toolkit/container-images/embedded-development/smoke/ \
      /usr/local/lib/embedded-development/smoke/
@@ -71,6 +90,7 @@ WORKDIR /workspace
 LABEL org.opencontainers.image.base.name="ubuntu:24.04" \
       dev.embedded.ubuntu.lts="24.04" \
       dev.embedded.native-gcc.major="14" \
+      dev.embedded.mise.version="2026.8.14" \
       dev.embedded.uv.version="0.11.29" \
       dev.embedded.capabilities="native-build,native-test,analysis"
 
