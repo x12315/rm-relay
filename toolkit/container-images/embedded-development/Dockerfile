@@ -15,7 +15,7 @@ ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     TZ=Asia/Shanghai
 
-COPY container-images/embedded-development/locks/versions.env \
+COPY toolkit/container-images/embedded-development/locks/versions.env \
      /opt/embedded-development/versions.env
 COPY --from=certificates /etc/ssl/certs/ca-certificates.crt \
      /etc/ssl/certs/ca-certificates.crt
@@ -56,7 +56,7 @@ RUN case "${TARGETARCH}" in \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=uv /uv /uvx /usr/local/bin/
-COPY container-images/embedded-development/smoke/ \
+COPY toolkit/container-images/embedded-development/smoke/ \
      /usr/local/lib/embedded-development/smoke/
 
 RUN chmod +x \

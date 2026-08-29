@@ -3,11 +3,11 @@ set -eu
 
 script_directory="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 repository_root="$(CDPATH= cd -- "${script_directory}/../.." && pwd)"
-dockerfile="${repository_root}/container-images/embedded-development/Dockerfile"
-versions_file="${repository_root}/container-images/embedded-development/locks/versions.env"
-base_smoke="${repository_root}/container-images/embedded-development/smoke/verify-base-tools.sh"
-embedded_smoke="${repository_root}/container-images/embedded-development/smoke/verify-embedded-tools.sh"
-template_presets="${repository_root}/templates/cross-platform-cpp/CMakePresets.json"
+dockerfile="${repository_root}/toolkit/container-images/embedded-development/Dockerfile"
+versions_file="${repository_root}/toolkit/container-images/embedded-development/locks/versions.env"
+base_smoke="${repository_root}/toolkit/container-images/embedded-development/smoke/verify-base-tools.sh"
+embedded_smoke="${repository_root}/toolkit/container-images/embedded-development/smoke/verify-embedded-tools.sh"
+template_presets="${repository_root}/toolkit/project-templates/cross-platform-cpp/CMakePresets.json"
 example_presets="${repository_root}/examples/deterministic-pi-control/CMakePresets.json"
 
 assert_contains() {

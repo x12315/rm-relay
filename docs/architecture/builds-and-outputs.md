@@ -26,7 +26,7 @@ Dockerfile，也不把用户应用制作成 OCI image。
 Local 与 remote backend 的入口和出口保持相同：
 
 ```text
-本地源码 + 项目声明 + development profile
+开发机源码 + 项目声明 + development profile
                   │
           ┌───────┴────────┐
           ▼                ▼
@@ -34,7 +34,7 @@ Local 与 remote backend 的入口和出口保持相同：
           │                │
           └───────┬────────┘
                   ▼
-         Build Output 返回本地
+         Build Output 返回开发机
 ```
 
 `mise` 组织项目任务。未来的 `rm-relay` 只协调容器、远程 backend 与 target；编译和测试仍
@@ -45,9 +45,9 @@ Local 与 remote backend 的入口和出口保持相同：
 Meson、Xmake、Bazel、Nix 或自定义构建描述；ccache 通过 CMake compiler launcher 或
 colcon 的底层 CMake 参数接入，不改变构建图。
 
-Remote backend 使用 BuildKit 的 context 传输、cache 和 local exporter。服务器运行 RM
+Remote backend 使用 BuildKit 的 context 传输、cache 和 local exporter。编译服务器运行 RM
 Relay 维护的通用 workspace 构建定义，不读取用户自带的第二份应用 Dockerfile。一次 job
-结束并把结果写回本地后，源码快照和临时 workspace 可以删除；项目特有构建知识仍随源码
+结束并把结果写回开发机后，源码快照和临时 workspace 可以删除；项目特有构建知识仍随源码
 存在。
 
 Workspace builder 不直接部署任何 target。这个中断点是有意设计的：local/remote build
@@ -69,7 +69,7 @@ Build tree 包含 object、CMake cache、绝对路径和中间文件，既不可
 ```text
 <project-root>/
 ├── build/<profile>/       backend 的可删除中间目录
-├── install/<profile>/     本地可见的 Build Output
+├── install/<profile>/     开发机可见的 Build Output
 └── .rm-relay/data/        从 target 取回的 Managed Data
 ```
 
@@ -94,13 +94,13 @@ build/stm32f407-robomaster-c/firmware/
 
 | 状态 | 所在位置 | 是否项目资产 |
 |---|---|---|
-| 本地 build tree | `build/<profile>/` | 否，可重新生成 |
-| Build Output | `install/<profile>/`（目标契约） | 是，本地可见 |
-| Managed Data | `.rm-relay/data/` | 是，取回后由本地保管 |
+| 开发机 build tree | `build/<profile>/` | 否，可重新生成 |
+| Build Output | `install/<profile>/`（目标契约） | 是，开发机可见 |
+| Managed Data | `.rm-relay/data/` | 是，取回后由开发机保管 |
 | BuildKit、ccache、依赖 cache、remote workspace | backend 管理 | 否，可删除 |
 
-切换 builder 或清空 cache 不得改变构建语义。首版不在本地与远端之间复制 cache，也不把
-cache 传到 target。
+切换 builder 或清空 cache 不得改变构建语义。首版不在开发机与编译服务器之间复制 cache，
+也不把 cache 传到 target。
 
 ccache 是显式依赖，不是 CMake 默认能力。可信战队或邀请制 backend 可以让相同环境与
 工具链的用户共享 ccache，但 job workspace 和 build tree 仍彼此隔离。若以后提供不受信任
@@ -109,7 +109,7 @@ ccache 是显式依赖，不是 CMake 默认能力。可信战队或邀请制 ba
 
 ## 跨架构构建
 
-首条算力侧链路假定 x86 构建服务器与 ARM64 Linux target。这里仍要分开镜像生产和源码
+首条算力侧链路假定 x86 编译服务器与 ARM64 Linux target。这里仍要分开镜像生产和源码
 编译：
 
 ```text
@@ -157,4 +157,4 @@ ROS 2、Nav2、OpenCV 等成熟依赖优先使用目标架构 binary package。�
 
 Remote workspace 构建定义格式、Build Output manifest、失败后的断点恢复和 runtime
 compatibility schema 尚未确定。后续设计可以补充这些内部契约，但必须保持：项目声明随
-源码存在，服务端保持通用，Build Output 先回本地，cache 不成为项目真相源。
+源码存在，服务端保持通用，Build Output 先回开发机，cache 不成为项目真相源。

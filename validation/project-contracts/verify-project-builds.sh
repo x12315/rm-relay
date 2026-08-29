@@ -5,7 +5,7 @@ script_directory="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 repository_root="$(CDPATH= cd -- "${script_directory}/../.." && pwd)"
 development_image="${DEVELOPMENT_IMAGE:-mcu-dev/toolchain:local}"
 
-for project_path in templates/cross-platform-cpp examples/deterministic-pi-control; do
+for project_path in toolkit/project-templates/cross-platform-cpp examples/deterministic-pi-control; do
     printf 'verifying project: %s\n' "${project_path}"
     docker run --rm \
         -v "${repository_root}:/workspace" \

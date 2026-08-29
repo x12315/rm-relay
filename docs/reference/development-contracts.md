@@ -12,15 +12,15 @@
 
 | 概念 | 准确定义 | 真相源或管理者 |
 |---|---|---|
-| Project | 用户的一项逻辑软件项目，可以包含多个 package 或仓库 | 本地源码与项目声明 |
+| Project | 用户的一项逻辑软件项目，可以包含多个 package 或仓库 | 开发机上的源码与项目声明 |
 | Profile | 一组经过验证的环境、架构和 target 兼容要求 | RM Relay Bake 与 profile 配置 |
 | Build Job | 一次 local 或 remote build 操作 | build backend |
-| Build Output | 可以交给烧录、传输或 debugger 的构建结果 | 本地项目工作区 |
-| Target | 接收 Build Output 并提供开发能力的物理或虚拟设备 | provider；MCU 由本地 adapter 直管 |
-| Target adapter | 客户端侧能力接口，把本地 Build Output 与交互请求转换为 target 操作 | `rm-relay` |
+| Build Output | 可以交给烧录、传输或 debugger 的构建结果 | 开发机上的项目工作区 |
+| Target | 接收 Build Output 并提供开发能力的物理或虚拟设备 | provider；MCU 由开发机 adapter 直管 |
+| Target adapter | 开发机侧能力接口，把 Build Output 与交互请求转换为 target 操作 | `rm-relay` |
 | Target provider | 管理 Target/Target Environment 生命周期、内部状态和资源的目标侧实现 | `rm-relay-node` 或 virtual target provider；MCU 无独立 provider daemon |
 | Target Environment | Linux target 中承载用户程序的受控环境 | `rm-relay-node` 或 virtual target provider |
-| Managed Data | 用户放入受管目录、需要从 target 返回本地的开发数据 | 取回后由本地保管；此前由 target 暂存 |
+| Managed Data | 用户放入受管目录、需要从 target 返回开发机的开发数据 | 取回后由开发机保管；此前由 target 暂存 |
 
 本文的 **RM Relay Profile** 指平台层的验证组合。用户项目中的
 `cmake/target-profiles/` 只描述 MCU 架构与 ABI，是 CMake 配置目录，不是另一类 RM Relay
@@ -52,14 +52,14 @@ Project identity 用于关联项目声明、build tree 和增量传输，不得�
 公开 schema 确定前，模板不得给所有新项目放入同一个固定 ID。Target manifest、兼容字段与
 握手协议也要等组件设计完成后再进入本 reference。
 
-## 本地路径
+## 开发机路径
 
 统一构建链路使用三类相互独立的目录：
 
 ```text
 <project-root>/
-├── build/<profile>/       可删除的本地构建中间目录
-├── install/<profile>/     本地可见的 Build Output
+├── build/<profile>/       开发机上可删除的构建中间目录
+├── install/<profile>/     开发机可见的 Build Output
 └── .rm-relay/data/        从 target 取回的 Managed Data
 ```
 
@@ -68,7 +68,7 @@ Project identity 用于关联项目声明、build tree 和增量传输，不得�
 才能修改该操作入口。
 
 Remote job workspace、BuildKit cache、ccache 和依赖下载 cache 由 backend 管理，不进入
-项目目录契约。本地与 remote cache 互不复制；删除或切换 cache 不得改变构建语义。
+项目目录契约。开发机 cache 与编译服务器 cache 互不复制；删除或切换 cache 不得改变构建语义。
 
 物理 target 的宿主目录、container mount 和虚拟 target 的 storage 布局由各 provider 管理。
 客户端只能依赖公开的输入与数据入口，不能依赖内部路径。具体目录需要等组件实现和迁移
@@ -78,10 +78,10 @@ Remote job workspace、BuildKit cache、ccache 和依赖下载 cache 由 backend
 
 | 对象 | 创建与保留 | 结束或重建条件 |
 |---|---|---|
-| Build Job | 只处理当前源码快照；server-side cache 可跨 job 保留 | Build Output 返回本地后，remote workspace 可删除 |
-| 物理 Target Environment | 长期可用，唯一项目资产位于受管挂载或本地 | 不存在时创建，环境版本不匹配时重建；断线、构建结束或程序退出不销毁 |
+| Build Job | 只处理当前源码快照；server-side cache 可跨 job 保留 | Build Output 返回开发机后，remote workspace 可删除 |
+| 物理 Target Environment | 长期可用，唯一项目资产位于受管挂载或开发机 | 不存在时创建，环境版本不匹配时重建；断线、构建结束或程序退出不销毁 |
 | Mutagen session | 保存物理 target 的连接与同步状态 | 不代表 Project、用户登录、程序运行或 container 生命周期 |
-| 虚拟 Target Environment | runtime 与 storage 位于用户/租户的 K3s namespace | provider 按 credential、RBAC、quota 管理；回收不改变本地资产所有权 |
+| 虚拟 Target Environment | runtime 与 storage 位于用户/租户的 K3s namespace | provider 按 credential、RBAC、quota 管理；回收不改变开发机资产所有权 |
 | MCU Target | 按 board profile 提供 flash、reset、serial、debug | 没有 Linux Target Environment、Mutagen session 或受管 container |
 
 同一物理 target 输入端同一时间只允许一个写入者。RM Relay 不维护与 Mutagen 平行的
@@ -89,12 +89,12 @@ Development Session 数据库。
 
 ## 跨组件不变量
 
-### 本地是真相源
+### 开发机是真相源
 
-- 源码和项目声明以开发者本地工作区或 Git 为准。
+- 源码和项目声明以开发机工作区或 Git 为准。
 - Remote build 只处理源码快照，不长期托管 workspace。
-- Remote Build Output 必须先回到本地，再进入 target。
-- Managed Data 最终回到本地；取回失败时可由 target 在受管目录短期暂存。
+- Remote Build Output 必须先回到开发机，再进入 target。
+- Managed Data 最终回到开发机；取回失败时可由 target 在受管目录短期暂存。
 
 ### Target 可恢复
 
@@ -115,9 +115,9 @@ Development Session 数据库。
 
 ### 调试不经过 workspace builder
 
-- Debugger 默认从开发者电脑直连 target。
+- Debugger 默认从开发机直连 target。
 - Workspace builder 只生成并返回带匹配 symbols 的 Build Output。
-- Remote build 使用稳定逻辑路径，供本地 IDE 映射源码。
+- Remote build 使用稳定逻辑路径，供开发机 IDE 映射源码。
 - ROS 数据、日志和调试文件不因 remote build 而绕道 workspace builder。
 
 ### 平台不接管应用启动

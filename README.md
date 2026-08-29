@@ -73,7 +73,7 @@ RoboMaster C 是首个支持的 board profile，不是项目结构中心。当�
 docker version
 docker buildx version
 docker buildx bake \
-  --file container-images/embedded-development/docker-bake.hcl \
+  --file toolkit/container-images/embedded-development/docker-bake.hcl \
   mcu-dev --load
 sh validation/project-contracts/verify-repository-layout.sh
 sh validation/project-contracts/verify-project-builds.sh

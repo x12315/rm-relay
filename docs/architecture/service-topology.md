@@ -19,11 +19,11 @@ RM Relay 不把“一台服务器”当作一个组件。服务角色由四个�
                                       └── runtime image
 
 日常构建
-development image + 源码快照 → workspace builder → Build Output → 开发者电脑
+development image + 源码快照 → workspace builder → Build Output → 开发机
                                   └── 可删除 cache
 
 培训与体验
-开发者电脑 → K3s API → user namespace → virtual target
+开发机 → K3s API → user namespace → virtual target
                                       └── 隔离 runtime 与 storage
 ```
 
@@ -36,7 +36,7 @@ development image + 源码快照 → workspace builder → Build Output → 开�
 |---|---|---|---|
 | Environment builder | RM Relay 配置 → development/runtime image | BuildKit cache | 维护者或 CI |
 | OCI Registry | 接收并分发固定环境镜像 | OCI image 与 metadata | builder、target、授权用户 |
-| Workspace builder | Development image + 源码快照 → Build Output 回本地 | BuildKit、ccache、依赖 cache | 一般开发者 |
+| Workspace builder | Development image + 源码快照 → Build Output 回开发机 | BuildKit、ccache、依赖 cache | 一般开发者 |
 | K3s virtual target | Build Output + credential → 隔离应用 runtime | namespace runtime、quota、storage | 一般开发者、运维人员 |
 
 ### Environment builder 生产环境
@@ -70,18 +70,18 @@ K3s API 已经提供编排控制面，因此首版不自研用户数据库、调
 这种隔离只面向可信战队和受邀队伍。匿名不受信任代码需要更强的 sandbox、身份、配额和
 合规设计，不在首版范围内。
 
-## 服务不能绕过本地控制链路
+## 服务不能绕过开发机控制链路
 
 不同服务组合后，数据仍沿同一条开发闭环移动：
 
 ```text
-本地源码
+开发机源码
   │
   ▼
 local / remote workspace build
   │
   ▼
-Build Output 返回本地
+Build Output 返回开发机
   │
   ▼
 客户端选择 physical / virtual target

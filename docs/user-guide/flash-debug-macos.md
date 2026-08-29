@@ -27,7 +27,7 @@ OpenOCD。
 在仓库根目录运行：
 
 ```bash
-openocd -f openocd/boards/robomaster-c.cfg -c "bindto 0.0.0.0"
+openocd -f toolkit/openocd/boards/robomaster-c.cfg -c "bindto 0.0.0.0"
 ```
 
 `0.0.0.0` 仅用于 Docker VM 到宿主的桥接。调试结束立即按 Ctrl-C 停止服务，

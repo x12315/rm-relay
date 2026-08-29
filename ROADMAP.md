@@ -10,19 +10,19 @@ OpenOCD/GDB 源码调试闭环。
 后续建设遵守[开发平台架构](docs/architecture/README.md)，目标是跑通这条基本链路：
 
 ```text
-本地源码
+开发机源码
   ↓
 mise tasks / rm-relay CLI
   ↓
-本地或远程构建
+在开发机本地构建或由编译服务器远程构建
   ↓
-Build Output 返回本地
+Build Output 返回开发机
   ↓
 物理或虚拟 target
   ↓
 交互式 CLI 与调试
   ↓
-开发数据返回本地
+开发数据返回开发机
 ```
 
 ## 1. 扩展嵌入式实板调试支持
@@ -44,6 +44,13 @@ Project Template 继续作为核心资产：用户当前可以复制并改名，
 通过交互式向导生成和配置。Dev Container Template 同样属于核心 profile 契约，不作为 IDE
 插件拆分。
 
+### 环境定义仓库
+
+当前环境定义继续保留在主仓库。Profile schema、环境与 image 的映射、独立验证和发布流程
+稳定后，再建立 `rm-relay-environments`，分别组织官方默认与社区环境定义；构建后的
+image blob 仍发布到 OCI Registry。仓库职责见
+[仓库资产地图](docs/operator-guide/repository-assets.md#rm-relay-的仓库边界)。
+
 ### 可选 IDE 与 Agent integration
 
 可选 integration 不阻塞基本开发链路，也不在当前阶段创建仓库。满足以下条件后，再设计并
@@ -55,18 +62,18 @@ Project Template 继续作为核心资产：用户当前可以复制并改名，
 - 核心仓库能用 contract test 验证外部 integration 没有复制构建、烧录或调试逻辑。
 
 当前[VS Code 示例](docs/user-guide/vscode-example.md)只是可复制的参考片段，不是一键导入或
-独立发布的 integration package。未来仓库只交付由用户一次性手动导入的少量
-VS Code/VSCodium 配置，以及通过 npm/Skills 等标准方式安装的 Agent Skill。它单向依赖
-`rm-relay` 的公开契约；具体目录、Skill 内容、发布命令、CI 和支持列表留到启动时设计。
+独立发布的 integration package。规划仓库的资产边界见
+[仓库资产地图](docs/operator-guide/repository-assets.md#rm-relay-的仓库边界)；具体目录、Skill
+内容、发布命令、CI 和支持列表留到启动时设计。
 
 ## 3. 发布镜像与远程构建体验
 
 将正式环境镜像发布到国内 OCI Registry，减少普通用户重复构建产生的大流量访问。在固定
-development image 上建立 BuildKit workspace builder，让 Build Output 直接返回开发者
-本地；本地 Docker 与远程 backend 使用同一项目声明和下游 target 链路。
+development image 上建立 BuildKit workspace builder，让 Build Output 直接返回开发机；
+开发机上的 Docker 与远程 backend 使用同一项目声明和下游 target 链路。
 
-服务器保留 BuildKit cache、依赖 cache 和可信范围内共享的 ccache。本地 cache 独立保存，
-不与服务器同步。
+编译服务器保留 BuildKit cache、依赖 cache 和可信范围内共享的 ccache。开发机上的 cache
+独立保存，不与编译服务器同步。
 
 首个远程实例由 [@x12315](https://github.com/x12315) 维护，只服务本战队和受邀友队。
 公开注册、匿名代码和强隔离不属于这一阶段。
@@ -80,7 +87,7 @@ development image 上建立 BuildKit workspace builder，让 Build Output 直接
 物理 target 首先支持 Debian/Ubuntu LTS 的 `amd64` 与 `arm64`：
 
 - 以 `.deb` 安装 `rm-relay-node`，维护目标镜像、容器、挂载和环境版本；
-- 通过 Mutagen 在开发者电脑与目标宿主机之间同步 Build Output 和开发数据；
+- 通过 Mutagen 在开发机与目标宿主机之间同步 Build Output 和开发数据；
 - 提供可重连的交互式 shell 和 debugger 直连；
 - 验证有线直连、同一局域网 Wi-Fi 与 mDNS 发现。
 

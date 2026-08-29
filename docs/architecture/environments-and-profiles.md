@@ -83,16 +83,15 @@ Project Template 与 Dev Container Template 都属于 RM Relay 的核心资产�
 
 | 核心资产 | 固定的入口 | 消费方式 | 当前状态 |
 |---|---|---|---|
-| Project Template | 用户项目的源码、CMake、测试和目标配置结构 | 当前由用户复制并改名；未来也可由 `rm-relay init` 交互式生成 | `templates/cross-platform-cpp/` 已实现 |
+| Project Template | 用户项目的源码、CMake、测试和目标配置结构 | 当前由用户复制并改名；未来也可由 `rm-relay init` 交互式生成 | `toolkit/project-templates/cross-platform-cpp/` 已实现 |
 | Dev Container Template | profile 对应的 environment、mount、设备接入和 IDE 建议 | 用户按 profile 创建 development container | 尚未实现 |
 
 Project Template 与项目声明、profile 和 Build Output 契约共同演进，不能作为可选插件拆出核心
 仓库。Dev Container Template 也属于 profile 的环境交付，不等同于某个 IDE 的专用配置。
 
-IDE 和 Agent integration 位于另一层。未来可以用独立的 `rm-relay-integrations` 仓库交付少量
-由用户一次性手动导入的 VS Code/VSCodium 配置和可标准安装的 Agent Skill，但它们只消费
-公开 CLI、schema、profile 名称和模板契约；`rm-relay` 不反向依赖它们。integration 不得复制
-构建、烧录或调试逻辑，也不成为 `rm-relay init` 和核心开发链路的前提。
+环境定义与可选 integration 以后可以形成独立仓库，但不改变上述两类核心 Template 的归属。
+三个仓库分别组织什么、当前资产为何仍留在 monorepo，集中见
+[仓库资产地图](../operator-guide/repository-assets.md#rm-relay-的仓库边界)。
 
 ## 项目依赖通过派生镜像进入
 

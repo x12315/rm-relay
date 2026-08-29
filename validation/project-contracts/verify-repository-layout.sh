@@ -25,15 +25,20 @@ for required_file in \
     LICENSE \
     README.md \
     ROADMAP.md \
-    container-images/embedded-development/README.md \
-    container-images/embedded-development/Dockerfile \
-    container-images/embedded-development/docker-bake.hcl \
-    container-images/embedded-development/locks/README.md \
-    container-images/embedded-development/locks/versions.env \
-    templates/cross-platform-cpp/README.md \
-    templates/cross-platform-cpp/CMakeLists.txt \
-    templates/cross-platform-cpp/CMakePresets.json \
-    templates/cross-platform-cpp/portable-code/README.md \
+    toolkit/README.md \
+    toolkit/cmd/rm-relay/.gitkeep \
+    toolkit/cmd/rm-relay-node/.gitkeep \
+    toolkit/internal/.gitkeep \
+    toolkit/container-images/embedded-development/README.md \
+    toolkit/container-images/embedded-development/Dockerfile \
+    toolkit/container-images/embedded-development/docker-bake.hcl \
+    toolkit/container-images/embedded-development/locks/README.md \
+    toolkit/container-images/embedded-development/locks/versions.env \
+    toolkit/project-templates/cross-platform-cpp/README.md \
+    toolkit/project-templates/cross-platform-cpp/CMakeLists.txt \
+    toolkit/project-templates/cross-platform-cpp/CMakePresets.json \
+    toolkit/project-templates/cross-platform-cpp/portable-code/README.md \
+    toolkit/openocd/boards/robomaster-c.cfg \
     examples/deterministic-pi-control/README.md \
     examples/deterministic-pi-control/CMakeLists.txt \
     examples/deterministic-pi-control/CMakePresets.json \
@@ -60,12 +65,16 @@ for absent_path in \
     CMakePresets.json \
     .clang-format \
     .clang-tidy \
+    components \
+    container-images \
     containers \
     cmake \
     embedded-dev-docker \
     examples/shared_core \
     examples/native \
     examples/stm32f407 \
+    openocd \
+    templates \
     docs/operator-guide/repository-boundaries.md \
     docs/architecture/targets-and-sessions.md; do
     assert_path_absent "${absent_path}"
