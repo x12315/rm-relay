@@ -30,9 +30,12 @@ func TestTaskInvocationUsesOnlyExplicitConfigFiles(t *testing.T) {
 func TestExecInvocationPreservesArgumentBoundaries(t *testing.T) {
 	command := []string{"openocd", "-f", "/path with spaces/board.cfg", "-c", "program {/firmware path/app.elf} verify reset exit"}
 
-	invocation := ExecInvocation(command)
+	invocation := ExecInvocation([]string{"/core.toml"}, command, ":")
 	want := append([]string{"exec", "--"}, command...)
 	if !reflect.DeepEqual(invocation.Arguments, want) {
 		t.Fatalf("Arguments = %#v, want %#v", invocation.Arguments, want)
+	}
+	if got := invocation.Environment["MISE_OVERRIDE_CONFIG_FILENAMES"]; got != "/core.toml" {
+		t.Fatalf("MISE_OVERRIDE_CONFIG_FILENAMES = %q", got)
 	}
 }

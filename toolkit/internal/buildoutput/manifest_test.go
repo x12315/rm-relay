@@ -99,6 +99,27 @@ func TestLoadAndValidateRejectsArtifactPathOutsideOutputRoot(t *testing.T) {
 	}
 }
 
+func TestLoadAndValidateReturnsVerifiedArtifactPath(t *testing.T) {
+	plan := buildOutputPlan(t)
+	writeArtifacts(t, plan.OutputDirectory)
+	if _, err := Create(plan, "sha256:image", "0.1.0"); err != nil {
+		t.Fatal(err)
+	}
+
+	verified, err := LoadAndValidate(plan.OutputDirectory, plan.ProjectID, plan.Profile)
+	if err != nil {
+		t.Fatalf("LoadAndValidate() error = %v", err)
+	}
+	artifactPath, err := verified.ArtifactPathByRole("firmware.elf")
+	if err != nil {
+		t.Fatalf("ArtifactPathByRole() error = %v", err)
+	}
+	want := filepath.Join(plan.OutputDirectory, "firmware.elf")
+	if artifactPath != want {
+		t.Fatalf("ArtifactPathByRole() = %q, want %q", artifactPath, want)
+	}
+}
+
 func buildOutputPlan(t *testing.T) executionplan.Plan {
 	t.Helper()
 	projectRoot := t.TempDir()

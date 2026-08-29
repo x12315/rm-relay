@@ -21,9 +21,15 @@ func TaskInvocation(configPaths []string, task, pathSeparator string) Invocation
 }
 
 // ExecInvocation creates a mise exec command while preserving native argument boundaries.
-func ExecInvocation(command []string) Invocation {
+func ExecInvocation(configPaths, command []string, pathSeparator string) Invocation {
 	arguments := make([]string, 0, len(command)+2)
 	arguments = append(arguments, "exec", "--")
 	arguments = append(arguments, command...)
-	return Invocation{Arguments: arguments, Environment: map[string]string{}}
+	return Invocation{
+		Arguments: arguments,
+		Environment: map[string]string{
+			"MISE_OVERRIDE_CONFIG_FILENAMES": strings.Join(configPaths, pathSeparator),
+			"MISE_TASK_RUN_AUTO_INSTALL":     "false",
+		},
+	}
 }

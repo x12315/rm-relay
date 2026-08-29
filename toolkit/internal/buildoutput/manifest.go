@@ -46,6 +46,13 @@ type Artifact struct {
 	SHA256 string `json:"sha256"`
 }
 
+// Verified is a Build Output whose manifest identities and artifact hashes were rechecked.
+// Values are created only by LoadAndValidate.
+type Verified struct {
+	manifest        Manifest
+	outputDirectory string
+}
+
 // Create validates declared outputs and atomically writes their deterministic manifest.
 func Create(plan executionplan.Plan, imageID, producerVersion string) (Manifest, error) {
 	if imageID == "" {
@@ -85,11 +92,11 @@ func Create(plan executionplan.Plan, imageID, producerVersion string) (Manifest,
 }
 
 // LoadAndValidate rechecks manifest identity and every artifact before target use.
-func LoadAndValidate(outputDirectory, projectID string, loadedProfile profile.Loaded) (Manifest, error) {
+func LoadAndValidate(outputDirectory, projectID string, loadedProfile profile.Loaded) (Verified, error) {
 	manifestPath := filepath.Join(outputDirectory, ManifestFileName)
 	manifestFile, err := os.Open(manifestPath)
 	if err != nil {
-		return Manifest{}, fmt.Errorf("open Build Output manifest: %w", err)
+		return Verified{}, fmt.Errorf("open Build Output manifest: %w", err)
 	}
 	defer manifestFile.Close()
 
@@ -97,53 +104,69 @@ func LoadAndValidate(outputDirectory, projectID string, loadedProfile profile.Lo
 	decoder.DisallowUnknownFields()
 	var manifest Manifest
 	if err := decoder.Decode(&manifest); err != nil {
-		return Manifest{}, fmt.Errorf("decode Build Output manifest: %w", err)
+		return Verified{}, fmt.Errorf("decode Build Output manifest: %w", err)
 	}
 	if err := ensureJSONEnd(decoder); err != nil {
-		return Manifest{}, err
+		return Verified{}, err
 	}
 	if manifest.SchemaVersion != currentSchemaVersion {
-		return Manifest{}, fmt.Errorf("unsupported Build Output schema_version %d", manifest.SchemaVersion)
+		return Verified{}, fmt.Errorf("unsupported Build Output schema_version %d", manifest.SchemaVersion)
 	}
 	if manifest.ProjectID != projectID {
-		return Manifest{}, fmt.Errorf("Build Output project identity %q does not match project %q", manifest.ProjectID, projectID)
+		return Verified{}, fmt.Errorf("Build Output project identity %q does not match project %q", manifest.ProjectID, projectID)
 	}
 	if manifest.ProfileID != loadedProfile.Config.ID {
-		return Manifest{}, fmt.Errorf("Build Output profile %q does not match profile %q", manifest.ProfileID, loadedProfile.Config.ID)
+		return Verified{}, fmt.Errorf("Build Output profile %q does not match profile %q", manifest.ProfileID, loadedProfile.Config.ID)
 	}
 	if manifest.ProfileDigest != loadedProfile.Digest {
-		return Manifest{}, fmt.Errorf("Build Output profile digest does not match current profile")
+		return Verified{}, fmt.Errorf("Build Output profile digest does not match current profile")
 	}
 	if manifest.DevelopmentImage != loadedProfile.Config.DevelopmentImage {
-		return Manifest{}, fmt.Errorf("Build Output development image does not match current profile")
+		return Verified{}, fmt.Errorf("Build Output development image does not match current profile")
 	}
 	if manifest.DevelopmentImageID == "" || manifest.ProducerVersion == "" {
-		return Manifest{}, fmt.Errorf("Build Output manifest has incomplete producer identity")
+		return Verified{}, fmt.Errorf("Build Output manifest has incomplete producer identity")
 	}
 	if err := validateRequiredRoles(manifest, loadedProfile.Config.RequiredOutputRoles); err != nil {
-		return Manifest{}, err
+		return Verified{}, err
 	}
 	roles := make(map[string]struct{}, len(manifest.Artifacts))
 	for _, artifact := range manifest.Artifacts {
 		if artifact.Role == "" {
-			return Manifest{}, fmt.Errorf("Build Output contains an empty artifact role")
+			return Verified{}, fmt.Errorf("Build Output contains an empty artifact role")
 		}
 		if _, exists := roles[artifact.Role]; exists {
-			return Manifest{}, fmt.Errorf("Build Output contains duplicate artifact role %q", artifact.Role)
+			return Verified{}, fmt.Errorf("Build Output contains duplicate artifact role %q", artifact.Role)
 		}
 		roles[artifact.Role] = struct{}{}
 		actual, err := inspectArtifact(outputDirectory, artifact.Role, artifact.Path)
 		if err != nil {
-			return Manifest{}, err
+			return Verified{}, err
 		}
 		if actual.Size != artifact.Size {
-			return Manifest{}, fmt.Errorf("artifact %q size changed: manifest=%d actual=%d", artifact.Role, artifact.Size, actual.Size)
+			return Verified{}, fmt.Errorf("artifact %q size changed: manifest=%d actual=%d", artifact.Role, artifact.Size, actual.Size)
 		}
 		if actual.SHA256 != artifact.SHA256 {
-			return Manifest{}, fmt.Errorf("artifact %q SHA-256 changed: manifest=%s actual=%s", artifact.Role, artifact.SHA256, actual.SHA256)
+			return Verified{}, fmt.Errorf("artifact %q SHA-256 changed: manifest=%s actual=%s", artifact.Role, artifact.SHA256, actual.SHA256)
 		}
 	}
-	return manifest, nil
+	outputDirectory, err = filepath.Abs(outputDirectory)
+	if err != nil {
+		return Verified{}, fmt.Errorf("resolve verified Build Output directory: %w", err)
+	}
+	return Verified{manifest: manifest, outputDirectory: outputDirectory}, nil
+}
+
+// ArtifactPathByRole returns the absolute path of a verified artifact.
+func (verified Verified) ArtifactPathByRole(role string) (string, error) {
+	if verified.outputDirectory == "" {
+		return "", fmt.Errorf("Build Output has not been verified")
+	}
+	artifact, err := verified.manifest.ArtifactByRole(role)
+	if err != nil {
+		return "", err
+	}
+	return resolveArtifactPath(verified.outputDirectory, artifact.Path)
 }
 
 // ArtifactByRole returns the single artifact with the requested semantic role.
