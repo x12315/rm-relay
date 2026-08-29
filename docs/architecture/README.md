@@ -1,96 +1,175 @@
 # RM Relay 开发平台架构
 
+本文是 RM Relay 的架构入口，面向第一次接触项目、准备参与实现或部署的工程师。建议先按
+顺序读完本文，再根据问题进入专题页。读完后，你应该能沿一条开发闭环说明各组件为何存在、
+数据由谁保管，以及当前实现与目标设计之间还有哪些距离。
+
 > [!IMPORTANT]
-> 本目录记录已经确认的设计基线，不代表对应能力已经实现。当前可用范围仍以根
-> [README](../../README.md#当前能力) 和[支持矩阵](../user-guide/support-matrix.md)为准。
+> 本组文档记录已经确认的设计基线，不等于全部能力已经交付。当前仓库只交付 STM32
+> 嵌入式开发基线；统一 CLI、Linux 环境、远程构建、物理 Linux target 和虚拟 target
+> 仍在建设。实际能力和证据等级只以[支持矩阵](../user-guide/support-matrix.md)为准。
 
-RM Relay 面向完整的 RM 软件组：嵌入式、电控、视觉、导航和普通 Linux 应用可以使用
-不同环境与设备后端，但共享一条从源码到目标设备的开发链路。
+## 先建立一个完整模型
 
-用户负责应用源码、算法和程序启动方式。RM Relay 管理这些内容之外的公共基础设施：
-开发环境、本地或远程构建、构建结果、目标设备接入、调试连接和开发数据回收。平台不解析
-ROS node、launch 文件或普通进程，也不提供通用应用 `run/stop` 状态机。
+RM Relay 解决的是开发链路问题，不是机器人应用问题。用户项目决定写什么程序以及如何
+启动它；RM Relay 让同一份项目声明能在固定环境中构建，并把可部署结果送到不同 target，
+同时保留调试和数据返回路径。
 
-## 总体拓扑
+一轮开发从本地开始，也在本地收口：
 
 ```text
-                         RM Relay 维护者 / 战队运维
-                                    │
-                       环境配置 ── BuildKit ── Registry
-                                      │              │
-                              development image  runtime image
-                                      │              │
-开发者电脑                            │              │
-┌─────────────────────────────────────┴──────────────┴───────────────┐
-│ 本地源码 → mise tasks → rm-relay CLI                              │
-│                         │                                          │
-│                         ├─ local build：本地 Docker                │
-│                         └─ remote build：workspace builder         │
-│                                      │                             │
-│                         Build Output 返回本地                       │
-│                         ├─ CMake Install Tree                      │
-│                         ├─ ROS 2 Install Space                     │
-│                         └─ MCU ELF / BIN / MAP                     │
-└─────────────────────────┬──────────────────────────────────────────┘
-                          │
-                          ▼
-                 target 接入与调试链路
-        ┌─────────────────┼──────────────────────┐
-        │                 │                      │
-        ▼                 ▼                      ▼
- physical Linux      virtual Linux             MCU
- rm-relay-node       K3s namespace             OpenOCD / DFU / serial
- Docker + Mutagen    isolated runtime          GDB
-        │                 │                      │
-        └────── shell / debugger / 数据返回 ─────┘
-                          │
-                          ▼
-                       开发者电脑
+本地源码与项目声明
+        │
+        ▼
+选择 development profile
+        │
+        ▼
+local backend 或 remote workspace builder
+        │
+        ▼
+Build Output 返回本地
+        │
+        ▼
+target adapter ──→ MCU / 物理 Linux / 虚拟 Linux
+        │                         │
+        └──── shell、debugger、Managed Data ────→ 本地
 ```
 
-这张图由四个相互独立的平面组成：
+这里有四个第一次阅读就要知道的术语：
 
-1. **环境供应**固定工具、依赖、架构和目标环境血统。
-2. **构建**在本地或服务器执行用户项目，并把 Build Output 交回本地。
-3. **目标接入**把本地 Build Output 送入物理或虚拟设备，提供 shell、debugger 和数据回收。
-4. **服务部署**让战队按需组合 Registry、workspace builder 和虚拟 target 服务。
+- **Profile**：一组经过验证的环境、架构和 target 兼容要求。
+- **Build Output**：可以交给烧录、传输或 debugger 的结果，例如 MCU 的 ELF/BIN/MAP、
+  CMake Install Tree 或 ROS 2 Install Space。
+- **Target**：接收 Build Output 并提供 flash、shell、transfer 或 debug 等开发能力的物理或
+  虚拟设备。
+- **Managed Data**：应用写入受管目录、需要从 target 取回本地的日志、trace、bag 等开发
+  数据。
 
-环境镜像生产与用户项目构建虽然都可以使用 BuildKit，却是两条不同链路；远程构建服务器
-也不进入目标设备的实时调试和数据回传路径。
+这条链路最重要的约束是：源码、项目声明、Build Output 和已取回的数据以开发者电脑为
+真相源。远程服务和 target 可以保留 cache 或暂存数据，但不能成为唯一资产位置。
 
-## 最小自研边界
+## 沿开发闭环理解四个责任面
 
-RM Relay 只自行维护两个需要理解项目语义的薄组件：
+### 1. 环境先固定“用什么构建”
 
-| 组件 | 职责 | 不负责 |
+Development profile 固定工具链、依赖、目标架构和兼容基线。项目需要额外依赖时，要从
+官方环境构建派生镜像；不能在运行中的正式容器里临时安装，从而让本地与远程得到不同环境。
+
+当前仓库已经把 `base` 和 `mcu-dev` 作为可选择的环境 stage，并分别为 `linux/amd64`、
+`linux/arm64` 定义了 Bake target。算力侧 development/runtime 环境、mise 能力层、官方
+profile 和项目 overlay 是后续实现必须遵守的设计，详见
+[环境与 profile](environments-and-profiles.md)。
+
+### 2. 构建只回答“如何得到可交付结果”
+
+Local backend 和 remote backend 消费相同的项目声明与 development profile。构建系统仍是
+CMake、colcon、Ninja、CTest 等原生工具；`mise` 组织常用任务，未来的 `rm-relay` 只编排
+跨容器、跨机器和 target 相关操作。
+
+两种 backend 的共同出口都是本地 Build Output。Remote workspace 是一次性工作区，服务端
+cache 可以删除；workspace builder 不直接把结果部署到 target。当前 MCU 模板仍直接从
+`build/stm32f407-robomaster-c/firmware/` 使用 ELF/BIN/MAP，统一的 `install/<profile>`
+边界尚未落地。设计与现状的差异见[构建与输出](builds-and-outputs.md)。
+
+### 3. Target 接入回答“结果去哪里、如何调试”
+
+Build Output 回到本地后，target adapter 才接手。三类 target 共享能力名称，不共享内部
+实现：
+
+```text
+rm-relay
+└── target adapter（客户端能力接口）
+    ├── MCU：直接调用宿主 flash/debug 工具
+    ├── 物理 Linux：调用 rm-relay-node 承担的 provider 角色
+    └── 虚拟 Linux：调用基于 K3s 的 virtual target provider
+```
+
+Adapter 选择实现并把本地 Build Output、shell 或 debug 请求转换为对应操作；provider 管理
+target 或 Target Environment 的生命周期与内部状态。MCU 没有独立 provider daemon。
+
+| Target | 适合的实现 | 开发能力 |
 |---|---|---|
-| `rm-relay` | 跨平台客户端入口；编排本地/远程构建和 target adapter | 编译、文件同步算法、应用进程管理 |
-| `rm-relay-node` | 在物理 Linux target 上维护受控环境、挂载、版本和基础配置 | 用户源码、应用启动逻辑、战队网络 |
+| MCU | OpenOCD、DFU、serial、GDB 等宿主工具 | flash、reset、serial、debug |
+| 物理 Linux | `rm-relay-node`、Docker、Mutagen | shell、transfer、debug、数据回收 |
+| 虚拟 Linux | K3s namespace 与 virtual target provider | shell、transfer、应用 runtime、数据回收 |
 
-`mise` 负责固定客户端工具版本、环境变量和项目任务，并调用 `rm-relay` 或 CMake、colcon、
-OpenOCD 等原生工具。它不承担跨机器状态管理。服务端没有首版自研的 `rm-relay-server`；
-BuildKit、OCI Registry、K3s 和 Compose 各自处理已有的基础设施问题。
+MCU 不模拟 Linux 容器或 daemon；虚拟 target 也不复制物理宿主机的 kernel、驱动和设备。
+Debugger 默认由开发者电脑直连 target，不经过 workspace builder。各 target 的生命周期和
+数据路径见[Target 接入与数据链路](targets-and-access.md)。
 
-这个边界允许组件未来独立发布，但当前仍适合留在 monorepo 中。只有某个模块形成独立使用者、
-依赖、发布节奏和维护者后，才考虑拆入 RM Relay umbrella project 下的子仓库。
+### 4. 服务部署回答“哪些角色放在哪些机器上”
 
-## 跨模块不变量
+环境镜像构建器、OCI Registry、workspace builder 和 K3s virtual target 是不同服务角色。
+角色由输入、权限、持久状态和生命周期划分，不由物理机器划分：资源有限时可以部署在同一
+台服务器，需要扩容时也可以分别迁移。
 
-- 本地源码和项目声明是真相源，远端不长期托管用户 workspace。
-- 远程 Build Output 必须先回到本地，构建服务器不直接部署 target。
-- 正式环境在镜像构建时固化；运行中的容器不能安装依赖改变环境。
-- Linux target 中的容器可以长期存在，但可随时按已知版本重建，不能保存唯一项目资产。
-- 用户直接管理应用如何启动和停止；平台只提供受控环境、交互入口和操作顺序。
-- MCU 与 Linux target 共享上层能力语义，不共享容器、目录和 daemon 实现。
-- 物理 target、虚拟 target 和服务器服务可以独立部署，普通用户仍通过同一客户端入口使用。
+RM Relay 首版复用 BuildKit、Registry、Compose 和 K3s 已有控制面，不增加统一的
+`rm-relay-server`。部署角色、访问者和状态边界见[服务拓扑](service-topology.md)。
 
-比赛用持久部署、开机自启、批量分发和目标系统镜像不是当前开发链路的一部分，见
-[路线图](../../ROADMAP.md#后续可选模块)。
+## 谁拥有哪一部分
 
-## 阅读路径
+读完主线后，可以用这张表检查责任有没有串位：
 
-- [环境与 profile](environments-and-profiles.md)：环境镜像如何分层、组合和扩展。
-- [构建与输出](builds-and-outputs.md)：源码如何在本地或远端构建，输出和 cache 如何分开。
-- [Target 接入与数据链路](targets-and-access.md)：物理 Linux、虚拟 Linux 和 MCU 如何接入。
-- [服务拓扑](service-topology.md)：战队服务器上的镜像、构建和虚拟 target 服务如何组合。
-- [开发契约参考](../reference/development-contracts.md)：跨模块共用的术语、身份、路径和不变量。
+| 对象 | 真相源或管理者 | 不应承担的责任 |
+|---|---|---|
+| 应用源码、算法、项目声明 | 用户项目与本地 Git | 由远程 builder 或 target 长期托管 |
+| Development/runtime 环境 | RM Relay profile 与镜像配置 | 在运行中的正式容器里临时改变 |
+| Build Job | local/remote backend | 直接部署 target 或保存唯一源码 |
+| Build Output | 本地项目工作区 | 混入 build tree、cache 或服务端内部路径 |
+| Target Environment | `rm-relay-node` 或 virtual target provider | 定义用户应用的启动与进程模型 |
+| Managed Data | 取回后由本地工作区保管 | 永久依赖 target 保存唯一副本 |
+
+跨组件共用的名称、身份、目录和生命周期属于查阅信息，集中在
+[开发契约参考](../reference/development-contracts.md)，不在每篇专题里重复定义。
+
+## 贯穿所有组件的不变量
+
+后续组件设计可以更换工具或协议，但不能破坏以下边界：
+
+1. **本地是真相源。** 远程构建只处理源码快照；Build Output 先回本地，再进入 target。
+2. **环境可复现。** 正式依赖在镜像构建时固化；Linux development/runtime 环境共享兼容
+   lineage。
+3. **Build Output 是交接面。** Target adapter 不读取带中间文件和绝对路径的 build tree；
+   cache 只加速，不证明身份、权限或构建正确性。
+4. **Target 可恢复。** Target Environment 可以由固定镜像重建；除尚未取回的数据外，target
+   不保存唯一项目资产。
+5. **调试不绕道 builder。** Workspace builder 只生成结果，shell、debugger 与数据连接面向
+   target。
+6. **平台不接管应用启动。** 普通程序、脚本、`ros2 run` 和 `ros2 launch` 由用户执行，
+   RM Relay 不提供通用 `run/stop` 状态机。
+
+## 自研组件为什么只有两个
+
+RM Relay 只自研必须理解上述边界的薄层：
+
+| 组件 | 负责 | 不负责 |
+|---|---|---|
+| `rm-relay` | 跨平台入口；选择 backend、profile 和 target adapter | 编译器、文件同步算法、应用进程管理 |
+| `rm-relay-node` | 物理 Linux target 的环境、挂载、版本与基础配置 | 用户源码、应用启动逻辑、战队网络 |
+
+`mise`、BuildKit、OCI Registry、K3s、Mutagen、CMake、colcon、OpenOCD 和 GDB 继续承担各自
+已有的职责。只有现有工具无法表达平台契约时，薄组件才增加逻辑。
+
+这两个组件目前留在 monorepo。只有某个模块形成独立使用者、依赖、发布节奏和维护者后，
+才考虑拆入 RM Relay umbrella project 下的子仓库。
+
+## 不属于这条开发链路的能力
+
+比赛用持久部署、开机自启、批量分发、目标系统镜像、生产级 OTA 和面向陌生用户的公共
+sandbox 不阻塞当前开发闭环，见[路线图的后续可选模块](../../ROADMAP.md#后续可选模块)。
+浏览器 IDE、通用任务队列、网络 overlay 和自研文件同步协议也不属于首版服务边界。
+
+## 接下来按问题阅读
+
+首次阅读到这里已经建立了完整模型。需要实现或审查某一段时，再进入对应文档：
+
+| 你的问题 | 阅读入口 |
+|---|---|
+| Profile 如何组合，development/runtime 如何保持兼容 | [环境与 profile](environments-and-profiles.md) |
+| Local/remote build 如何共享入口，哪些文件属于 Build Output | [构建与输出](builds-and-outputs.md) |
+| 三类 target 如何接入，数据和调试如何返回本地 | [Target 接入与数据链路](targets-and-access.md) |
+| Registry、builder 和 K3s 应如何部署 | [服务拓扑](service-topology.md) |
+| 某个术语、身份、目录或生命周期的准确契约 | [开发契约参考](../reference/development-contracts.md) |
+| 现在究竟支持哪些平台和后端 | [支持矩阵](../user-guide/support-matrix.md) |
+| 下一步按什么顺序建设 | [路线图](../../ROADMAP.md) |
+| 镜像、模板、示例和 validation 在仓库中如何分工 | [仓库资产地图](../operator-guide/repository-assets.md) |

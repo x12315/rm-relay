@@ -1,12 +1,12 @@
 # RM Relay
 
-面向 RoboMaster 队伍的全开源、新手友好开发套件，覆盖嵌入式与 Linux 应用开发，逐步
-适配 RM 常见开发板、PC 和边缘计算板卡。
+面向 RoboMaster 队伍的全开源开发基础设施，当前从 STM32 嵌入式基线起步，逐步扩展到
+Linux 应用开发和 RM 常见开发板、PC、边缘计算板卡。
 
 > [!IMPORTANT]
 > 项目仍在建设。目前可用的是 STM32 嵌入式开发基线；快速体验服务器、IDE 一键配置、
-> 战队部署方案、Linux 应用环境、远程构建、目标设备接入和数据回收尚未交付。路线图和
-> 架构文档表达建设方向，不代表已经支持。
+> 战队部署方案、Linux 应用环境、远程构建，以及由统一 CLI 提供的 target 接入和数据回收
+> 尚未交付。路线图和架构文档表达建设方向，不代表已经支持。
 
 RM 队伍的成员和工程经验随赛季快速流动。一套环境如果只能由少数人安装、升级和排错，
 很容易在交接后失效。RM Relay 将重复出现的工具链配置、项目入口和验证方法整理成可复现
@@ -16,11 +16,11 @@ RM 队伍的成员和工程经验随赛季快速流动。一套环境如果只�
 ## 项目原则
 
 - **全开源与现代生态：** 以现代软件工程方法组织机器人开发领域成熟的开源工具，摆脱对
-  封闭 IDE 和专有开发套件的依赖，为 RMer 提供开箱即用、同时留有探索空间的开发套件。
-- **广泛的兼容性与支持面：** 覆盖 Windows、macOS 和 Linux，支持 x86、Arm 等架构。
+  封闭 IDE 和专有开发套件的依赖，为 RM 开发者提供开箱即用、同时留有探索空间的开发套件。
+- **广泛的兼容性与支持面：** 逐步覆盖 Windows、macOS 和 Linux，支持 x86、Arm 等架构。
   通过本地容器、远程构建和宿主工具等方式，开发 PC 应用，以及编译、烧录和调试嵌入式
   设备。
-- **低使用门槛：** 为 VS Code 等 IDE 提供一键配置，并支持云端编译。熟悉 Docker 的
+- **低使用门槛：** 逐步为 VS Code 等 IDE 提供一键配置，并支持云端编译。熟悉 Docker 的
   用户也可以在本地获得同一套构建环境。
 - **最小自研与长期维护：** 项目自身同样优先复用成熟的开源组件，以少量代码完成必要
   整合，降低社区贡献和长期维护成本。同时控制自部署的复杂度，让缺少专职运维人员的战队
@@ -80,16 +80,12 @@ sh validation/project-contracts/verify-project-builds.sh
 ```
 
 验证包含模板和 PI 示例的 native Clang、native GCC、ASan/UBSan 测试，以及
-STM32F407/RoboMaster C 交叉编译。进一步操作见：
-
-- [镜像选择与运行](docs/user-guide/image-selection.md)
-- [native 构建与测试](docs/user-guide/build-native.md)
-- [STM32 固件构建](docs/user-guide/build-stm32.md)
-- [烧录、调试与平台支持](docs/user-guide/support-matrix.md)
+STM32F407/RoboMaster C 交叉编译。镜像选择、native/STM32 构建、实板接入、IDE 示例和
+故障排查统一从[使用指南](docs/user-guide/README.md)进入。
 
 想先理解项目将如何工作，阅读[开发平台架构](docs/architecture/README.md)和
 [开发契约参考](docs/reference/development-contracts.md)。维护项目或参与建设时，再阅读
-[仓库资产边界](docs/operator-guide/repository-boundaries.md)、[项目路线](ROADMAP.md)、
+[仓库资产地图](docs/operator-guide/repository-assets.md)、[项目路线](ROADMAP.md)、
 [社区工作](docs/community/README.md)与[贡献指南](CONTRIBUTING.md)。
 
 ## 发起与许可证

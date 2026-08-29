@@ -1,178 +1,160 @@
 # 构建与输出
 
-RM Relay 必须区分环境镜像生产和用户 workspace 构建。两者都可能使用 Docker 与
-BuildKit，但输入、频率和责任完全不同。
+本文解释开发闭环的中段：固定环境如何消费用户源码，并以什么边界把结果交给 target。
+它不说明烧录或部署步骤；这些操作从 Build Output 开始，见
+[Target 接入与数据链路](targets-and-access.md)。
+
+> [!IMPORTANT]
+> 当前仓库已经实现嵌入式 local build，但尚未实现统一 `rm-relay` 入口、remote workspace
+> builder 和 `install/<profile>` 输出边界。实际可执行命令见
+> [STM32 固件构建](../user-guide/build-stm32.md)，本文描述目标构建契约。
+
+## 先分开两条看似相同的构建链路
+
+环境镜像生产和用户 workspace 构建都可能使用 Docker/BuildKit，但它们回答不同问题：
+
+| 链路 | 输入 | 输出 | 何时运行 |
+|---|---|---|---|
+| 环境镜像生产 | RM Relay Dockerfile、mise 能力配置、Bake target | development/runtime image | 环境或 profile 变化时 |
+| 用户 workspace 构建 | 固定 development image、项目声明、源码 | Build Output | 日常修改源码时 |
+
+前者固定“用什么构建”，后者执行“构建什么”。日常 workspace 构建不要求用户维护应用
+Dockerfile，也不把用户应用制作成 OCI image。
+
+## 一份项目声明，两种 backend
+
+Local 与 remote backend 的入口和出口保持相同：
 
 ```text
-环境镜像生产
-RM Relay 配置 → BuildKit → development/runtime image → Registry
-
-用户 workspace 构建
-固定 development image + 用户源码 → CMake/colcon → 本地构建结果
+本地源码 + 项目声明 + development profile
+                  │
+          ┌───────┴────────┐
+          ▼                ▼
+ local Docker        workspace builder
+          │                │
+          └───────┬────────┘
+                  ▼
+         Build Output 返回本地
 ```
 
-普通开发者不会为了每次修改源码而重新编写 Dockerfile，也不需要把应用制作成 OCI image。
+`mise` 组织项目任务。未来的 `rm-relay` 只协调容器、远程 backend 与 target；编译和测试仍
+由 CMake、colcon、Ninja、CTest 等原生工具执行。用户也可以绕过 mise 和 `rm-relay` 直接
+调用这些工具。
 
-## 构建入口
+通用 C/C++ 项目以 CMake 为官方基线，ROS 2 workspace 在外层使用 colcon。首版不再增加
+Meson、Xmake、Bazel、Nix 或自定义构建描述；ccache 通过 CMake compiler launcher 或
+colcon 的底层 CMake 参数接入，不改变构建图。
 
-mise 是项目任务入口，`rm-relay` 只协调跨容器、跨机器和 target 相关操作。实际编译仍由
-社区原生工具完成：
+Remote backend 使用 BuildKit 的 context 传输、cache 和 local exporter。服务器运行 RM
+Relay 维护的通用 workspace 构建定义，不读取用户自带的第二份应用 Dockerfile。一次 job
+结束并把结果写回本地后，源码快照和临时 workspace 可以删除；项目特有构建知识仍随源码
+存在。
+
+Workspace builder 不直接部署任何 target。这个中断点是有意设计的：local/remote build
+可以复用同一条下游 target 链路，构建服务和设备接入也能独立部署或替换。
+
+## Build Output 是唯一交接面
+
+Build tree 包含 object、CMake cache、绝对路径和中间文件，既不可移植，也泄露 backend
+内部布局。Target adapter 只消费构建系统现有的可部署输出：
+
+| 项目类型 | 目标 Build Output | 不交付的内容 |
+|---|---|---|
+| 普通 CMake | CMake Install Tree | `CMakeFiles/`、object、CMake cache |
+| ROS 2 workspace | colcon Install Space | build/log space 与中间 package 状态 |
+| MCU | ELF、BIN、MAP 等固件文件 | object、临时链接文件 |
+
+统一目录契约是：
 
 ```text
-mise
-├── 原生任务
-│   ├── CMake Presets → CMake → Ninja
-│   ├── colcon → ament/CMake → Ninja
-│   └── CTest / colcon test
-└── rm-relay
-    ├── local / remote build backend
-    └── target 接入
+<project-root>/
+├── build/<profile>/       backend 的可删除中间目录
+├── install/<profile>/     本地可见的 Build Output
+└── .rm-relay/data/        从 target 取回的 Managed Data
 ```
 
-CMake 是通用 C/C++ 项目的构建能力上限。ROS 2 workspace 在外层使用 colcon，不再引入
-Meson、Xmake、Bazel、Nix 或另一套自定义构建描述作为官方基线。用户仍可直接调用原生
-CMake、colcon 和 Ninja，mise 与 `rm-relay` 都不能成为封闭入口。ccache 通过 CMake
-compiler launcher 或 colcon 的底层 CMake 参数接入，不改变构建图。
+RM Relay 当前不定义新的应用包格式或强制压缩包。CMake Install Tree、ROS 2 Install Space
+和 MCU 固件文件已经能表达下游需要的内容。
 
-## 本地与远程 backend
+### 当前实现与目标契约的差距
 
-两种 backend 消费同一项目声明和同一 development profile：
+当前 MCU 模板和 PI 示例已经生成 ELF、BIN、MAP，但仍直接位于：
 
 ```text
-本地源码
-    │
-    ├── local backend
-    │   └── 本地 Docker container
-    │
-    └── remote backend
-        └── workspace 构建服务中的临时任务
-                │
-                ▼
-          构建结果返回本地
+build/stm32f407-robomaster-c/firmware/
 ```
 
-远程 backend 使用 BuildKit 的 context 传输、cache 和输出导出能力。服务端运行由 RM Relay
-维护的固定 workspace 构建定义，用户项目不因此增加一份应用 Dockerfile。BuildKit 的
-local exporter 将结果直接写回客户端指定目录；RM Relay 不在这段链路上维护另一套传输包
-或文件同步协议。构建服务不长期托管源码 workspace，也不保存项目特有的构建知识。
+因此这些文件当前可以被 user guide 的烧录/调试命令消费，却还没有通过统一的
+`install/<profile>` 导出边界。把模板迁移到 install model 是实现工作，不能因为架构已经
+定义 Build Output 就写成“统一输出链路已交付”。
 
-远程构建完成后，输出必须回到开发者工作区，再由本地任务送往 target。构建服务器不会直接
-部署物理设备或虚拟设备。这条边界保证本地 Docker 与远程服务可以共享下游流程，也允许各项
-服务独立部署。
+## Cache 只改变速度
 
-## 构建目录不是交付边界
+构建链路中存在四类状态：
 
-build tree 包含 object、CMake cache、绝对路径和中间文件，不能交给 target adapter 猜测。
-可部署输出使用已有构建系统的 install model：
+| 状态 | 所在位置 | 是否项目资产 |
+|---|---|---|
+| 本地 build tree | `build/<profile>/` | 否，可重新生成 |
+| Build Output | `install/<profile>/`（目标契约） | 是，本地可见 |
+| Managed Data | `.rm-relay/data/` | 是，取回后由本地保管 |
+| BuildKit、ccache、依赖 cache、remote workspace | backend 管理 | 否，可删除 |
 
-```text
-普通 CMake
-build/<profile>/
-    ↓ cmake --install
-install/<profile>/
-    ├── bin/
-    ├── lib/
-    └── share/
+切换 builder 或清空 cache 不得改变构建语义。首版不在本地与远端之间复制 cache，也不把
+cache 传到 target。
 
-ROS 2
-colcon build
-    ↓
-Install Space
-
-MCU
-install/<profile>/
-    ├── firmware.elf
-    ├── firmware.bin
-    └── firmware.map
-```
-
-CMake Install Tree、ROS 2 Install Space 和 MCU 固件文件是同一层级的 Build Output。烧录、
-传输和 debugger 只消费 Build Output，不直接依赖 build tree。RM Relay 当前不定义新的
-压缩包或应用包格式，也不要求每次构建用户应用镜像。
-
-## 输出与 cache 的所有权
-
-```text
-项目工作区
-├── build/<profile>/           本地构建中间目录
-├── install/<profile>/         本地可见的 Build Output
-└── .rm-relay/data/            target 返回的数据
-
-backend 管理
-├── BuildKit cache
-├── ccache
-├── 依赖下载 cache
-└── 远程 job workspace
-```
-
-Build Output 是项目资产；cache 只是加速手段。切换 builder 或清空 cache 不得改变构建
-语义。首版不在本地和远端之间同步 cache，也不把 cache 传到 target。
-
-ccache 是显式依赖，不是 CMake 默认能力。远程 backend 在可信的战队或邀请制实例中，可以
-让使用同一环境与工具链的用户共享 ccache；ccache 会按编译器、参数和输入内容判断命中，
-不把不同项目的输出直接混用。项目 build tree 仍相互隔离。
-
-本地 ccache 只保存在开发者电脑，不与服务器同步。未来若开放不受信任的公共构建服务，
-可以改成公共只读种子 cache 加用户私有写 cache。无论采用哪种布局，cache 都是可删除的
-加速资产，不能参与权限判断，也不能成为构建正确性的前提。
+ccache 是显式依赖，不是 CMake 默认能力。可信战队或邀请制 backend 可以让相同环境与
+工具链的用户共享 ccache，但 job workspace 和 build tree 仍彼此隔离。若以后提供不受信任
+的公共服务，可以改为公共只读种子 cache 与用户私有写 cache。无论采用哪种布局，cache
+命中都不能证明身份、权限、完整性或构建正确性。
 
 ## 跨架构构建
 
-首版面向“战队只有 x86 服务器、目标是 ARM64 Linux”的现实，采用两条固定路径：
+首条算力侧链路假定 x86 构建服务器与 ARM64 Linux target。这里仍要分开镜像生产和源码
+编译：
 
 ```text
-ARM64 环境镜像
-x86 BuildKit → QEMU 执行目标架构安装过程 → ARM64 image
+环境镜像生产
+x86 BuildKit ── QEMU 执行 ARM64 包安装 ──→ ARM64 image
 
-战队 workspace
-x86 host → aarch64 cross toolchain → ARM64 Install Tree / Install Space
+用户 workspace
+x86 host ── aarch64 cross toolchain ──→ ARM64 Install Tree / Install Space
 ```
 
-两条路径不会互相 fallback。QEMU 不参与大型用户 workspace 编译；cross compile 失败时
-必须直接报告不兼容，不能静默改用转译构建。原生 ARM64 builder 是后续扩展，用于提速和
-扩大兼容面。
+QEMU 不参与大型用户 workspace 编译。Cross compile 失败时应直接报告不兼容，不能悄悄
+退回 QEMU；原生 ARM64 builder 是后续的性能与兼容性扩展。
 
-### target sysroot
+### Sysroot 与 runtime 必须来自同一基线
 
-cross builder 使用隔离的 ARM64 sysroot：
+Cross builder 使用隔离的 ARM64 sysroot：
 
 ```text
 同一 target package 基线
-├── runtime packages
-│   └── ARM64 runtime image
-└── runtime packages + development packages
-    └── ARM64 target sysroot
-            │
-            ▼
-      x86 cross builder
+├── runtime packages ───────────────→ ARM64 runtime image
+└── runtime + development packages ─→ ARM64 sysroot ─→ x86 cross builder
 ```
 
-sysroot 通过 Ubuntu/Debian APT 构造，包含 headers、linker 文件、CMake Config 和
-`pkg-config` metadata。它不能与 runtime 独立求解另一套依赖，也不能把所有 ARM64 包
-直接混入 x86 builder 根目录。两边应记录实际包清单，并验证共同 runtime package 的版本
-一致。
+Sysroot 包含 headers、linker 文件、CMake Config 和 `pkg-config` metadata。它不能独立求解
+依赖，也不能把所有 ARM64 package 装进 x86 builder 根目录。Runtime image 与 sysroot 都
+记录实际 package 清单，并检查共同 runtime package 的版本。
 
-ROS 2、Nav2、OpenCV 等成熟依赖优先使用目标架构的 binary package。RM Relay 交叉编译
-的是战队自己的 workspace，不承诺任意第三方源码 package 无适配完成 cross compile：
+ROS 2、Nav2、OpenCV 等成熟依赖优先使用目标架构 binary package。正式支持范围包括官方
+模板和已验证 profile；随 workspace 构建的第三方源码要通过 cross-build contract test。
+构建期必须执行 target 程序、混用 host/target 生成器或依赖特殊架构工具的 package，首版
+不保证兼容。
 
-- 官方模板和已验证 profile 属于正式支持范围；
-- 随 workspace 编译的第三方源码需要通过 cross-build contract test；
-- 构建期执行 target 程序、混淆 host/target 生成器或依赖特殊架构工具的 package，首版不作
-  兼容保证。
+## 构建证据不能替实机证据
 
-## 兼容性验证
+跨架构输出按顺序检查：
 
-跨架构构建至少分三层验证：
+1. ELF architecture、dynamic loader、`DT_NEEDED`、RPATH 和 symbol version；
+2. Runtime 中的程序、project library、plugin 与 ROS resource index；
+3. 真实 target 上的 kernel、驱动、设备和调试行为。
 
-1. 检查 ELF architecture、dynamic loader、`DT_NEEDED`、RPATH 和 symbol version。
-2. 在干净的匹配 runtime 环境中加载程序、项目 library、plugin 和 ROS resource index。
-3. 在真实 target 上验证设备、驱动和内核相关行为。
+前两层只证明 Build Output 与用户态 runtime 匹配，不能推出真实硬件已经兼容。支持结论必须
+沿用[支持矩阵](../user-guide/support-matrix.md)中的证据等级。
 
-通过前两层不能推导真实硬件已兼容。验证结论继续使用
-[支持矩阵](../user-guide/support-matrix.md)记录的证据等级。
+## 仍待组件设计确定的内容
 
-## 尚未定案
-
-远程 workspace 构建定义的具体文件格式、Build Output manifest、失败后的断点恢复以及
-runtime compatibility schema 尚未确定。实现这些内容时必须保持本页已经确认的边界：
-项目构建定义随源码存在，服务端保持通用，构建结果先回本地，cache 不成为项目真相源。
+Remote workspace 构建定义格式、Build Output manifest、失败后的断点恢复和 runtime
+compatibility schema 尚未确定。后续设计可以补充这些内部契约，但必须保持：项目声明随
+源码存在，服务端保持通用，Build Output 先回本地，cache 不成为项目真相源。

@@ -42,22 +42,9 @@ arm-none-eabi-size \
 
 ## 验证状态
 
-构建状态：
-
-- `built`：某个构建命令成功。
-- `host-tested`：native 测试在宿主架构容器中通过。
-- `cross-compiled`：目标 ELF/BIN/MAP 成功生成并通过静态检查。
-
-硬件后端状态：
-
-- `configured`：后端配置和命令入口已建立。
-- `detected`：工具已只读枚举目标设备。
-- `flashed`：固件已成功写入目标芯片。
-- `flash-verified`：写入内容已由工具校验或回读比对。
-- `boot-observed`：复位后已观察到约定的启动行为。
-- `debug-tested`：调试器已连接、命中观察点并核对约定状态。
-
-两组状态不可相互替代。当前 F407 固件为 `cross-compiled`；RoboMaster C 已在 macOS
+构建状态与硬件后端状态的完整定义见
+[开发契约参考](../reference/development-contracts.md#证据等级)，两组证据不能互相替代。
+当前 F407 固件为 `cross-compiled`；RoboMaster C 已在 macOS
 通过 DFU 达到 `flash-verified`，并通过 OpenOCD/GDB 达到 `debug-tested`。Linux 与
 Windows 的真实 USB 和调试链路仍待分别验证。
 

@@ -1,0 +1,31 @@
+# 使用指南
+
+本目录面向准备使用当前 STM32 开发基线的开发者。先按推荐路径完成一次构建，再根据板卡、
+宿主系统和 backend（后端）查阅对应步骤。仓库尚未交付的能力不在这里预演；实际支持程度以
+[支持矩阵](support-matrix.md)为准。
+
+## 第一次使用
+
+1. 阅读[镜像选择与运行](image-selection.md)，构建并进入适合当前宿主架构的 `mcu-dev` 镜像。
+2. 用[native 构建与测试](build-native.md)确认 host 路径，或直接按
+   [STM32F407 固件构建](build-stm32.md)生成 RoboMaster C 固件。
+3. 需要连接实板时，先查看[RoboMaster C 板卡说明](boards/robomaster-c.md)，再选择烧录或
+   调试 backend。
+
+## 按任务查找
+
+| 目标 | 阅读入口 |
+|---|---|
+| 选择镜像、运行容器和处理宿主设备边界 | [镜像选择与运行](image-selection.md) |
+| 运行 native Clang、GCC 和 sanitizer 测试 | [native 构建与测试](build-native.md) |
+| 生成并检查 STM32F407 ELF/BIN/MAP | [STM32F407 固件构建](build-stm32.md) |
+| 使用 ROM DFU 烧录 | [dfu-util backend](backends/dfu-util.md) |
+| 使用 ST-Link、OpenOCD 和 GDB | [OpenOCD/GDB backend](backends/openocd-gdb.md) |
+| 按宿主系统接入 OpenOCD/GDB | [macOS 流程](flash-debug-macos.md) · [Linux 流程](flash-debug-linux.md) |
+| 查询首个支持板卡的容量、接线和证据 | [RoboMaster C 板卡说明](boards/robomaster-c.md) |
+| 接入 VS Code/Cortex-Debug | [VS Code 示例](vscode-example.md) |
+| 按错误症状定位问题 | [故障排查](troubleshooting.md) |
+| 判断某个平台或 backend 是否经过真实验证 | [支持矩阵](support-matrix.md) |
+
+镜像维护和发布不属于用户操作，见[镜像构建与验证](../operator-guide/build-and-verify-images.md)。
+架构角色、目标能力和未来设计见[开发平台架构](../architecture/README.md)。

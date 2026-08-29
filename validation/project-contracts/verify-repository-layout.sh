@@ -46,9 +46,10 @@ for required_file in \
     docs/architecture/targets-and-access.md \
     docs/architecture/service-topology.md \
     docs/reference/development-contracts.md \
+    docs/user-guide/README.md \
     docs/user-guide/build-native.md \
     docs/operator-guide/build-and-verify-images.md \
-    docs/operator-guide/repository-boundaries.md \
+    docs/operator-guide/repository-assets.md \
     validation/README.md \
     validation/project-contracts/verify-toolchain-source-policy.sh; do
     assert_file_exists "${required_file}"
@@ -65,6 +66,7 @@ for absent_path in \
     examples/shared_core \
     examples/native \
     examples/stm32f407 \
+    docs/operator-guide/repository-boundaries.md \
     docs/architecture/targets-and-sessions.md; do
     assert_path_absent "${absent_path}"
 done
