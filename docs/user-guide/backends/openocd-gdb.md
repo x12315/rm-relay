@@ -6,7 +6,7 @@ OpenOCD 连接 ST-Link 等 debug adapter（调试适配器）并暴露 GDB serve
 
 ## 当前配置
 
-RoboMaster C 当前使用 `openocd/boards/robomaster-c.cfg`：
+RoboMaster C 当前使用 `toolkit/openocd/boards/robomaster-c.cfg`：
 
 - ST-Link interface；
 - SWD transport；
@@ -31,7 +31,7 @@ RoboMaster C 当前使用 `openocd/boards/robomaster-c.cfg`：
 没有 ST-Link 时仍可检查配置文件能否被 OpenOCD 解析：
 
 ```bash
-openocd -f openocd/boards/robomaster-c.cfg -c "init; shutdown"
+openocd -f toolkit/openocd/boards/robomaster-c.cfg -c "init; shutdown"
 ```
 
 允许在尝试打开 adapter 时失败；Tcl 语法错误、找不到 interface/target 配置或无法读取

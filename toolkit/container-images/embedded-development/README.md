@@ -15,4 +15,4 @@ OpenOCD、GDB 和 `dfu-util`。镜像只交付工具链，不包含用户应用�
 个人设备配置。
 
 构建、验证和未来发布方式见
-[镜像构建与验证](../../docs/operator-guide/build-and-verify-images.md)。
+[镜像构建与验证](../../../docs/operator-guide/build-and-verify-images.md)。

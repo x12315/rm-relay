@@ -83,7 +83,7 @@ Project Template 与 Dev Container Template 都属于 RM Relay 的核心资产�
 
 | 核心资产 | 固定的入口 | 消费方式 | 当前状态 |
 |---|---|---|---|
-| Project Template | 用户项目的源码、CMake、测试和目标配置结构 | 当前由用户复制并改名；未来也可由 `rm-relay init` 交互式生成 | `templates/cross-platform-cpp/` 已实现 |
+| Project Template | 用户项目的源码、CMake、测试和目标配置结构 | 当前由用户复制并改名；未来也可由 `rm-relay init` 交互式生成 | `toolkit/project-templates/cross-platform-cpp/` 已实现 |
 | Dev Container Template | profile 对应的 environment、mount、设备接入和 IDE 建议 | 用户按 profile 创建 development container | 尚未实现 |
 
 Project Template 与项目声明、profile 和 Build Output 契约共同演进，不能作为可选插件拆出核心

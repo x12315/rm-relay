@@ -9,7 +9,7 @@ cmake --workflow --preset stm32f407-robomaster-c
 模板产物位于：
 
 ```text
-templates/cross-platform-cpp/build/stm32f407-robomaster-c/firmware/
+toolkit/project-templates/cross-platform-cpp/build/stm32f407-robomaster-c/firmware/
 ├── robomaster-c-starter.elf
 ├── robomaster-c-starter.bin
 └── robomaster-c-starter.map

@@ -20,7 +20,7 @@ group "multiarch" {
 
 target "common" {
   context    = "."
-  dockerfile = "container-images/embedded-development/Dockerfile"
+  dockerfile = "toolkit/container-images/embedded-development/Dockerfile"
 }
 
 target "base" {
