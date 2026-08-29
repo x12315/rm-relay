@@ -9,12 +9,16 @@
 | 资产 | 位置 | 交付内容 | 不承担的职责 |
 |---|---|---|---|
 | 镜像产品 | [`container-images/embedded-development/`](../../container-images/embedded-development/README.md) | 可独立构建、验证和发布的固定工具链 | 用户应用、IDE、个人配置 |
-| 项目模板 | [`templates/cross-platform-cpp/`](../../templates/cross-platform-cpp/README.md) | 供用户复制、改名和继续开发的项目起点 | 完整示例行为、公共算法库 |
+| 项目模板 | [`templates/cross-platform-cpp/`](../../templates/cross-platform-cpp/README.md) | 当前供用户复制、改名；未来也可由 `rm-relay init` 配置的核心项目起点 | 完整示例行为、公共算法库 |
 | 完整示例 | [`examples/deterministic-pi-control/`](../../examples/deterministic-pi-control/README.md) | 有明确行为、测试向量和目标产物的可执行示例 | 用户项目的固定目录模板、版本化算法 API |
 | 契约验证 | [`validation/`](../../validation/README.md) | 从维护者视角验证仓库拓扑、工具链策略和消费者构建 | 用户项目功能、硬件证据的替代品 |
 
 模板中的占位代码只证明结构可工作；PI 控制器展示一条完整行为路径。两者都不是本仓库向
 应用承诺兼容性的控制算法库。
+
+Project Template 与未来每个 profile 对应的 Dev Container Template 都属于核心资产，继续与
+CLI、schema 和验证契约共同维护。可选 IDE 配置与 Agent Skill 不写入 Project Template；其
+仓库边界见[环境与 profile](../architecture/environments-and-profiles.md#两类核心-template-固定不同入口)。
 
 ## 新内容放在哪里
 
