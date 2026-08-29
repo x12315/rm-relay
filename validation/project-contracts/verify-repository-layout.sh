@@ -27,10 +27,19 @@ for required_file in \
     ROADMAP.md \
     toolkit/README.md \
     toolkit/go.mod \
-    toolkit/cmd/rm-relay/.gitkeep \
+    toolkit/cmd/rm-relay/main.go \
     toolkit/cmd/rm-relay-node/.gitkeep \
+    toolkit/internal/backend/localcontainer/backend.go \
+    toolkit/internal/buildoutput/manifest.go \
+    toolkit/internal/cli/application.go \
+    toolkit/internal/commandexec/runner.go \
+    toolkit/internal/executionplan/plan.go \
+    toolkit/internal/miseexec/invocation.go \
     toolkit/internal/project/config.go \
     toolkit/internal/profile/catalog.go \
+    toolkit/internal/target/adapter.go \
+    toolkit/internal/target/openocd/adapter.go \
+    toolkit/internal/workspacebuild/service.go \
     toolkit/container-images/embedded-development/README.md \
     toolkit/container-images/embedded-development/Dockerfile \
     toolkit/container-images/embedded-development/docker-bake.hcl \
@@ -63,6 +72,7 @@ for required_file in \
     docs/operator-guide/build-and-verify-images.md \
     docs/operator-guide/repository-assets.md \
     validation/README.md \
+    validation/project-contracts/verify-mise-development-cycle.sh \
     validation/project-contracts/verify-toolchain-source-policy.sh; do
     assert_file_exists "${required_file}"
 done

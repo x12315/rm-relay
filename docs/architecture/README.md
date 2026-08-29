@@ -69,20 +69,20 @@ Development profile 固定工具链、依赖、目标架构和兼容基线。项
 不同环境。
 
 当前仓库已经把 `base` 和 `mcu-dev` 作为可选择的环境 stage，并分别为 `linux/amd64`、
-`linux/arm64` 定义了 Bake target。算力侧 development/runtime 环境、mise 能力层、官方
-profile 和项目 overlay 是后续实现必须遵守的设计，详见
+`linux/arm64` 定义了 Bake target。首个嵌入式 Profile 与 mise 能力层已经接入；算力侧
+development/runtime 环境和项目 overlay 仍是后续实现，详见
 [环境与 profile](environments-and-profiles.md)。
 
 ### 2. 构建只回答“如何得到可交付结果”
 
 Local backend 和 remote backend 消费相同的项目声明与 development profile。构建系统仍是
-CMake、colcon、Ninja、CTest 等原生工具；`mise` 组织常用任务，未来的 `rm-relay` 只编排
+CMake、colcon、Ninja、CTest 等原生工具；`mise` 组织常用任务，`rm-relay` 只编排
 跨容器、跨机器和 target 相关操作。
 
 两种 backend 的共同出口都是开发机上的 Build Output。Remote workspace 是一次性工作区，
-服务端 cache 可以删除；workspace builder 不直接把结果部署到 target。当前 MCU 模板仍直接从
-`build/stm32f407-robomaster-c/firmware/` 使用 ELF/BIN/MAP，统一的 `install/<profile>`
-边界尚未落地。设计与现状的差异见[构建与输出](builds-and-outputs.md)。
+服务端 cache 可以删除；workspace builder 不直接把结果部署到 target。当前 MCU 模板已由
+CMake install 将 ELF/BIN/MAP 导出到 `install/<profile>`，并生成内容校验 manifest。
+Remote backend 尚未实现，详见[构建与输出](builds-and-outputs.md)。
 
 ### 3. Target 接入回答“结果去哪里、如何调试”
 

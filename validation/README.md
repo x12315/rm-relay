@@ -5,6 +5,8 @@
 - `project-contracts/verify-repository-layout.sh` 检查套件实现、仓库级支撑资产和局部 README。
 - `project-contracts/verify-toolchain-source-policy.sh` 检查 LTS、国内源、APT 安全边界和编译器选择。
 - `project-contracts/verify-project-builds.sh` 在正式开发镜像中构建模板与 PI 示例。
+- `project-contracts/verify-mise-development-cycle.sh` 从 CLI 入口验证 Project 初始化、local
+  backend、mise task、Build Output manifest 和 OpenOCD dry-run。
 
 从仓库根目录运行：
 
@@ -12,9 +14,11 @@
 sh validation/project-contracts/verify-repository-layout.sh
 sh validation/project-contracts/verify-toolchain-source-policy.sh
 sh validation/project-contracts/verify-project-builds.sh
+sh validation/project-contracts/verify-mise-development-cycle.sh
 ```
 
-`verify-project-builds.sh` 默认使用 `mcu-dev/toolchain:local`。验证其他候选镜像时
+`verify-project-builds.sh` 和 `verify-mise-development-cycle.sh` 默认使用
+`mcu-dev/toolchain:local`。验证其他候选镜像时
 显式传入：
 
 ```bash

@@ -2,12 +2,20 @@
 package executionplan
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/x12315/rm-relay/toolkit/internal/profile"
 	"github.com/x12315/rm-relay/toolkit/internal/project"
+)
+
+var (
+	// ErrProject marks failures in the user-owned project declaration.
+	ErrProject = errors.New("project resolution failed")
+	// ErrProfile marks failures in the RM Relay-owned Profile catalog or assets.
+	ErrProfile = errors.New("profile resolution failed")
 )
 
 // Operation identifies the user action represented by a Plan.
@@ -50,10 +58,10 @@ func Resolve(operation Operation, projectRoot, assetsRoot, profileOverride strin
 	}
 	projectConfig, err := project.Load(projectRoot)
 	if err != nil {
-		return Plan{}, err
+		return Plan{}, fmt.Errorf("%w: %v", ErrProject, err)
 	}
 	if projectConfig.ProjectID == "" {
-		return Plan{}, fmt.Errorf("project identity is empty; run rm-relay init first")
+		return Plan{}, fmt.Errorf("%w: project identity is empty; run rm-relay init first", ErrProject)
 	}
 	profileID := profileOverride
 	if profileID == "" {
@@ -64,27 +72,27 @@ func Resolve(operation Operation, projectRoot, assetsRoot, profileOverride strin
 		AssetsRoot:   assetsRoot,
 	}).Load(profileID)
 	if err != nil {
-		return Plan{}, err
+		return Plan{}, fmt.Errorf("%w: %v", ErrProfile, err)
 	}
 	buildDeclaration, err := projectConfig.BuildForProfile(profileID)
 	if err != nil {
-		return Plan{}, err
+		return Plan{}, fmt.Errorf("%w: %v", ErrProject, err)
 	}
 	if err := requireProfileOutputs(buildDeclaration, loadedProfile.Config.RequiredOutputRoles); err != nil {
-		return Plan{}, err
+		return Plan{}, fmt.Errorf("%w: %v", ErrProject, err)
 	}
 
 	coreMiseConfig := filepath.Join(assetsRoot, "mise", "core.toml")
 	profileMiseConfig := filepath.Join(loadedProfile.Directory, loadedProfile.Config.MiseConfig)
 	projectMiseConfig := filepath.Join(projectRoot, buildDeclaration.MiseConfig)
-	for purpose, configPath := range map[string]string{
-		"core mise config":    coreMiseConfig,
-		"profile mise config": profileMiseConfig,
-		"project mise config": projectMiseConfig,
-	} {
-		if err := requireRegularFile(configPath); err != nil {
-			return Plan{}, fmt.Errorf("%s: %w", purpose, err)
-		}
+	if err := requireRegularFile(coreMiseConfig); err != nil {
+		return Plan{}, fmt.Errorf("%w: core mise config: %v", ErrProfile, err)
+	}
+	if err := requireRegularFile(profileMiseConfig); err != nil {
+		return Plan{}, fmt.Errorf("%w: profile mise config: %v", ErrProfile, err)
+	}
+	if err := requireRegularFile(projectMiseConfig); err != nil {
+		return Plan{}, fmt.Errorf("%w: project mise config: %v", ErrProject, err)
 	}
 	return Plan{
 		Operation:         operation,

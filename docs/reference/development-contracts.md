@@ -34,9 +34,9 @@ Build Output 沿用现有构建系统的输出形式：
 | ROS 2 workspace | colcon Install Space |
 | MCU | ELF、BIN、MAP 等固件文件 |
 
-Build tree、compiler cache 和依赖 cache 都不属于 Build Output。当前 MCU 模板已经生成上述
-固件文件，但仍位于 `build/stm32f407-robomaster-c/firmware/`；统一
-`install/<profile>` 出口是目标契约，尚未实现。
+Build tree、compiler cache 和依赖 cache 都不属于 Build Output。当前 MCU 模板已将固件导出
+到 `install/<profile>`，并以 `rm-relay-output.json` 记录 Project、Profile、image 与内容
+校验信息。
 
 ## 身份与兼容性
 
@@ -49,8 +49,8 @@ Build tree、compiler cache 和依赖 cache 都不属于 Build Output。当前 M
 | Cache | 只参与性能优化 | 身份、权限或构建完整性证明 |
 
 Project identity 用于关联项目声明、build tree 和增量传输，不得充当用户身份或访问凭据。
-公开 schema 确定前，模板不得给所有新项目放入同一个固定 ID。Target manifest、兼容字段与
-握手协议也要等组件设计完成后再进入本 reference。
+模板保留空 ID，`rm-relay init` 为复制后的项目生成 UUID v4；不能把模板 ID、路径或 Git
+remote 当作项目身份。Linux Target manifest、兼容字段与握手协议仍需等对应组件设计完成。
 
 ## 开发机路径
 
@@ -63,9 +63,8 @@ Project identity 用于关联项目声明、build tree 和增量传输，不得�
 └── .rm-relay/data/        从 target 取回的 Managed Data
 ```
 
-这是目标契约，不是当前所有模板都已采用的路径。现有可执行命令仍以
-[STM32 固件构建](../user-guide/build-stm32.md)记录的 `build/.../firmware/` 为准，迁移完成后
-才能修改该操作入口。
+统一 CLI 已在 MCU 模板采用这一路径。直接调用 CMake 时仍可查看 `build/.../firmware/`，但
+target adapter 只消费经过 manifest 校验的 `install/<profile>`。
 
 Remote job workspace、BuildKit cache、ccache 和依赖下载 cache 由 backend 管理，不进入
 项目目录契约。开发机 cache 与编译服务器 cache 互不复制；删除或切换 cache 不得改变构建语义。

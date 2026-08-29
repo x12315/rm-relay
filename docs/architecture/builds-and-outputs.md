@@ -5,9 +5,9 @@
 [Target 接入与数据链路](targets-and-access.md)。
 
 > [!IMPORTANT]
-> 当前仓库已经实现嵌入式 local build，但尚未实现统一 `rm-relay` 入口、remote workspace
-> builder 和 `install/<profile>` 输出边界。实际可执行命令见
-> [STM32 固件构建](../user-guide/build-stm32.md)，本文描述目标构建契约。
+> 当前仓库已经实现 `rm-relay` 嵌入式 local backend 与 `install/<profile>` 输出边界；remote
+> workspace builder 尚未实现。实际可执行命令见
+> [STM32 固件构建](../user-guide/build-stm32.md)。
 
 ## 先分开两条看似相同的构建链路
 
@@ -37,7 +37,7 @@ Local 与 remote backend 的入口和出口保持相同：
          Build Output 返回开发机
 ```
 
-`mise` 组织项目任务。未来的 `rm-relay` 只协调容器、远程 backend 与 target；编译和测试仍
+`mise` 组织项目任务。`rm-relay` 协调容器、未来的远程 backend 与 target；编译和测试仍
 由 CMake、colcon、Ninja、CTest 等原生工具执行。用户也可以绕过 mise 和 `rm-relay` 直接
 调用这些工具。
 
@@ -76,17 +76,10 @@ Build tree 包含 object、CMake cache、绝对路径和中间文件，既不可
 RM Relay 当前不定义新的应用包格式或强制压缩包。CMake Install Tree、ROS 2 Install Space
 和 MCU 固件文件已经能表达下游需要的内容。
 
-### 当前实现与目标契约的差距
-
-当前 MCU 模板和 PI 示例已经生成 ELF、BIN、MAP，但仍直接位于：
-
-```text
-build/stm32f407-robomaster-c/firmware/
-```
-
-因此这些文件当前可以被 user guide 的烧录/调试命令消费，却还没有通过统一的
-`install/<profile>` 导出边界。把模板迁移到 install model 是实现工作，不能因为架构已经
-定义 Build Output 就写成“统一输出链路已交付”。
+当前 MCU 模板通过项目 mise task 调用 CMake configure、build 与 install。Local backend
+成功后检查 Profile 要求的输出角色，并在 `install/<profile>/rm-relay-output.json` 记录
+Project ID、Profile digest、development image identity、文件大小和 SHA-256。Target adapter
+只接收重新校验过的 Build Output；PI 示例仍保留直接 CMake 构建，用于验证构建系统本身。
 
 ## Cache 只改变速度
 
@@ -155,6 +148,6 @@ ROS 2、Nav2、OpenCV 等成熟依赖优先使用目标架构 binary package。�
 
 ## 仍待组件设计确定的内容
 
-Remote workspace 构建定义格式、Build Output manifest、失败后的断点恢复和 runtime
-compatibility schema 尚未确定。后续设计可以补充这些内部契约，但必须保持：项目声明随
+Remote workspace 构建定义、失败后的断点恢复和 runtime compatibility schema 尚未确定。
+后续设计必须沿用现有 Project、Profile、Execution Plan 与 Build Output 边界：项目声明随
 源码存在，服务端保持通用，Build Output 先回开发机，cache 不成为项目真相源。

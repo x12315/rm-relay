@@ -4,9 +4,9 @@
 Linux 应用开发和 RM 常见开发板、PC、边缘计算板卡。
 
 > [!IMPORTANT]
-> 项目仍在建设。目前可用的是 STM32 嵌入式开发基线；快速体验服务器、IDE 一键配置、
-> 战队部署方案、Linux 应用环境、远程构建，以及由统一 CLI 提供的 target 接入和数据回收
-> 尚未交付。路线图和架构文档表达建设方向，不代表已经支持。
+> 项目仍在建设。目前已跑通 STM32 项目初始化、本地容器构建、Build Output 校验与 OpenOCD
+> 命令解析；快速体验服务器、IDE 一键配置、战队部署方案、Linux 应用环境、远程构建和
+> target 数据回收尚未交付。路线图和架构文档表达建设方向，不代表已经支持。
 
 RM 队伍的成员和工程经验随赛季快速流动。一套环境如果只能由少数人安装、升级和排错，
 很容易在交接后失效。RM Relay 将重复出现的工具链配置、项目入口和验证方法整理成可复现
@@ -31,9 +31,10 @@ RM 队伍的成员和工程经验随赛季快速流动。一套环境如果只�
 
 ## 当前能力
 
-当前仓库提供 C++20/STM32 开发镜像、可复制的跨平台 CMake 项目模板，以及一份在 host
-测试和 MCU 固件中复用相同控制逻辑的 PI 示例。镜像覆盖 `linux/amd64` 与
-`linux/arm64`，真实主机验证目前以 Apple Silicon macOS 为主。
+当前仓库提供 C++20/STM32 开发镜像、`rm-relay` CLI、可复制的跨平台 CMake 项目模板，
+以及一份在 host 测试和 MCU 固件中复用相同控制逻辑的 PI 示例。CLI 通过受控 mise task
+调用固定开发镜像，将 ELF、BIN、MAP 和校验 manifest 导出到开发机。镜像覆盖
+`linux/amd64` 与 `linux/arm64`，真实主机验证目前以 Apple Silicon macOS 为主。
 
 STM32F407 和 RoboMaster C 已能完成交叉编译；RoboMaster C 已在 macOS 通过 ROM DFU
 完成写入与回读校验，并通过 ST-Link、OpenOCD 和 GDB 完成固件加载、断点与变量检查。
@@ -77,11 +78,13 @@ docker buildx bake \
   mcu-dev --load
 sh validation/project-contracts/verify-repository-layout.sh
 sh validation/project-contracts/verify-project-builds.sh
+sh validation/project-contracts/verify-mise-development-cycle.sh
 ```
 
-验证包含模板和 PI 示例的 native Clang、native GCC、ASan/UBSan 测试，以及
-STM32F407/RoboMaster C 交叉编译。镜像选择、native/STM32 构建、实板接入、IDE 示例和
-故障排查统一从[使用指南](docs/user-guide/README.md)进入。
+验证包含模板和 PI 示例的 native Clang、native GCC、ASan/UBSan 测试，STM32F407 交叉编译，
+以及 `rm-relay -> mise -> Docker -> CMake Install -> OpenOCD dry-run` 链路。镜像选择、
+native/STM32 构建、实板接入、IDE 示例和故障排查统一从
+[使用指南](docs/user-guide/README.md)进入。
 
 想先理解项目将如何工作，阅读[开发平台架构](docs/architecture/README.md)和
 [开发契约参考](docs/reference/development-contracts.md)。维护项目或参与建设时，再阅读

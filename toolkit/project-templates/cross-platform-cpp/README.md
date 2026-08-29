@@ -14,7 +14,18 @@
 领域模型替换 `portable-code` 中的占位代码。不要让可移植代码依赖 ROS 2、HAL、RTOS、
 总线帧、文件系统、线程或隐式时钟。
 
-完整 native 验证：
+使用 RM Relay 入口时，先为复制后的项目生成唯一标识，再由固定开发镜像构建：
+
+```bash
+rm-relay init
+rm-relay build
+```
+
+固件与 `rm-relay-output.json` 位于
+`install/embedded-stm32f407-robomaster-c/`。`mise.toml` 保存项目拥有的 workspace task，
+`rm-relay.toml` 保存 Project/Profile 与输出角色声明。
+
+也可以绕过 RM Relay，直接使用 CMake 完成 native 验证：
 
 ```bash
 cmake --workflow --preset native-clang
@@ -22,13 +33,14 @@ cmake --workflow --preset native-gcc
 cmake --workflow --preset native-asan
 ```
 
-交叉编译 RoboMaster C 的 STM32F407 固件：
+或直接交叉编译 RoboMaster C 的 STM32F407 固件：
 
 ```bash
 cmake --workflow --preset stm32f407-robomaster-c
 ```
 
-生成目录统一位于本模板的 `build/` 下。个人 IDE 或机器覆盖项应写入未提交的
+直接调用 CMake 时，中间文件和固件都位于本模板的 `build/` 下；RM Relay 则额外通过
+CMake install 导出稳定 Build Output。个人 IDE 或机器覆盖项应写入未提交的
 `CMakeUserPresets.json`。
 
 ## 目录职责

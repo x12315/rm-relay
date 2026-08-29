@@ -1,12 +1,36 @@
 # STM32F407 固件构建
 
-STM32 preset 同样属于独立项目。以下命令在所选项目目录内运行：
+使用项目模板时，推荐从项目目录运行统一入口：
+
+```bash
+rm-relay init
+rm-relay build
+```
+
+首次 `init` 只生成 Project Identity；重复执行不会改写已有标识。构建产物位于：
+
+```text
+install/embedded-stm32f407-robomaster-c/
+├── robomaster-c-starter.elf
+├── robomaster-c-starter.bin
+├── robomaster-c-starter.map
+└── rm-relay-output.json
+```
+
+`rm-relay-output.json` 记录 Profile、development image 和三个文件的 SHA-256。检查 OpenOCD
+命令但不访问硬件：
+
+```bash
+rm-relay flash --target openocd-stlink --dry-run
+```
+
+也可以绕过 RM Relay，直接调用项目自己的 STM32 preset：
 
 ```bash
 cmake --workflow --preset stm32f407-robomaster-c
 ```
 
-模板产物位于：
+此时模板产物位于可删除的 build tree：
 
 ```text
 toolkit/project-templates/cross-platform-cpp/build/stm32f407-robomaster-c/firmware/
