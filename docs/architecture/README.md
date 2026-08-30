@@ -5,9 +5,9 @@
 数据由谁保管，以及当前实现与目标设计之间还有哪些距离。
 
 > [!IMPORTANT]
-> 本组文档记录已经确认的设计基线，不等于全部能力已经交付。当前仓库只交付 STM32
-> 嵌入式开发基线；统一 CLI、Linux 环境、远程构建、物理 Linux target 和虚拟 target
-> 仍在建设。实际能力和证据等级只以[支持矩阵](../user-guide/support-matrix.md)为准。
+> 本组文档记录已经确认的设计基线，不等于全部能力已经交付。当前仓库交付 STM32
+> 嵌入式开发基线和本地 `rm-relay` CLI；Linux 环境、远程构建、物理 Linux target 和虚拟
+> target 仍在建设。实际能力和证据等级只以[支持矩阵](../user-guide/support-matrix.md)为准。
 
 ## 先建立一个完整模型
 
@@ -185,4 +185,4 @@ sandbox 不阻塞当前开发闭环，见[路线图的后续可选模块](../../
 | 某个术语、身份、目录或生命周期的准确契约 | [开发契约参考](../reference/development-contracts.md) |
 | 现在究竟支持哪些平台和后端 | [支持矩阵](../user-guide/support-matrix.md) |
 | 下一步按什么顺序建设 | [路线图](../../ROADMAP.md) |
-| 镜像、模板、示例和 validation 在仓库中如何分工 | [仓库资产地图](../operator-guide/repository-assets.md) |
+| 源码、镜像、模板、示例、测试和静态检查如何分工 | [仓库资产地图](../operator-guide/repository-assets.md) |

@@ -1,20 +1,23 @@
 # 跨平台 C++ 项目模板
 
-复制并重命名这个目录，可以得到一个同时面向 host 和 STM32 的 C++ 项目起点。模板只
-提供工程结构和占位代码，不是示例应用或通用控制算法库。它已经接好：
+以这个模板创建独立 Git 项目，可以得到一个同时面向 host 和 STM32 的 C++ 项目起点。
+模板只提供工程结构和占位代码，不是示例应用或通用控制算法库。它已经接好：
 
 - 同一份 `portable-code` 被 host test 与 MCU firmware 复用；
 - STM32F407 芯片目标与 RoboMaster C 板型分层；
 - 标准 CMake configure、build、test 与 workflow presets；
 - MCU 路径禁用异常、RTTI 和隐式动态运行时依赖。
 
+模板尚未拆出独立仓库；当前 clone 方法见主仓库的
+[本地 Docker 快速开始](../../README.md#本地-docker-快速开始)。
+
 ## 开始使用
 
-复制整个目录后，先修改顶层 `project()`、CMake target 名称和 C++ 命名空间，再用自己的
+创建项目后，先修改顶层 `project()`、CMake target 名称和 C++ 命名空间，再用自己的
 领域模型替换 `portable-code` 中的占位代码。不要让可移植代码依赖 ROS 2、HAL、RTOS、
 总线帧、文件系统、线程或隐式时钟。
 
-使用 RM Relay 入口时，先为复制后的项目生成唯一标识，再由固定开发镜像构建：
+使用 RM Relay 入口时，先为项目生成唯一标识，再由固定开发镜像构建：
 
 ```bash
 rm-relay init
@@ -23,7 +26,7 @@ rm-relay build
 
 固件与 `rm-relay-output.json` 位于
 `install/embedded-stm32f407-robomaster-c/`。用户只编辑 `rm-relay.toml`，其中声明
-Project/Profile、CMake preset 与输出角色；mise task 由 RM Relay 维护。
+Project/Profile、CMake preset 与输出角色；镜像内 mise task 由 RM Relay 维护。
 
 也可以绕过 RM Relay，直接使用 CMake 完成 native 验证：
 

@@ -73,9 +73,7 @@ for required_file in \
     project-templates/cross-platform-cpp/CMakeLists.txt \
     project-templates/cross-platform-cpp/CMakePresets.json \
     project-templates/cross-platform-cpp/rm-relay.toml \
-    examples/deterministic-pi-control/README.md \
-    validation/README.md \
-    validation/platform/verify-cli-build-matrix.sh; do
+    examples/deterministic-pi-control/README.md; do
     assert_file_exists "${required_file}"
 done
 
@@ -96,8 +94,7 @@ for absent_path in \
     profiles \
     openocd \
     project-templates/cross-platform-cpp/mise.toml \
-    validation/contracts \
-    validation/module-boundaries; do
+    validation; do
     assert_path_absent "${absent_path}"
 done
 

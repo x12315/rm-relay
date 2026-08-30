@@ -96,7 +96,8 @@ provider 才能独立替换。
 
 ## 用户看到的是同一入口，不是同一基础设施
 
-一般开发者使用同一套 mise task 和 `rm-relay` CLI，只改变基础设施来源：
+一般开发者始终使用 `rm-relay` CLI，只改变基础设施来源。宿主 mise 当前只服务 OpenOCD
+一类宿主工具 adapter，不作为 `init`、build backend 或另一套用户任务入口：
 
 | 来源 | 使用的基础设施 | 场景 |
 |---|---|---|

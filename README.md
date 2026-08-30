@@ -31,10 +31,11 @@ RM 队伍的成员和工程经验随赛季快速流动。一套环境如果只�
 
 ## 当前能力
 
-当前仓库提供 C++20/STM32 开发镜像、`rm-relay` CLI、可复制的跨平台 CMake 项目模板，
-以及一份在 host 测试和 MCU 固件中复用相同控制逻辑的 PI 示例。CLI 通过受控 mise task
-调用固定开发镜像，将 ELF、BIN、MAP 和校验 manifest 导出到开发机。镜像覆盖
-`linux/amd64` 与 `linux/arm64`，真实主机验证目前以 Apple Silicon macOS 为主。
+当前仓库提供 C++20/STM32 开发镜像、`rm-relay` CLI、跨平台 CMake Project Template，
+以及一份在 host 测试和 MCU 固件中复用相同控制逻辑的 PI 示例。CLI 直接调用 Docker，
+再由镜像内 mise 执行固定 CMake Workflow，将 ELF、BIN、MAP 和校验 manifest 导出到开发机。
+镜像覆盖 `linux/amd64` 与 `linux/arm64`；GoReleaser 配置可以生成 Darwin、Linux、Windows
+的 amd64/arm64 CLI snapshot，真实主机验证目前以 Apple Silicon macOS 为主。
 
 STM32F407 和 RoboMaster C 已能完成交叉编译；RoboMaster C 已在 macOS 通过 ROM DFU
 完成写入与回读校验，并通过 ST-Link、OpenOCD 和 GDB 完成固件加载、断点与变量检查。
@@ -67,25 +68,69 @@ RoboMaster C 是首个支持的 board profile，不是项目结构中心。当�
 
 ## 本地 Docker 快速开始
 
-以下命令需要 Docker 与 Buildx，从仓库根目录执行。它们会构建本机架构镜像，在本地
-`build/` 目录运行测试并生成固件，不会写入开发板 Flash。
+当前还没有公开 CLI Release 和 OCI image。以下路径用于体验正在开发的基线，需要包含
+`subtree` 命令的 Git、Docker/Buildx 和宿主 mise；不会写入开发板 Flash。
 
 ```bash
-docker version
-docker buildx version
+git clone https://github.com/x12315/rm-relay.git
+cd rm-relay
+mise trust
+mise install
+
 docker buildx bake \
   --file container-images/embedded-development/docker-bake.hcl \
   mcu-dev --load
-sh validation/contracts/verify-repository-layout.sh
-sh validation/platform/verify-cli-build-matrix.sh
-sh validation/acceptance/verify-project-builds.sh
-sh validation/acceptance/verify-local-mcu-cycle.sh
+mise run distribution:snapshot
 ```
 
-验证包含模板和 PI 示例的 native Clang、native GCC、ASan/UBSan 测试，STM32F407 交叉编译，
-以及 `rm-relay -> mise -> Docker -> CMake Install -> OpenOCD dry-run` 链路。镜像选择、
-native/STM32 构建、实板接入、IDE 示例和故障排查统一从
-[使用指南](docs/user-guide/README.md)进入。
+这里的 `mcu-dev` 让 Buildx 选择本机架构；维护者验证指定架构时使用
+`mcu-dev-arm64`、`mcu-dev-amd64` 或对应的 `verify-*` target。
+
+以下 POSIX shell 步骤已在当前 macOS 基线上执行；Linux 使用相同 archive 结构，但完整宿主
+链路尚未验证。命令会解压与本机匹配的 archive，并把 CLI 加入本次终端的 `PATH`：
+
+```bash
+platform="$(mise exec -- go env GOOS)_$(mise exec -- go env GOARCH)"
+archive="$(find dist -maxdepth 1 -name "rm-relay_*_${platform}.tar.gz" -print -quit)"
+test -n "$archive"
+mkdir -p dist/local-bin
+tar -xzf "$archive" -C dist/local-bin rm-relay
+export PATH="$PWD/dist/local-bin:$PATH"
+rm-relay --version
+```
+
+GoReleaser 同时生成 Windows archive，但 Windows 上的完整构建、Docker 与设备链路尚未形成
+验证证据，见[支持矩阵](docs/user-guide/support-matrix.md)。
+
+Project Template 当前仍位于 monorepo。下面先把该子目录拆成一个本地 Git 分支，再 clone
+为自己的项目；未来会由可独立 clone 的模板仓库替代这段临时步骤。
+
+```bash
+git subtree split \
+  --prefix=project-templates/cross-platform-cpp \
+  --branch local/cross-platform-cpp-template
+git clone \
+  --branch local/cross-platform-cpp-template \
+  --single-branch \
+  . ../rm-relay-starter
+cd ../rm-relay-starter
+```
+
+在新项目中逐步运行公开入口：
+
+```bash
+rm-relay init
+rm-relay build
+sed -n '1,220p' \
+  install/embedded-stm32f407-robomaster-c/rm-relay-output.json
+rm-relay flash --target openocd-stlink --dry-run
+```
+
+构建结果和 manifest 位于
+`install/embedded-stm32f407-robomaster-c/`。`dry-run` 只解析并显示 OpenOCD 命令；它不
+证明开发板已经连接或写入。镜像选择、native/STM32 构建、实板接入、IDE 示例和故障排查
+统一从[使用指南](docs/user-guide/README.md)进入。维护者的自动测试与镜像验证入口见
+[镜像构建与验证](docs/operator-guide/build-and-verify-images.md)。
 
 想先理解项目将如何工作，阅读[开发平台架构](docs/architecture/README.md)和
 [开发契约参考](docs/reference/development-contracts.md)。维护项目或参与建设时，再阅读

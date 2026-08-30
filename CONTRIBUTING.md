@@ -15,7 +15,7 @@
 [PR 模板](.github/pull_request_template.md)，提示提交者说明问题、解决方案、发布说明条目、
 备选方案、测试覆盖和补充材料。填写时删除首尾的 HTML 注释标记、模板提示及不适用的章节，
 不保留空标题。长期保留的逻辑和缺陷修复应有测试；使用方式发生变化时同步修改文档。验证入口见
-[仓库验证资产](validation/README.md)。
+[镜像构建与验证](docs/operator-guide/build-and-verify-images.md)。
 
 ## 审查规则
 

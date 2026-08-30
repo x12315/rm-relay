@@ -49,7 +49,7 @@ Build tree、compiler cache 和依赖 cache 都不属于 Build Output。当前 M
 | Cache | 只参与性能优化 | 身份、权限或构建完整性证明 |
 
 Project identity 用于关联项目声明、build tree 和增量传输，不得充当用户身份或访问凭据。
-模板保留空 ID，`rm-relay init` 为复制后的项目生成 UUID v4；不能把模板 ID、路径或 Git
+模板保留空 ID，`rm-relay init` 为从模板建立的项目生成 UUID v4；不能把模板 ID、路径或 Git
 remote 当作项目身份。Linux Target manifest、兼容字段与握手协议仍需等对应组件设计完成。
 
 用户项目只通过 `rm-relay.toml` 声明 RM Relay 信息。每个 build 绑定 Profile、

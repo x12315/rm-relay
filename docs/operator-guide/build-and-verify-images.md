@@ -84,8 +84,8 @@ docker run --rm mcu-dev/toolchain:local sh -lc \
    /usr/local/lib/embedded-development/smoke/verify-embedded-tools.sh'
 ```
 
-这两项检查会打印版本，并让 host GCC、host Clang 与 `arm-none-eabi-g++` 实际编译
-同一份 C++20 contract probe。镜像标签可用以下命令审查：
+这两项检查会打印版本，核对 Catch2 的固定 CMake package，并让 host GCC、host Clang 与
+`arm-none-eabi-g++` 实际编译同一份 C++20 contract probe。镜像标签可用以下命令审查：
 
 ```bash
 docker inspect mcu-dev/toolchain:local --format \
@@ -94,16 +94,58 @@ docker inspect mcu-dev/toolchain:local --format \
 
 ## 消费者契约回归
 
-镜像 smoke 通过后，还要从仓库根目录验证真实消费者：
+镜像 smoke 通过后，还要验证仓库契约、C++ 消费者和公开 CLI 链路。先安装仓库固定的
+维护工具并运行快速检查：
 
 ```bash
-sh validation/contracts/verify-repository-layout.sh
-sh validation/contracts/verify-toolchain-source-policy.sh
-sh validation/acceptance/verify-project-builds.sh
+mise trust
+mise install
+mise run verify
+mise run test:unit
+mise run test:architecture
+mise run test:integration
 ```
 
-`verify-project-builds.sh` 会在项目模板和 PI 示例中分别运行 Clang、GCC、ASan/UBSan
-与 F407 交叉编译 workflow。只有镜像能力与消费者构建都通过，才能认为镜像变更可交付。
+`verify` 只检查静态仓库契约，不启动 Docker。项目模板和 PI 示例各自用 CMake Workflow
+作为构建事实源；在两者目录中依次运行：
+
+```bash
+cmake --workflow --preset native-clang
+cmake --workflow --preset native-gcc
+cmake --workflow --preset native-asan
+cmake --workflow --preset stm32f407-robomaster-c
+```
+
+这些命令应在候选 development image 内执行。前三个 workflow 由 CTest 发现并运行 Catch2
+测试，最后一个生成 F407 固件，但不访问硬件。
+
+最后验证 CLI archive 与完整本地链路：
+
+```bash
+mise run test:distribution
+mise run test:e2e
+```
+
+`test:distribution` 检查 Darwin、Linux、Windows 的 amd64/arm64 archive 和 SHA-256；它不在
+当前主机运行其他平台的二进制。`test:e2e` 解压当前平台 archive，真实执行 Git clone、
+`rm-relay init`、Docker 构建、Build Output 校验和 OpenOCD dry-run。缺少 Git、Docker、
+snapshot 或本地 image 时会直接失败，不会跳过；dry-run 只解析宿主 mise 命令，不执行它。
+
+这组结果最多证明 `host-tested`、`cross-compiled` 和 OpenOCD `configured`。真实烧录、启动
+和源码调试仍以[支持矩阵](../user-guide/support-matrix.md)的硬件证据为准。
+
+## CLI snapshot
+
+GoReleaser 是 CLI 支持矩阵、版本注入、archive 命名和 checksum 的事实源：
+
+```bash
+mise run distribution:build
+mise run distribution:snapshot
+```
+
+当前命令只生成本地 snapshot，不发布 GitHub Release。CLI archive 只包含
+`rm-relay[.exe]` 与 `LICENSE`；mise、development image 和 Project Template 分别通过自身
+渠道交付。
 
 ## 发布与云构建扩展点
 

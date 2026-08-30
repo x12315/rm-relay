@@ -2,9 +2,9 @@
 
 这里记录 `embedded-development` 的产品级版本契约。APT 包不逐个锁定版本。
 
-`versions.env` 固定 Ubuntu LTS 系列、native GCC major、Arm GNU release、mise 和 uv 版本。
-Ubuntu APT 包跟随 `noble`、`noble-updates` 与 `noble-security`；每次发布镜像中的实际
-求解结果保存为：
+`versions.env` 固定 Ubuntu LTS 系列、native GCC major、Catch2 package、Arm GNU release、
+mise 和 uv 版本。Ubuntu APT 包跟随 `noble`、`noble-updates` 与 `noble-security`；每次发布
+镜像中的实际求解结果保存为：
 
 ```text
 /opt/embedded-development/base-packages.txt

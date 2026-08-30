@@ -37,9 +37,10 @@ Local 与 remote backend 的入口和出口保持相同：
          Build Output 返回开发机
 ```
 
-`mise` 组织项目任务。`rm-relay` 协调容器、未来的远程 backend 与 target；编译和测试仍
-由 CMake、colcon、Ninja、CTest 等原生工具执行。用户也可以绕过 mise 和 `rm-relay` 直接
-调用这些工具。
+`rm-relay` 协调容器、未来的远程 backend 与 target。Local backend 直接调用 Docker，
+development image 内的 mise 再通过私有配置进入对应 Workflow；用户项目只声明 build
+`system`、`preset` 和输出角色。编译和测试仍由 CMake、colcon、Ninja、CTest 等原生工具
+执行，用户也可以绕过 `rm-relay` 直接调用这些工具。
 
 通用 C/C++ 项目以 CMake 为官方基线，ROS 2 workspace 在外层使用 colcon。首版不再增加
 Meson、Xmake、Bazel、Nix 或自定义构建描述；ccache 通过 CMake compiler launcher 或
@@ -76,8 +77,9 @@ Build tree 包含 object、CMake cache、绝对路径和中间文件，既不可
 RM Relay 当前不定义新的应用包格式或强制压缩包。CMake Install Tree、ROS 2 Install Space
 和 MCU 固件文件已经能表达下游需要的内容。
 
-当前 MCU 模板通过项目 mise task 调用 CMake configure、build 与 install。Local backend
-成功后检查 Profile 要求的输出角色，并在 `install/<profile>/rm-relay-output.json` 记录
+当前 MCU 模板由 RM Relay 内部的 CMake Workflow 执行 configure、build 与 install，项目
+不携带 mise task。Local backend 成功后检查 Profile 要求的输出角色，并在
+`install/<profile>/rm-relay-output.json` 记录
 Project ID、Profile digest、development image identity、文件大小和 SHA-256。Target adapter
 只接收重新校验过的 Build Output；PI 示例仍保留直接 CMake 构建，用于验证构建系统本身。
 

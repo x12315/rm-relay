@@ -17,9 +17,10 @@ internal/
 └── execution/         OS process、mise 和内嵌资源物化
 
 container-images/       可独立构建和发布的开发环境
-project-templates/      用户复制后由 CLI 建立项目身份的起点
+project-templates/      用户项目起点；当前由 monorepo 提供
 examples/               有完整行为与测试的示例
-validation/             跨模块契约、平台编译与 acceptance
+tests/                  architecture、integration、distribution 与 E2E 测试
+scripts/verify/         仓库拓扑、版本和软件源等静态契约
 docs/                   面向人的项目事实与入口
 ```
 
@@ -31,8 +32,8 @@ docs/                   面向人的项目事实与入口
 Project 把输出角色映射到项目内的相对路径；Profile 声明 development image、必需输出角色，
 并把 target 的 `artifact_role` 连接到 adapter。Build Plan 负责确认两边的角色契约相容。
 
-用户项目中唯一的 RM Relay 配置入口是 `rm-relay.toml`。mise 是 CLI 与受控环境之间的
-执行层，不要求用户项目提供 `mise.toml`。
+用户项目中唯一的 RM Relay 配置入口是 `rm-relay.toml`。mise 分别承担容器内 Workflow 与
+宿主工具 adapter 的受控执行，不要求用户项目提供 `mise.toml`。
 
 ## 文件归属
 
@@ -48,10 +49,16 @@ Project 把输出角色映射到项目内的相对路径；Profile 声明 develo
 | 开发镜像产品 | `container-images/<image>/` |
 | 用户工程起点 | `project-templates/<template>/` |
 | 完整可测行为 | `examples/<example>/` |
-| 模块外的组合证据 | `validation/` |
+| 可执行依赖方向 | `tests/architecture/` |
+| 跨模块组合行为 | `tests/integration/` |
+| CLI archive 契约 | `tests/distribution/` |
+| 分发二进制驱动的真实开发链路 | `tests/e2e/` |
+| 静态仓库契约 | `scripts/verify/` |
 
-模块逻辑的测试与 Go package 就近保存；只有仓库拓扑、真实 development image 和
-跨平台交付等跨模块证据放入 [`validation/`](../../validation/README.md)。
+模块逻辑的测试与 Go package 就近保存。`tests/` 只收模块外的可执行行为；静态文件与策略
+检查放入 `scripts/verify/`；镜像构建时的工具能力检查仍归各镜像的 `smoke/` 所有。
+GoReleaser 定义 CLI 平台矩阵与 archive，Docker Bake 定义 image 构建矩阵，两者不在测试
+代码中维护第二份目标列表。
 
 ## 规划中的仓库边界
 
@@ -59,9 +66,11 @@ RM Relay 按独立使用者、发布节奏和维护者拆分仓库，不按生�
 
 | 仓库 | 负责范围 | 状态 |
 |---|---|---|
-| `rm-relay` | CLI、未来的 target daemon、公共契约、Project Template 和组合验证 | 当前主仓库 |
+| `rm-relay` | CLI、未来的 target daemon、公共契约和主线测试 | 当前主仓库 |
+| `rm-relay-template-*` | 每个可独立 clone 的 Project Template | 规划中；当前模板仍在主仓库 |
 | `rm-relay-environments` | 官方与社区环境定义、image/profile 映射、兼容性验证与发布 | 规划中 |
 | `rm-relay-integrations` | 可选 VS Code/VSCodium 预设和 Agent Skill | 规划中 |
 
 `container-images/` 在环境定义形成独立发布边界前继续留在主仓库。Integration 只消费
-公开 CLI、schema 和 Profile ID，核心链路不反向依赖它。
+公开 CLI、schema 和 Profile ID，核心链路不反向依赖它。Project Template 迁出后仍是核心
+入口；一仓库一模板保证用户可以直接 clone，不再复制 monorepo 子目录。
