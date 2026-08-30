@@ -58,7 +58,6 @@ type flashResult struct {
 func TestLocalMCUDevelopmentCycle(t *testing.T) {
 	requireCommand(t, "git")
 	requireCommand(t, "docker")
-	requireCommand(t, "mise")
 	archivePath := requireCurrentPlatformArchive(t)
 	requireDockerImage(t, developmentImage)
 
@@ -66,7 +65,10 @@ func TestLocalMCUDevelopmentCycle(t *testing.T) {
 	distributedCLI := extractDistributedCLI(t, archivePath, filepath.Join(temporaryRoot, "distribution"))
 	producerVersion := assertDistributedVersion(t, distributedCLI)
 	projectRoot := cloneProjectTemplate(t, temporaryRoot)
-	relayEnvironment := append(environmentWithout("RM_RELAY_HOME"), "RM_RELAY_CACHE_DIR="+filepath.Join(temporaryRoot, "cache"))
+	relayEnvironment := append(
+		environmentWithout("RM_RELAY_HOME", "RM_RELAY_MISE_BIN", "RM_RELAY_CACHE_DIR"),
+		"RM_RELAY_CACHE_DIR="+filepath.Join(temporaryRoot, "cache"),
+	)
 
 	runRelay(t, distributedCLI, relayEnvironment, projectRoot, "init")
 	runRelay(t, distributedCLI, relayEnvironment, projectRoot, "build")
