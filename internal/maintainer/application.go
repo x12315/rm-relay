@@ -49,16 +49,17 @@ func Run(ctx context.Context, arguments []string, actions Actions, streams Strea
 func newCLICommand(actions Actions, stdout io.Writer, getenv func(string) string) *cobra.Command {
 	command := &cobra.Command{Use: "cli", Short: "Build local CLI candidates"}
 	command.AddCommand(
-		newCLIOutputCommand("cross-build", actions.CrossBuild, stdout, getenv),
-		newCLIOutputCommand("package-snapshot", actions.PackageSnapshot, stdout, getenv),
+		newCLIOutputCommand("cross-build", "Cross-build unarchived CLI binaries", actions.CrossBuild, stdout, getenv),
+		newCLIOutputCommand("package-snapshot", "Package CLI snapshot archives", actions.PackageSnapshot, stdout, getenv),
 	)
 	return command
 }
 
-func newCLIOutputCommand(name string, action func(context.Context, string) error, stdout io.Writer, getenv func(string) string) *cobra.Command {
+func newCLIOutputCommand(name string, summary string, action func(context.Context, string) error, stdout io.Writer, getenv func(string) string) *cobra.Command {
 	return &cobra.Command{
-		Use:  name,
-		Args: cobra.NoArgs,
+		Use:   name,
+		Short: summary,
+		Args:  cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
 			outputDirectory := getenv("RM_RELAY_CLI_OUTPUT_DIR")
 			if outputDirectory == "" {
@@ -80,8 +81,9 @@ func newExperienceCommand(actions Actions, stdout io.Writer) *cobra.Command {
 	command := &cobra.Command{Use: "experience", Short: "Manage one local candidate experience environment"}
 	command.AddCommand(
 		&cobra.Command{
-			Use:  "prepare",
-			Args: cobra.NoArgs,
+			Use:   "prepare",
+			Short: "Prepare an isolated candidate environment",
+			Args:  cobra.NoArgs,
 			RunE: func(command *cobra.Command, _ []string) error {
 				if actions.Prepare == nil {
 					return fmt.Errorf("prepare action is not configured")
@@ -95,8 +97,9 @@ func newExperienceCommand(actions Actions, stdout io.Writer) *cobra.Command {
 			},
 		},
 		&cobra.Command{
-			Use:  "enter",
-			Args: cobra.NoArgs,
+			Use:   "enter",
+			Short: "Enter the prepared candidate environment",
+			Args:  cobra.NoArgs,
 			RunE: func(command *cobra.Command, _ []string) error {
 				if actions.Enter == nil {
 					return fmt.Errorf("enter action is not configured")
@@ -105,8 +108,9 @@ func newExperienceCommand(actions Actions, stdout io.Writer) *cobra.Command {
 			},
 		},
 		&cobra.Command{
-			Use:  "clean",
-			Args: cobra.NoArgs,
+			Use:   "clean",
+			Short: "Remove the candidate environment",
+			Args:  cobra.NoArgs,
 			RunE: func(command *cobra.Command, _ []string) error {
 				if actions.Clean == nil {
 					return fmt.Errorf("clean action is not configured")

@@ -52,6 +52,34 @@ func TestExperiencePrepareReportsCandidateIdentity(t *testing.T) {
 	}
 }
 
+func TestMaintainerHelpDescribesLeafCommands(t *testing.T) {
+	tests := []struct {
+		arguments []string
+		want      []string
+	}{
+		{
+			arguments: []string{"cli", "--help"},
+			want:      []string{"cross-build", "Cross-build unarchived CLI binaries", "package-snapshot", "Package CLI snapshot archives"},
+		},
+		{
+			arguments: []string{"experience", "--help"},
+			want:      []string{"prepare", "Prepare an isolated candidate environment", "enter", "Enter the prepared candidate environment", "clean", "Remove the candidate environment"},
+		},
+	}
+
+	for _, test := range tests {
+		result := runTestApplication(t, test.arguments, Actions{}, func(string) string { return "" })
+		if result.exitCode != 0 {
+			t.Fatalf("arguments %v returned %#v", test.arguments, result)
+		}
+		for _, text := range test.want {
+			if !strings.Contains(result.stdout, text) {
+				t.Errorf("arguments %v output does not contain %q:\n%s", test.arguments, text, result.stdout)
+			}
+		}
+	}
+}
+
 type applicationResult struct {
 	exitCode int
 	stdout   string
