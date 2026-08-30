@@ -2,7 +2,7 @@
 
 CMake Presets 属于各个可独立复制的项目，不在仓库根目录。先选择一个项目：
 
-- `toolkit/project-templates/cross-platform-cpp` 是用户复制、重命名并继续开发的模板；
+- `project-templates/cross-platform-cpp` 是用户复制、重命名并继续开发的模板；
 - `examples/deterministic-pi-control` 是体验完整功能和审查实现的示例。
 
 以下以 PI 示例为例，从仓库根目录启动容器并把工作目录设为该项目：

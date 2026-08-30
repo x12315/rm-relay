@@ -31,7 +31,7 @@ docker run --name mcu-shell --rm -dit \
 
 ```bash
 docker exec -it -w /workspace mcu-shell \
-  openocd -f toolkit/openocd/boards/robomaster-c.cfg
+  openocd -f internal/target/openocd/board/robomaster-c.cfg
 ```
 
 终端二：

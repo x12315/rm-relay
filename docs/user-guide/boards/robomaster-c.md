@@ -17,7 +17,7 @@ RoboMaster C 是仓库首个 board profile，不是项目结构的中心。通�
 
 构建配置使用 1 MiB Flash 和连续的 128 KiB SRAM1+SRAM2。64 KiB CCM 当前不在链接
 布局中。链接脚本属于每个可独立复制的项目，例如模板中的
-`toolkit/project-templates/cross-platform-cpp/cmake/board-profiles/stm32f407ighx-flash.ld`；
+`project-templates/cross-platform-cpp/cmake/board-profiles/stm32f407ighx-flash.ld`；
 板型事实没有存放在仓库根目录的全局 CMake 配置中。
 
 ## 进入 ROM USB DFU

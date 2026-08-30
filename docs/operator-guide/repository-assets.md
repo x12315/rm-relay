@@ -1,75 +1,67 @@
 # 仓库资产地图
 
-本页面帮助维护者判断新文件应放在哪里。RM Relay 将可交付的套件内容集中在
-[`toolkit/`](../../toolkit/README.md)；
-服务整个仓库的示例、验证和文档留在根目录。平台如何工作见
-[开发平台架构](../architecture/README.md)，当前支持状态见
-[支持矩阵](../user-guide/support-matrix.md)。
+本页用于判断新文件应由哪个模块负责。RM Relay 不设置全局 `config/`、`assets/`
+或 `profiles/` 杂项层；TOML、OpenOCD cfg 和其他声明式文件也是源码，跟随解释它们的
+模块。
 
-## RM Relay 的仓库边界
-
-RM Relay 按能够独立演进的产品边界拆分仓库，而不是按可执行文件、部署位置或生成的制品
-拆分。客户端、目标机 daemon、adapter、公共契约和核心 Template 即使生成不同制品，也
-归属主仓库；相应功能交付后，必须随同一 RM Relay release 完成组合验证。
+## 主仓库拓扑
 
 ```text
-rm-relay-integrations ──消费公开 CLI 与契约──→ rm-relay
+cmd/                    可执行程序的 composition root
+internal/
+├── cli/               公开命令树与 human/JSON 结果
+├── project/           用户 `rm-relay.toml` 契约
+├── profile/           受支持能力组合与 builtin Profile
+├── build/             Plan、Workflow、backend 和 Build Output
+├── target/            从已验证 Build Output 到 target 的 adapter
+└── execution/         OS process、mise 和内嵌资源物化
 
-rm-relay-environments ──发布环境镜像──→ OCI Registry
+container-images/       可独立构建和发布的开发环境
+project-templates/      用户复制后由 CLI 建立项目身份的起点
+examples/               有完整行为与测试的示例
+validation/             跨模块契约、平台编译与 acceptance
+docs/                   面向人的项目事实与入口
 ```
 
-| 仓库 | 组织的资产 | 不组织的资产 | 当前状态 |
-|---|---|---|---|
-| `rm-relay` | `rm-relay` CLI、`rm-relay-node`、公共契约、Project Template、Dev Container Template，以及端到端验证和部署配置 | 可选 IDE/Agent integration；形成独立发布边界后的环境定义 | 当前主仓库 |
-| `rm-relay-environments` | 官方默认与社区环境定义、共享构建能力、profile 与 image 的映射、构建和兼容性验证、发布配置 | OCI image blob、用户源码、核心 CLI 和 Template | 规划中，尚未创建 |
-| `rm-relay-integrations` | 可一次性导入的 VS Code/VSCodium 配置，以及通过标准渠道安装的 Agent Skill | 构建、烧录、调试实现；Project Template 和 Dev Container Template | 规划中，尚未创建 |
+`internal/build/cmake/build.mise.toml` 归 CMake Workflow 所有；
+`internal/target/openocd/board/` 归 OpenOCD adapter 所有。`rm-relay.toml` 中的 `system`
+选择构建 Workflow，`preset` 是该 Workflow 的输入；Profile 通过 `adapter` 和
+`board` 等语义 ID 选择 target 能力。两者都不保存跨模块文件路径。
 
-`rm-relay-environments` 保存能够审查、构建和验证的环境定义；构建后的 image blob 发布到
-OCI Registry。普通用户选择 profile，不直接管理这两个底层位置。当前
-[`toolkit/container-images/`](../../toolkit/container-images/) 仍留在主仓库，等 profile 契约、
-独立验证和发布流程稳定后再迁移。
+Project 把输出角色映射到项目内的相对路径；Profile 声明 development image、必需输出角色，
+并把 target 的 `artifact_role` 连接到 adapter。Build Plan 负责确认两边的角色契约相容。
 
-`rm-relay-integrations` 只消费 `rm-relay` 的公开 CLI、schema、profile 名称和模板契约，核心
-链路不能反向依赖它。当前只有[可复制的 VS Code 参考片段](../user-guide/vscode-example.md)，
-尚未交付 integration package。两个规划仓库的建设条件见
-[路线图](../../ROADMAP.md#2-建立统一入口与-profile-模型)。
+用户项目中唯一的 RM Relay 配置入口是 `rm-relay.toml`。mise 是 CLI 与受控环境之间的
+执行层，不要求用户项目提供 `mise.toml`。
 
-## 套件实现与交付资产
+## 文件归属
 
-| 内容 | 位置 | 当前职责 |
-|---|---|---|
-| 原生程序入口 | [`toolkit/cmd/`](../../toolkit/cmd/) | `rm-relay` 开发机 CLI 与 `rm-relay-node` 目标机 daemon；当前只有目录占位 |
-| 内部 Go package | `toolkit/internal/` | 随真实功能实现增加，不预建 `builds`、`targets` 等概念目录 |
-| 开发镜像 | [`toolkit/container-images/embedded-development/`](../../toolkit/container-images/embedded-development/README.md) | 可独立构建、验证和发布的固定工具链 |
-| 项目模板 | [`toolkit/project-templates/cross-platform-cpp/`](../../toolkit/project-templates/cross-platform-cpp/README.md) | 供用户复制、改名，未来由 `rm-relay init` 生成的项目起点 |
-| OpenOCD 配置 | [`toolkit/openocd/`](../../toolkit/openocd/) | 开发机通过 ST-Link 访问 MCU 时使用的板卡配置 |
-
-Profile、protocol schema 和工具配置应跟随实际消费者保存。只有形成独立构建、测试或发布
-边界后，内部 package 才升级为独立 module 或子仓库。
-
-Project Template 与未来每个 profile 对应的 Dev Container Template 都属于套件交付资产。
-可选 IDE 配置与 Agent Skill 不写入 Project Template；其边界见
-[环境与 profile](../architecture/environments-and-profiles.md#两类核心-template-固定不同入口)。
-
-## 仓库级支撑资产
-
-| 内容 | 位置 | 当前职责 |
-|---|---|---|
-| 完整示例 | [`examples/deterministic-pi-control/`](../../examples/deterministic-pi-control/README.md) | 用明确行为、测试向量和目标产物展示完整开发路径 |
-| 契约验证 | [`validation/`](../../validation/README.md) | 验证仓库拓扑、工具链策略和用户项目构建 |
-| 项目文档 | [`docs/`](../) | 保存项目事实、使用入口、架构边界和运维方法 |
-
-模板中的占位代码只证明项目结构可以工作；示例则必须具有完整行为和测试。两者都不是本仓库
-向用户承诺兼容性的公共算法库。
-
-## 新内容放在哪里
-
-| 新内容 | 归属 |
+| 新内容 | 位置 |
 |---|---|
-| CLI、daemon 及其内部实现 | `toolkit/cmd/` 与 `toolkit/internal/` |
-| 构建和发布固定开发工具链 | `toolkit/container-images/` |
-| 用户复制或由 CLI 生成的项目起点 | `toolkit/project-templates/` |
-| OpenOCD 板卡与调试器配置 | `toolkit/openocd/` |
-| 展示完整、可测试行为 | `examples/` |
-| 证明仓库契约仍成立 | `validation/` |
-| 说明项目事实、架构或操作方式 | `docs/` |
+| CLI 命令与输出契约 | `internal/cli/` |
+| Project schema 与初始化 | `internal/project/` |
+| 正式 Profile 组合 | `internal/profile/builtin/<profile>/` |
+| 构建系统解释与受控 task | `internal/build/<system>/` |
+| local/remote build 执行实现 | `internal/build/backend/<backend>/` |
+| target adapter 及其板卡/协议资产 | `internal/target/<adapter>/` |
+| 通用进程与工具调用边界 | `internal/execution/` |
+| 开发镜像产品 | `container-images/<image>/` |
+| 用户工程起点 | `project-templates/<template>/` |
+| 完整可测行为 | `examples/<example>/` |
+| 模块外的组合证据 | `validation/` |
+
+模块逻辑的测试与 Go package 就近保存；只有仓库拓扑、真实 development image 和
+跨平台交付等跨模块证据放入 [`validation/`](../../validation/README.md)。
+
+## 规划中的仓库边界
+
+RM Relay 按独立使用者、发布节奏和维护者拆分仓库，不按生成了几个可执行文件拆分。
+
+| 仓库 | 负责范围 | 状态 |
+|---|---|---|
+| `rm-relay` | CLI、未来的 target daemon、公共契约、Project Template 和组合验证 | 当前主仓库 |
+| `rm-relay-environments` | 官方与社区环境定义、image/profile 映射、兼容性验证与发布 | 规划中 |
+| `rm-relay-integrations` | 可选 VS Code/VSCodium 预设和 Agent Skill | 规划中 |
+
+`container-images/` 在环境定义形成独立发布边界前继续留在主仓库。Integration 只消费
+公开 CLI、schema 和 Profile ID，核心链路不反向依赖它。

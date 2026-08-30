@@ -1,4 +1,0 @@
-min_version = "2026.8.14"
-
-[env]
-RM_RELAY_CMAKE_PRESET = "stm32f407-robomaster-c"

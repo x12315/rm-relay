@@ -1,0 +1,59 @@
+package mise
+
+import (
+	"os"
+	"reflect"
+	"strings"
+	"testing"
+
+	"github.com/x12315/rm-relay/internal/execution/resourcecache"
+)
+
+func TestTaskInvocationIsLockedAndDisablesAutoInstall(t *testing.T) {
+	invocation := TaskInvocation([]string{"/core.toml", "/profile.toml", "/project.toml"}, "build:firmware", ":")
+
+	if !reflect.DeepEqual(invocation.Arguments, []string{"--locked", "run", "build:firmware"}) {
+		t.Fatalf("Arguments = %v", invocation.Arguments)
+	}
+	if invocation.Environment["MISE_TASK_RUN_AUTO_INSTALL"] != "false" {
+		t.Fatalf("MISE_TASK_RUN_AUTO_INSTALL = %q", invocation.Environment["MISE_TASK_RUN_AUTO_INSTALL"])
+	}
+}
+
+func TestMaterializeBaseConfigProvidesIsolatedMiseSettings(t *testing.T) {
+	configPath, err := MaterializeBaseConfig(resourcecache.Store{Root: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "task.run_auto_install = false") {
+		t.Fatalf("base config = %q", content)
+	}
+}
+
+func TestTaskInvocationUsesOnlyExplicitConfigFiles(t *testing.T) {
+	invocation := TaskInvocation([]string{"/core.toml", "/profile.toml", "/project.toml"}, "build:firmware", ":")
+
+	if got := invocation.Environment["MISE_OVERRIDE_CONFIG_FILENAMES"]; got != "/core.toml:/profile.toml:/project.toml" {
+		t.Fatalf("MISE_OVERRIDE_CONFIG_FILENAMES = %q", got)
+	}
+	if len(invocation.Environment) != 2 {
+		t.Fatalf("Environment = %v, want only controlled mise variables", invocation.Environment)
+	}
+}
+
+func TestExecInvocationPreservesArgumentBoundaries(t *testing.T) {
+	command := []string{"openocd", "-f", "/path with spaces/board.cfg", "-c", "program {/firmware path/app.elf} verify reset exit"}
+
+	invocation := ExecInvocation([]string{"/core.toml"}, command, ":")
+	want := append([]string{"exec", "--"}, command...)
+	if !reflect.DeepEqual(invocation.Arguments, want) {
+		t.Fatalf("Arguments = %#v, want %#v", invocation.Arguments, want)
+	}
+	if got := invocation.Environment["MISE_OVERRIDE_CONFIG_FILENAMES"]; got != "/core.toml" {
+		t.Fatalf("MISE_OVERRIDE_CONFIG_FILENAMES = %q", got)
+	}
+}

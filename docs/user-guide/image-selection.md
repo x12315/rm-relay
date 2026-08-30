@@ -23,7 +23,7 @@ Apple Silicon 使用：
 
 ```bash
 docker buildx bake \
-  --file toolkit/container-images/embedded-development/docker-bake.hcl \
+  --file container-images/embedded-development/docker-bake.hcl \
   mcu-dev-arm64 --load
 ```
 
@@ -31,7 +31,7 @@ x86_64 Linux 使用：
 
 ```bash
 docker buildx bake \
-  --file toolkit/container-images/embedded-development/docker-bake.hcl \
+  --file container-images/embedded-development/docker-bake.hcl \
   mcu-dev-amd64 --load
 ```
 
@@ -39,10 +39,10 @@ docker buildx bake \
 
 ```bash
 docker buildx bake \
-  --file toolkit/container-images/embedded-development/docker-bake.hcl verify-arm64 \
+  --file container-images/embedded-development/docker-bake.hcl verify-arm64 \
   --set '*.output=type=cacheonly'
 docker buildx bake \
-  --file toolkit/container-images/embedded-development/docker-bake.hcl verify-amd64 \
+  --file container-images/embedded-development/docker-bake.hcl verify-amd64 \
   --set '*.output=type=cacheonly'
 ```
 
@@ -50,14 +50,14 @@ docker buildx bake \
 
 ```bash
 docker buildx bake \
-  --file toolkit/container-images/embedded-development/docker-bake.hcl multiarch \
+  --file container-images/embedded-development/docker-bake.hcl multiarch \
   --set '*.output=type=cacheonly'
 ```
 
 项目不自动创建或切换持久 Buildx builder。
 
 当前基线是 Ubuntu 24.04 LTS、native GCC 14 和 Arm GNU 13.2.Rel1。产品级版本见
-[`toolkit/container-images/embedded-development/locks/versions.env`](../../toolkit/container-images/embedded-development/locks/versions.env)。
+[`container-images/embedded-development/locks/versions.env`](../../container-images/embedded-development/locks/versions.env)。
 镜像中的 `/opt/embedded-development/base-packages.txt` 与
 `/opt/embedded-development/embedded-packages.txt` 记录该次构建实际安装的完整版本。
 

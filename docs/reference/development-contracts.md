@@ -52,6 +52,11 @@ Project identity 用于关联项目声明、build tree 和增量传输，不得�
 模板保留空 ID，`rm-relay init` 为复制后的项目生成 UUID v4；不能把模板 ID、路径或 Git
 remote 当作项目身份。Linux Target manifest、兼容字段与握手协议仍需等对应组件设计完成。
 
+用户项目只通过 `rm-relay.toml` 声明 RM Relay 信息。每个 build 绑定 Profile、
+build `system`、系统内的 `preset` 和输出角色；不暴露 mise task 或 RM Relay 内部文件路径。
+Profile 同样只以 `adapter` 和 `board` ID 引用 target 能力，具体 OpenOCD 配置由 adapter
+模块所有。
+
 ## 开发机路径
 
 统一构建链路使用三类相互独立的目录：

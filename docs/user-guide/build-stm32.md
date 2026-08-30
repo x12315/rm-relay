@@ -33,7 +33,7 @@ cmake --workflow --preset stm32f407-robomaster-c
 此时模板产物位于可删除的 build tree：
 
 ```text
-toolkit/project-templates/cross-platform-cpp/build/stm32f407-robomaster-c/firmware/
+project-templates/cross-platform-cpp/build/stm32f407-robomaster-c/firmware/
 ├── robomaster-c-starter.elf
 ├── robomaster-c-starter.bin
 └── robomaster-c-starter.map

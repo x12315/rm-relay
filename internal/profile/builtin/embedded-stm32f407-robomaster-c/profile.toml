@@ -1,0 +1,9 @@
+schema_version = 1
+id = "embedded-stm32f407-robomaster-c"
+development_image = "mcu-dev/toolchain:local"
+required_output_roles = ["firmware.elf", "firmware.bin", "linker.map"]
+
+[targets.openocd-stlink]
+adapter = "openocd"
+board = "robomaster-c"
+artifact_role = "firmware.elf"
