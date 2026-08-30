@@ -1,7 +1,6 @@
 .DS_Store
 /AGENTS.md
 /docs/superpowers/
-/dist/
 /build/
 /build-*/
 /project-templates/*/build/

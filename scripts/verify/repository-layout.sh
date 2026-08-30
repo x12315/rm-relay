@@ -89,6 +89,8 @@ for source_path in \
     assert_source_not_ignored "${source_path}"
 done
 
+assert_source_not_ignored "dist"
+
 for absent_path in \
     toolkit \
     assets \
@@ -99,5 +101,7 @@ for absent_path in \
     validation; do
     assert_path_absent "${absent_path}"
 done
+
+assert_path_absent "dist"
 
 printf '%s\n' 'repository layout contract passed'

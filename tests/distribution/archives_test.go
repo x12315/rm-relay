@@ -7,6 +7,7 @@ import (
 	"archive/zip"
 	"bufio"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -16,6 +17,9 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/x12315/rm-relay/internal/execution/command"
+	maintainerdistribution "github.com/x12315/rm-relay/internal/maintainer/distribution"
 )
 
 var expectedArchives = map[string][]string{
@@ -28,7 +32,15 @@ var expectedArchives = map[string][]string{
 }
 
 func TestSnapshotArchivesContainOnlyTheCLIAndLicense(t *testing.T) {
-	distributionDirectory := filepath.Join(repositoryRoot(t), "dist")
+	distributionDirectory := filepath.Join(t.TempDir(), "snapshot")
+	packager := maintainerdistribution.Packager{
+		Runner:         command.OSRunner{},
+		RepositoryRoot: repositoryRoot(t),
+		GoReleaser:     "goreleaser",
+	}
+	if err := packager.PackageSnapshot(context.Background(), distributionDirectory); err != nil {
+		t.Fatal(err)
+	}
 	archivePaths := make(map[string]string, len(expectedArchives))
 	for platform, expectedFiles := range expectedArchives {
 		extension := ".tar.gz"
@@ -49,7 +61,7 @@ func singleMatch(t *testing.T, pattern string) string {
 		t.Fatalf("match snapshot archive %q: %v", pattern, err)
 	}
 	if len(matches) != 1 {
-		t.Fatalf("snapshot archive pattern %q matched %d files; run mise run distribution:snapshot", pattern, len(matches))
+		t.Fatalf("snapshot archive pattern %q matched %d files", pattern, len(matches))
 	}
 	return matches[0]
 }

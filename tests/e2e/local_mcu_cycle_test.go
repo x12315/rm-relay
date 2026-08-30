@@ -7,6 +7,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"debug/elf"
 	"encoding/hex"
@@ -21,6 +22,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/x12315/rm-relay/internal/execution/command"
+	maintainerdistribution "github.com/x12315/rm-relay/internal/maintainer/distribution"
 )
 
 const (
@@ -58,10 +62,19 @@ type flashResult struct {
 func TestLocalMCUDevelopmentCycle(t *testing.T) {
 	requireCommand(t, "git")
 	requireCommand(t, "docker")
-	archivePath := requireCurrentPlatformArchive(t)
 	requireDockerImage(t, developmentImage)
 
 	temporaryRoot := t.TempDir()
+	distributionDirectory := filepath.Join(temporaryRoot, "snapshot")
+	packager := maintainerdistribution.Packager{
+		Runner:         command.OSRunner{},
+		RepositoryRoot: repositoryRoot(t),
+		GoReleaser:     "goreleaser",
+	}
+	if err := packager.PackageSnapshot(context.Background(), distributionDirectory); err != nil {
+		t.Fatal(err)
+	}
+	archivePath := requireCurrentPlatformArchive(t, distributionDirectory)
 	distributedCLI := extractDistributedCLI(t, archivePath, filepath.Join(temporaryRoot, "distribution"))
 	producerVersion := assertDistributedVersion(t, distributedCLI)
 	projectRoot := cloneProjectTemplate(t, temporaryRoot)
@@ -391,19 +404,19 @@ func requireCommand(t *testing.T, name string) string {
 	return path
 }
 
-func requireCurrentPlatformArchive(t *testing.T) string {
+func requireCurrentPlatformArchive(t *testing.T, distributionDirectory string) string {
 	t.Helper()
 	extension := ".tar.gz"
 	if runtime.GOOS == "windows" {
 		extension = ".zip"
 	}
-	pattern := filepath.Join(repositoryRoot(t), "dist", fmt.Sprintf("rm-relay_*_%s_%s%s", runtime.GOOS, runtime.GOARCH, extension))
+	pattern := filepath.Join(distributionDirectory, fmt.Sprintf("rm-relay_*_%s_%s%s", runtime.GOOS, runtime.GOARCH, extension))
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
 		t.Fatalf("match current-platform CLI archive: %v", err)
 	}
 	if len(matches) != 1 {
-		t.Fatalf("current-platform CLI archive pattern %q matched %d files; run mise run distribution:snapshot", pattern, len(matches))
+		t.Fatalf("current-platform CLI archive pattern %q matched %d files", pattern, len(matches))
 	}
 	return matches[0]
 }

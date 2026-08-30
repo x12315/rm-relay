@@ -23,12 +23,10 @@ run = "gotestsum -- ./tests/integration/..."
 
 [tasks."test:distribution"]
 description = "Build and verify CLI snapshot archives"
-depends = ["distribution:snapshot"]
 run = "gotestsum -- -tags=distribution ./tests/distribution/..."
 
 [tasks."test:e2e"]
 description = "Run the distributed CLI through Git and Docker"
-depends = ["distribution:snapshot"]
 run = "gotestsum -- -tags=e2e ./tests/e2e/..."
 
 [tasks.verify]
@@ -37,11 +35,3 @@ run = [
   "sh scripts/verify/repository-layout.sh",
   "sh scripts/verify/toolchain-source-policy.sh",
 ]
-
-[tasks."distribution:build"]
-description = "Cross-build unarchived CLI binaries"
-run = "goreleaser build --snapshot --clean"
-
-[tasks."distribution:snapshot"]
-description = "Create local cross-platform CLI archives"
-run = "goreleaser release --snapshot --clean"
