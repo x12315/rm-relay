@@ -165,35 +165,40 @@ mise run test:e2e
 
 `test:distribution` 检查 Darwin、Linux、Windows 的 amd64/arm64 archive 和 SHA-256；它不在
 当前主机运行其他平台的二进制。`test:e2e` 解压当前平台 archive，真实执行 Git clone、
-`rm-relay init`、Docker 构建、Build Output 校验和 OpenOCD dry-run。两项任务都会先自动生成
-snapshot，生成失败会使任务失败；缺少 Git、Docker、可用的 Docker daemon 或本地 image 时，
-E2E 也会直接失败，不会跳过。dry-run 只解析 adapter 配置并生成宿主 mise/OpenOCD 命令，
-不执行 mise 或 OpenOCD。
+`rm-relay init`、Docker 构建、Build Output 校验和 OpenOCD dry-run。两项任务都在临时目录生成
+并消费自己的候选制品，不向仓库写入 `dist/`，结束后也不保留可供人工核验的环境。缺少 Git、
+Docker、可用的 Docker daemon 或本地 image 时，E2E 会直接失败，不会跳过。dry-run 只解析
+adapter 配置并生成宿主 mise/OpenOCD 命令，不执行 mise 或 OpenOCD。
 
 这组结果最多证明 `host-tested`、`cross-compiled` 和 OpenOCD `configured`。真实烧录、启动
 和源码调试仍以[支持矩阵](../user-guide/support-matrix.md)的硬件证据为准。
 
 ## 开发者人工核验
 
-自动 E2E 通过后，候选版本仍需从[人工测试索引](../../tests/manual/README.md)选择与宿主和
-链路匹配的场景，由核验者逐条输入公开命令并记录结果。人工流程检查文档顺序、可见输出和
-需要人判断的边界，不得用 `test:e2e` 的成功代替。
+自动 E2E 通过后，先按[候选体验环境](candidate-experience-environment.md)制备仓库外的候选 CLI、
+development image 和 Project Template origin，再从[人工测试索引](../../tests/manual/README.md)
+选择与宿主和链路匹配的场景。核验者只逐条输入普通用户会执行的公开命令，判断文档顺序、可见
+输出和理解成本；确定性的 archive、checksum、manifest 与错误码继续由自动测试负责。
 
 人工结果同样遵守证据等级：没有连接硬件的场景只能记录 `cross-compiled` 与 adapter
 `configured`，不能升级为 `detected`、`flashed`、`boot-observed` 或 `debug-tested`。
 
-## CLI snapshot
+## CLI 本地候选制品
 
 GoReleaser 是 CLI 支持矩阵、版本注入、archive 命名和 checksum 的事实源：
 
 ```bash
-mise run distribution:build
-mise run distribution:snapshot
+export RM_RELAY_CLI_OUTPUT_DIR=/absolute/path/to/rm-relay-cli
+mise run cli:cross-build
+
+export RM_RELAY_CLI_OUTPUT_DIR=/absolute/path/to/rm-relay-cli-snapshot
+mise run cli:package-snapshot
 ```
 
-当前命令只生成本地 snapshot，不发布 GitHub Release。CLI archive 只包含
-`rm-relay[.exe]` 与 `LICENSE`；mise、development image 和 Project Template 分别通过自身
-渠道交付。
+输出目录必须是仓库外尚不存在的绝对路径；两项任务只接受 clean revision。完整约束和 Windows
+示例见 [CLI 本地分发制品](cli-distribution.md)。当前命令不发布 GitHub Release。CLI archive
+只包含 `rm-relay[.exe]` 与 `LICENSE`；mise、development image 和 Project Template 分别通过
+自身渠道交付。
 
 ## 发布与云构建扩展点
 

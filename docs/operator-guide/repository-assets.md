@@ -7,14 +7,18 @@
 ## 主仓库拓扑
 
 ```text
-cmd/                    可执行程序的 composition root
+cmd/
+├── rm-relay/           普通用户 CLI 的 composition root
+├── rm-relay-maintainer/维护者候选制备与本地分发入口
+└── rm-relay-node/      目标机组件的预留边界
 internal/
 ├── cli/               公开命令树与 human/JSON 结果
 ├── project/           用户 `rm-relay.toml` 契约
 ├── profile/           受支持能力组合与 builtin Profile
 ├── build/             Plan、Workflow、backend 和 Build Output
 ├── target/            从已验证 Build Output 到 target 的 adapter
-└── execution/         OS process、mise 和内嵌资源物化
+├── execution/         OS process、mise 和内嵌资源物化
+└── maintainer/        仓库外候选环境与 CLI 本地分发
 
 container-images/       可独立构建和发布的开发环境
 project-templates/      用户项目起点；当前由 monorepo 提供
@@ -24,7 +28,7 @@ tests/
 ├── integration/       跨模块组合
 ├── distribution/      CLI archive 契约
 ├── e2e/               分发二进制驱动的自动真实链路
-└── manual/            开发者逐条执行的候选版本人工核验
+└── manual/            只需人判断的候选版本用户体验核验
 scripts/verify/         仓库拓扑、版本和软件源等静态契约
 docs/                   面向人的项目事实与入口
 ```
@@ -51,6 +55,7 @@ Project 把输出角色映射到项目内的相对路径；Profile 声明 develo
 | local/remote build 执行实现 | `internal/build/backend/<backend>/` |
 | target adapter 及其板卡/协议资产 | `internal/target/<adapter>/` |
 | 通用进程与工具调用边界 | `internal/execution/` |
+| 候选环境与 CLI 本地分发实现 | `internal/maintainer/` |
 | 开发镜像产品 | `container-images/<image>/` |
 | 用户工程起点 | `project-templates/<template>/` |
 | 完整可测行为 | `examples/<example>/` |
@@ -58,12 +63,12 @@ Project 把输出角色映射到项目内的相对路径；Profile 声明 develo
 | 跨模块组合行为 | `tests/integration/` |
 | CLI archive 契约 | `tests/distribution/` |
 | 分发二进制驱动的真实开发链路 | `tests/e2e/` |
-| 候选版本的开发者人工核验 | `tests/manual/` |
+| 候选版本的用户体验人工核验 | `tests/manual/user-experience/` |
 | 静态仓库契约 | `scripts/verify/` |
 
 模块逻辑的测试与 Go package 就近保存。`tests/` 只收模块外的可执行行为；静态文件与策略
-检查放入 `scripts/verify/`；人工核验按宿主与链路组合拆分场景，不与自动 E2E 共用实现；
-镜像构建时的工具能力检查仍归各镜像的 `smoke/` 所有。
+检查放入 `scripts/verify/`；人工核验只保留自动测试不能代替的用户认知判断，不与自动 E2E 共用
+实现或测试用品；镜像构建时的工具能力检查仍归各镜像的 `smoke/` 所有。
 GoReleaser 定义 CLI 平台矩阵与 archive，Docker Bake 定义 image 构建矩阵，两者不在测试
 代码中维护第二份目标列表。
 

@@ -59,7 +59,12 @@ for required_file in \
     internal/execution/resourcecache/store.go \
     internal/maintainer/application.go \
     internal/maintainer/distribution/packager.go \
+    internal/maintainer/experience/identity.go \
+    internal/maintainer/experience/image.go \
+    internal/maintainer/experience/paths.go \
+    internal/maintainer/experience/repository.go \
     internal/maintainer/experience/service.go \
+    internal/maintainer/experience/state.go \
     internal/target/adapter.go \
     internal/target/openocd/adapter.go \
     internal/target/openocd/board/robomaster-c.cfg \
@@ -69,7 +74,7 @@ for required_file in \
     tests/distribution/archives_test.go \
     tests/e2e/local_mcu_cycle_test.go \
     tests/manual/README.md \
-    tests/manual/local-mcu-development-cycle-darwin-arm64.md \
+    tests/manual/user-experience/local-mcu-development.md \
     scripts/verify/repository-layout.sh \
     scripts/verify/toolchain-source-policy.sh \
     container-images/embedded-development/README.md \
@@ -80,7 +85,9 @@ for required_file in \
     project-templates/cross-platform-cpp/CMakeLists.txt \
     project-templates/cross-platform-cpp/CMakePresets.json \
     project-templates/cross-platform-cpp/rm-relay.toml \
-    examples/deterministic-pi-control/README.md; do
+    examples/deterministic-pi-control/README.md \
+    docs/operator-guide/candidate-experience-environment.md \
+    docs/operator-guide/cli-distribution.md; do
     assert_file_exists "${required_file}"
 done
 
@@ -103,6 +110,7 @@ for absent_path in \
     profiles \
     openocd \
     project-templates/cross-platform-cpp/mise.toml \
+    tests/manual/local-mcu-development-cycle-darwin-arm64.md \
     validation; do
     assert_path_absent "${absent_path}"
 done
