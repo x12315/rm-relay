@@ -16,12 +16,13 @@ import (
 const internalImportPrefix = "github.com/x12315/rm-relay/internal/"
 
 var allowedDependencies = map[string][]string{
-	"build":     {"build", "execution", "profile", "project"},
-	"cli":       {"build", "cli", "execution", "profile", "project", "target"},
-	"execution": {"execution"},
-	"profile":   {},
-	"project":   {},
-	"target":    {"build", "execution", "profile", "target"},
+	"build":      {"build", "execution", "profile", "project"},
+	"cli":        {"build", "cli", "execution", "profile", "project", "target"},
+	"execution":  {"execution"},
+	"maintainer": {"execution", "maintainer"},
+	"profile":    {},
+	"project":    {},
+	"target":     {"build", "execution", "profile", "target"},
 }
 
 func TestInternalModulesFollowDependencyDirection(t *testing.T) {
