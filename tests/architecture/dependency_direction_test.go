@@ -1,4 +1,4 @@
-package moduleboundaries
+package architecture
 
 import (
 	"go/ast"
