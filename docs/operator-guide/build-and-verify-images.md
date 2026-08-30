@@ -106,13 +106,51 @@ mise run test:integration
 ```
 
 `verify` 只检查静态仓库契约，不启动 Docker。项目模板和 PI 示例各自用 CMake Workflow
-作为构建事实源；在两者目录中依次运行：
+作为构建事实源。候选回归必须使用干净的派生目录；先确认两处 `build/` 均被 Git 忽略且没有
+待提交资产，再清除可能记录旧工作区路径的 CMake cache：
 
 ```bash
-cmake --workflow --preset native-clang
-cmake --workflow --preset native-gcc
-cmake --workflow --preset native-asan
-cmake --workflow --preset stm32f407-robomaster-c
+git check-ignore project-templates/cross-platform-cpp/build \
+  examples/deterministic-pi-control/build
+git status --short -- project-templates/cross-platform-cpp/build \
+  examples/deterministic-pi-control/build
+```
+
+`git check-ignore` 必须列出两处目录，`git status` 必须没有输出；否则停止，不删除来源不明的
+内容。确认后再单独清理：
+
+```bash
+cmake -E remove_directory project-templates/cross-platform-cpp/build
+cmake -E remove_directory examples/deterministic-pi-control/build
+```
+
+从仓库根目录运行候选 development image，先验证 Project Template。`bash -e` 保证任一 workflow
+失败时容器立即返回非零状态；该命令全部通过后才能验证 PI 示例。
+
+```bash
+docker run --rm -t \
+  -v "$PWD:/workspace" \
+  -w /workspace/project-templates/cross-platform-cpp \
+  mcu-dev/toolchain:local bash -euc '
+    cmake --workflow --preset native-clang
+    cmake --workflow --preset native-gcc
+    cmake --workflow --preset native-asan
+    cmake --workflow --preset stm32f407-robomaster-c
+  '
+```
+
+再验证完整 PI 示例：
+
+```bash
+docker run --rm -t \
+  -v "$PWD:/workspace" \
+  -w /workspace/examples/deterministic-pi-control \
+  mcu-dev/toolchain:local bash -euc '
+    cmake --workflow --preset native-clang
+    cmake --workflow --preset native-gcc
+    cmake --workflow --preset native-asan
+    cmake --workflow --preset stm32f407-robomaster-c
+  '
 ```
 
 这些命令应在候选 development image 内执行。前三个 workflow 由 CTest 发现并运行 Catch2
@@ -127,8 +165,10 @@ mise run test:e2e
 
 `test:distribution` 检查 Darwin、Linux、Windows 的 amd64/arm64 archive 和 SHA-256；它不在
 当前主机运行其他平台的二进制。`test:e2e` 解压当前平台 archive，真实执行 Git clone、
-`rm-relay init`、Docker 构建、Build Output 校验和 OpenOCD dry-run。缺少 Git、Docker、
-snapshot 或本地 image 时会直接失败，不会跳过；dry-run 只解析宿主 mise 命令，不执行它。
+`rm-relay init`、Docker 构建、Build Output 校验和 OpenOCD dry-run。两项任务都会先自动生成
+snapshot，生成失败会使任务失败；缺少 Git、Docker、可用的 Docker daemon 或本地 image 时，
+E2E 也会直接失败，不会跳过。dry-run 只解析 adapter 配置并生成宿主 mise/OpenOCD 命令，
+不执行 mise 或 OpenOCD。
 
 这组结果最多证明 `host-tested`、`cross-compiled` 和 OpenOCD `configured`。真实烧录、启动
 和源码调试仍以[支持矩阵](../user-guide/support-matrix.md)的硬件证据为准。

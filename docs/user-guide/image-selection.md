@@ -13,56 +13,14 @@ build target。
 官方 profile，不使用一个全家桶镜像承载所有能力。这些 profile 尚未交付，也不与 MCU
 工具链耦合。设计边界见[环境与 profile](../architecture/environments-and-profiles.md)。
 
-公开镜像尚未发布。体验当前基线时，需要在本机或战队的构建服务器上生成
-`mcu-dev/toolchain:local`。正式镜像发布后，普通用户可以直接从国内 OCI Registry
-拉取固定版本，不必重复执行完整构建。
-
-## 按宿主架构构建
-
-Apple Silicon 使用：
-
-```bash
-docker buildx bake \
-  --file container-images/embedded-development/docker-bake.hcl \
-  mcu-dev-arm64 --load
-```
-
-x86_64 Linux 使用：
-
-```bash
-docker buildx bake \
-  --file container-images/embedded-development/docker-bake.hcl \
-  mcu-dev-amd64 --load
-```
-
-`--load` 只适合单一平台。默认的 `docker` driver 应分别验证两个架构：
-
-```bash
-docker buildx bake \
-  --file container-images/embedded-development/docker-bake.hcl verify-arm64 \
-  --set '*.output=type=cacheonly'
-docker buildx bake \
-  --file container-images/embedded-development/docker-bake.hcl verify-amd64 \
-  --set '*.output=type=cacheonly'
-```
-
-配置了支持 multi-platform 的 `docker-container` 或远程 builder 后，可一次验证：
-
-```bash
-docker buildx bake \
-  --file container-images/embedded-development/docker-bake.hcl multiarch \
-  --set '*.output=type=cacheonly'
-```
-
-项目不自动创建或切换持久 Buildx builder。
+公开镜像尚未发布，因此普通用户目前没有稳定的 image 获取入口。本页只说明已获得 image 后的
+使用边界；候选 image 的构建、双架构检查与发布准备属于
+[镜像构建与验证](../operator-guide/build-and-verify-images.md)，不作为用户上手步骤。
 
 当前基线是 Ubuntu 24.04 LTS、native GCC 14 和 Arm GNU 13.2.Rel1。产品级版本见
 [`container-images/embedded-development/locks/versions.env`](../../container-images/embedded-development/locks/versions.env)。
 镜像中的 `/opt/embedded-development/base-packages.txt` 与
 `/opt/embedded-development/embedded-packages.txt` 记录该次构建实际安装的完整版本。
-
-镜像维护、跨架构验收和未来发布方式见
-[镜像构建与验证](../operator-guide/build-and-verify-images.md)。
 
 ## 运行工作区
 

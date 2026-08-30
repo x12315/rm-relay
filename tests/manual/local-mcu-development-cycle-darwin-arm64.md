@@ -39,6 +39,8 @@ Linux、Windows、Intel macOS、远程 backend 和真实 ST-Link 不在本场景
 ```bash
 uname -s
 uname -m
+docker --version
+docker buildx version
 git status --short --branch
 git rev-parse HEAD
 ```
@@ -46,6 +48,7 @@ git rev-parse HEAD
 **预期结果**
 
 - 前两条分别输出 `Darwin` 与 `arm64`。
+- Docker 与 Buildx 均输出非空版本；记录两个版本。
 - `git status` 显示候选 feature 分支，且没有修改或未跟踪文件。
 - 记录完整 commit，后续结果只对该 commit 有效。
 
@@ -176,6 +179,7 @@ git subtree split --prefix=project-templates/cross-platform-cpp --branch manual/
 git clone --branch manual/local-mcu-template --single-branch . dist/manual-workspace/project
 cd dist/manual-workspace/project
 export PATH="$(git rev-parse --show-toplevel)/../bin:$PATH"
+export RM_RELAY_CACHE_DIR="$(git rev-parse --show-toplevel)/../cache"
 git status --short
 ```
 
@@ -183,6 +187,7 @@ git status --short
 
 - clone 中只有 Project Template 的历史与文件，不包含 RM Relay 主仓库其他资产。
 - `rm-relay` 从 `dist/manual-workspace/bin` 解析。
+- RM Relay cache 隔离在 `dist/manual-workspace/cache`，不读写开发者的长期 cache。
 - 项目工作区 clean。
 
 **失败说明**
@@ -200,12 +205,14 @@ subtree 或 clone 失败属于当前 monorepo 模板分发边界；不能改为�
 grep '^project_id = ""$' rm-relay.toml
 rm-relay init
 grep -E '^project_id = "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"$' rm-relay.toml
+git diff -- rm-relay.toml
 shasum -a 256 rm-relay.toml
 ```
 
 **预期结果**
 
 - 第一次 `init` 返回成功，并写入 UUID v4。
+- `git diff` 只显示原有空 `project_id` 被替换，没有其他配置变化。
 - 记录第一次 `shasum`。
 
 **失败说明**
@@ -351,14 +358,32 @@ notes:
 
 ## 清理
 
-返回主仓库根目录，先确认测试分支与工作目录名称，再只删除本场景创建的资产。
+返回主仓库根目录，先用可见输出确认当前位置、测试分支与工作目录内容。
 
 **操作**
 
 ```bash
 cd ../../..
+pwd
 git branch --list manual/local-mcu-template
-test -d dist/manual-workspace/project
+find dist/manual-workspace -mindepth 1 -maxdepth 1 -print | sort
+```
+
+**预期结果**
+
+- `pwd` 是候选仓库根目录。
+- 分支列表只显示本场景创建的 `manual/local-mcu-template`。
+- workspace 只包含本场景创建的 `bin/`、`cache/` 与 `project/`。
+
+**失败说明**
+
+路径、分支名称或 workspace 内容与预期不一致时停止，不执行下面的删除命令。
+
+完成上方核对后，单独执行清理：
+
+**操作**
+
+```bash
 git branch -D manual/local-mcu-template
 rm -rf dist/manual-workspace
 git status --short --branch
@@ -367,9 +392,10 @@ git status --short --branch
 **预期结果**
 
 - 只删除 `manual/local-mcu-template` 与 `dist/manual-workspace/`。
+- 隔离的 RM Relay cache 随 `dist/manual-workspace/` 一并回收。
 - 候选分支和源文件保持 clean。
-- `dist/` 中 GoReleaser 生成的 snapshot 可以保留供自动 E2E 使用；development image 与 ccache
-  也可保留供后续核验。
+- `dist/` 中 GoReleaser 生成的 snapshot 可以保留供自动 E2E 使用；development image 与 Docker
+  layer cache 也可保留供后续核验。
 
 **失败说明**
 

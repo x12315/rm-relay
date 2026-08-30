@@ -7,7 +7,8 @@
 
 ## 功能入口
 
-1. 阅读[镜像选择与运行](image-selection.md)，构建并进入适合当前宿主架构的 `mcu-dev` 镜像。
+1. 已获得 development image 后，阅读[镜像选择与运行](image-selection.md)，确认能力与宿主
+   边界并进入 `mcu-dev` 镜像。
 2. 用[native 构建与测试](build-native.md)确认 host 路径，或直接按
    [STM32F407 固件构建](build-stm32.md)生成 RoboMaster C 固件。
 3. 需要连接实板时，先查看[RoboMaster C 板卡说明](boards/robomaster-c.md)，再选择烧录或
