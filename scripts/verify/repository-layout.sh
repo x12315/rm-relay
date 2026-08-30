@@ -63,6 +63,8 @@ for required_file in \
     tests/integration/fixture_test.go \
     tests/distribution/archives_test.go \
     tests/e2e/local_mcu_cycle_test.go \
+    tests/manual/README.md \
+    tests/manual/local-mcu-development-cycle-darwin-arm64.md \
     scripts/verify/repository-layout.sh \
     scripts/verify/toolchain-source-policy.sh \
     container-images/embedded-development/README.md \
