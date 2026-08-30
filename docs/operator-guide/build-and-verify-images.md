@@ -1,8 +1,7 @@
 # 镜像构建与验证
 
-本页供镜像维护者和构建服务部署者使用。普通开发者从根目录的
-[本地 Docker 快速开始](../../README.md#本地-docker-快速开始)进入即可，不必了解镜像
-内部的安装过程。
+本页供镜像维护者和构建服务部署者使用。功能使用方式从
+[使用指南](../user-guide/README.md)进入，不必了解镜像内部的安装过程。
 
 ## 唯一构建入口
 
@@ -133,6 +132,15 @@ snapshot 或本地 image 时会直接失败，不会跳过；dry-run 只解析�
 
 这组结果最多证明 `host-tested`、`cross-compiled` 和 OpenOCD `configured`。真实烧录、启动
 和源码调试仍以[支持矩阵](../user-guide/support-matrix.md)的硬件证据为准。
+
+## 开发者人工核验
+
+自动 E2E 通过后，候选版本仍需从[人工测试索引](../../tests/manual/README.md)选择与宿主和
+链路匹配的场景，由核验者逐条输入公开命令并记录结果。人工流程检查文档顺序、可见输出和
+需要人判断的边界，不得用 `test:e2e` 的成功代替。
+
+人工结果同样遵守证据等级：没有连接硬件的场景只能记录 `cross-compiled` 与 adapter
+`configured`，不能升级为 `detected`、`flashed`、`boot-observed` 或 `debug-tested`。
 
 ## CLI snapshot
 

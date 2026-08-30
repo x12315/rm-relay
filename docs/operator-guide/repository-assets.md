@@ -19,7 +19,12 @@ internal/
 container-images/       可独立构建和发布的开发环境
 project-templates/      用户项目起点；当前由 monorepo 提供
 examples/               有完整行为与测试的示例
-tests/                  architecture、integration、distribution 与 E2E 测试
+tests/
+├── architecture/      可执行依赖方向
+├── integration/       跨模块组合
+├── distribution/      CLI archive 契约
+├── e2e/               分发二进制驱动的自动真实链路
+└── manual/            开发者逐条执行的候选版本人工核验
 scripts/verify/         仓库拓扑、版本和软件源等静态契约
 docs/                   面向人的项目事实与入口
 ```
@@ -53,10 +58,12 @@ Project 把输出角色映射到项目内的相对路径；Profile 声明 develo
 | 跨模块组合行为 | `tests/integration/` |
 | CLI archive 契约 | `tests/distribution/` |
 | 分发二进制驱动的真实开发链路 | `tests/e2e/` |
+| 候选版本的开发者人工核验 | `tests/manual/` |
 | 静态仓库契约 | `scripts/verify/` |
 
 模块逻辑的测试与 Go package 就近保存。`tests/` 只收模块外的可执行行为；静态文件与策略
-检查放入 `scripts/verify/`；镜像构建时的工具能力检查仍归各镜像的 `smoke/` 所有。
+检查放入 `scripts/verify/`；人工核验按宿主与链路组合拆分场景，不与自动 E2E 共用实现；
+镜像构建时的工具能力检查仍归各镜像的 `smoke/` 所有。
 GoReleaser 定义 CLI 平台矩阵与 archive，Docker Bake 定义 image 构建矩阵，两者不在测试
 代码中维护第二份目标列表。
 

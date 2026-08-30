@@ -6,7 +6,8 @@ Linux 应用开发和 RM 常见开发板、PC、边缘计算板卡。
 > [!IMPORTANT]
 > 项目仍在建设。目前已跑通 STM32 项目初始化、本地容器构建、Build Output 校验与 OpenOCD
 > 命令解析；快速体验服务器、IDE 一键配置、战队部署方案、Linux 应用环境、远程构建和
-> target 数据回收尚未交付。路线图和架构文档表达建设方向，不代表已经支持。
+> target 数据回收尚未交付。面向普通用户的原子化 Quick Start 也尚未形成；路线图和架构
+> 文档表达建设方向，不代表已经支持。
 
 RM 队伍的成员和工程经验随赛季快速流动。一套环境如果只能由少数人安装、升级和排错，
 很容易在交接后失效。RM Relay 将重复出现的工具链配置、项目入口和验证方法整理成可复现
@@ -57,8 +58,9 @@ RoboMaster C 是首个支持的 board profile，不是项目结构中心。当�
 
 ### 本地 Docker（当前可用）
 
-适合已有基本 Docker 使用经验的开发者。工具链在本机容器中运行，源码和构建产物保留在
-工作区；USB、烧录与调试按宿主平台接入。
+当前作为源码仓库内的开发基线使用。工具链在本机容器中运行，源码和构建产物保留在工作区；
+USB、烧录与调试按宿主平台接入。CLI、正式 image 与独立 Project Template 的普通用户分发
+入口尚未交付。
 
 ### 战队部署（规划中）
 
@@ -66,76 +68,12 @@ RoboMaster C 是首个支持的 board profile，不是项目结构中心。当�
 为成员提供稳定入口。部署文档尚未交付；当前维护者可以先参考
 [镜像构建与验证](docs/operator-guide/build-and-verify-images.md)。
 
-## 本地 Docker 快速开始
-
-当前还没有公开 CLI Release 和 OCI image。以下路径用于体验正在开发的基线，需要包含
-`subtree` 命令的 Git、Docker/Buildx 和宿主 mise；不会写入开发板 Flash。
-
-```bash
-git clone https://github.com/x12315/rm-relay.git
-cd rm-relay
-mise trust
-mise install
-
-docker buildx bake \
-  --file container-images/embedded-development/docker-bake.hcl \
-  mcu-dev --load
-mise run distribution:snapshot
-```
-
-这里的 `mcu-dev` 让 Buildx 选择本机架构；维护者验证指定架构时使用
-`mcu-dev-arm64`、`mcu-dev-amd64` 或对应的 `verify-*` target。
-
-以下 POSIX shell 步骤已在当前 macOS 基线上执行；Linux 使用相同 archive 结构，但完整宿主
-链路尚未验证。命令会解压与本机匹配的 archive，并把 CLI 加入本次终端的 `PATH`：
-
-```bash
-platform="$(mise exec -- go env GOOS)_$(mise exec -- go env GOARCH)"
-archive="$(find dist -maxdepth 1 -name "rm-relay_*_${platform}.tar.gz" -print -quit)"
-test -n "$archive"
-mkdir -p dist/local-bin
-tar -xzf "$archive" -C dist/local-bin rm-relay
-export PATH="$PWD/dist/local-bin:$PATH"
-rm-relay --version
-```
-
-GoReleaser 同时生成 Windows archive，但 Windows 上的完整构建、Docker 与设备链路尚未形成
-验证证据，见[支持矩阵](docs/user-guide/support-matrix.md)。
-
-Project Template 当前仍位于 monorepo。下面先把该子目录拆成一个本地 Git 分支，再 clone
-为自己的项目；未来会由可独立 clone 的模板仓库替代这段临时步骤。
-
-```bash
-git subtree split \
-  --prefix=project-templates/cross-platform-cpp \
-  --branch local/cross-platform-cpp-template
-git clone \
-  --branch local/cross-platform-cpp-template \
-  --single-branch \
-  . ../rm-relay-starter
-cd ../rm-relay-starter
-```
-
-在新项目中逐步运行公开入口：
-
-```bash
-rm-relay init
-rm-relay build
-sed -n '1,220p' \
-  install/embedded-stm32f407-robomaster-c/rm-relay-output.json
-rm-relay flash --target openocd-stlink --dry-run
-```
-
-构建结果和 manifest 位于
-`install/embedded-stm32f407-robomaster-c/`。`dry-run` 只解析并显示 OpenOCD 命令；它不
-证明开发板已经连接或写入。镜像选择、native/STM32 构建、实板接入、IDE 示例和故障排查
-统一从[使用指南](docs/user-guide/README.md)进入。维护者的自动测试与镜像验证入口见
-[镜像构建与验证](docs/operator-guide/build-and-verify-images.md)。
-
 想先理解项目将如何工作，阅读[开发平台架构](docs/architecture/README.md)和
 [开发契约参考](docs/reference/development-contracts.md)。维护项目或参与建设时，再阅读
 [仓库资产地图](docs/operator-guide/repository-assets.md)、[项目路线](ROADMAP.md)、
-[社区工作](docs/community/README.md)与[贡献指南](CONTRIBUTING.md)。
+[开发者人工核验](tests/manual/README.md)、[社区工作](docs/community/README.md)与
+[贡献指南](CONTRIBUTING.md)。当前功能的使用方式从[使用指南](docs/user-guide/README.md)
+进入，自动测试与镜像验证见[镜像构建与验证](docs/operator-guide/build-and-verify-images.md)。
 
 ## 发起与许可证
 

@@ -8,8 +8,8 @@
 - 标准 CMake configure、build、test 与 workflow presets；
 - MCU 路径禁用异常、RTTI 和隐式动态运行时依赖。
 
-模板尚未拆出独立仓库；当前 clone 方法见主仓库的
-[本地 Docker 快速开始](../../README.md#本地-docker-快速开始)。
+模板尚未拆出独立仓库，因此普通用户的稳定 clone 入口尚未交付。候选版本如何验证当前 Git
+边界，见[开发者人工核验](../../tests/manual/README.md)。
 
 ## 开始使用
 
