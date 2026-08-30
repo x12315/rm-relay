@@ -14,6 +14,7 @@ const (
 	managedStateMarker = "rm-relay-candidate-experience"
 
 	developmentImageReference = "mcu-dev/toolchain:local"
+	sha256HexLength           = 64
 )
 
 // State records the identities required to enter or safely clean one candidate environment.
@@ -105,6 +106,15 @@ func validateState(layout Layout, state State) error {
 	}
 	if state.RepositoryKey != layout.RepositoryKey {
 		return fmt.Errorf("candidate state repository key does not match %q", layout.RepositoryKey)
+	}
+	if state.Revision == "" || state.CLIVersion == "" || len(state.CLISHA256) != sha256HexLength {
+		return fmt.Errorf("candidate state CLI identity is incomplete")
+	}
+	if state.ImageReference != developmentImageReference || state.ImageID == "" {
+		return fmt.Errorf("candidate state image identity is invalid")
+	}
+	if state.TemplateRevision == "" || state.CreatedAt.IsZero() {
+		return fmt.Errorf("candidate state template identity or creation time is incomplete")
 	}
 	return nil
 }

@@ -49,6 +49,9 @@ func (packager Packager) BuildHostBinary(ctx context.Context, outputPath string)
 	if err := requireAbsent(destinationPath); err != nil {
 		return Binary{}, err
 	}
+	if err := packager.requireCleanRepository(ctx, repositoryRoot); err != nil {
+		return Binary{}, err
+	}
 	if err := os.MkdirAll(filepath.Dir(destinationPath), 0o755); err != nil {
 		return Binary{}, fmt.Errorf("create CLI output parent: %w", err)
 	}
@@ -92,6 +95,9 @@ func (packager Packager) publishDist(ctx context.Context, outputDirectory string
 	if err := requireAbsent(destinationDirectory); err != nil {
 		return err
 	}
+	if err := packager.requireCleanRepository(ctx, repositoryRoot); err != nil {
+		return err
+	}
 
 	checkout, cleanup, err := packager.cloneRepository(ctx, repositoryRoot)
 	if err != nil {
@@ -110,6 +116,17 @@ func (packager Packager) publishDist(ctx context.Context, outputDirectory string
 		return processFailure("build CLI distribution", result, err)
 	}
 	return publishDirectory(filepath.Join(checkout, "dist"), destinationDirectory)
+}
+
+func (packager Packager) requireCleanRepository(ctx context.Context, repositoryRoot string) error {
+	result, err := packager.Runner.Run(ctx, command.Request{Name: "git", Arguments: []string{"status", "--porcelain"}, Directory: repositoryRoot})
+	if err != nil {
+		return processFailure("inspect repository status", result, err)
+	}
+	if strings.TrimSpace(result.Stdout) != "" {
+		return fmt.Errorf("repository contains uncommitted changes; commit or remove them before packaging the CLI")
+	}
+	return nil
 }
 
 func (packager Packager) validatedDestination(destination string) (string, string, error) {

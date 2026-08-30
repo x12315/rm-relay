@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // Layout identifies every path owned by one repository's candidate experience environment.
@@ -33,12 +34,16 @@ func ResolveLayout(repositoryRoot, userCacheRoot string) (Layout, error) {
 	if err != nil {
 		return Layout{}, fmt.Errorf("resolve user cache root: %w", err)
 	}
-	if cacheRoot == canonicalRepository {
-		return Layout{}, fmt.Errorf("user cache root must not equal repository root")
+	cacheRoot, err = resolvePotentialPath(cacheRoot)
+	if err != nil {
+		return Layout{}, fmt.Errorf("resolve user cache root: %w", err)
+	}
+	if pathWithin(canonicalRepository, cacheRoot) {
+		return Layout{}, fmt.Errorf("user cache root must be outside repository root")
 	}
 	digest := sha256.Sum256([]byte(canonicalRepository))
 	repositoryKey := hex.EncodeToString(digest[:8])
-	root := filepath.Join(filepath.Clean(cacheRoot), "rm-relay", "experience", repositoryKey)
+	root := filepath.Join(cacheRoot, "rm-relay", "experience", repositoryKey)
 	binaryDirectory := filepath.Join(root, "bin")
 	binaryName := "rm-relay"
 	if runtime.GOOS == "windows" {
@@ -55,6 +60,34 @@ func ResolveLayout(repositoryRoot, userCacheRoot string) (Layout, error) {
 		Workspace:       filepath.Join(root, "workspace"),
 		Logs:            filepath.Join(root, "logs"),
 	}, nil
+}
+
+func pathWithin(parent, child string) bool {
+	relativePath, err := filepath.Rel(parent, child)
+	return err == nil && relativePath != ".." && !strings.HasPrefix(relativePath, ".."+string(filepath.Separator))
+}
+
+func resolvePotentialPath(path string) (string, error) {
+	existingPath := filepath.Clean(path)
+	remaining := make([]string, 0, 4)
+	for {
+		resolvedPath, err := filepath.EvalSymlinks(existingPath)
+		if err == nil {
+			for index := len(remaining) - 1; index >= 0; index-- {
+				resolvedPath = filepath.Join(resolvedPath, remaining[index])
+			}
+			return resolvedPath, nil
+		}
+		if !os.IsNotExist(err) {
+			return "", err
+		}
+		parent := filepath.Dir(existingPath)
+		if parent == existingPath {
+			return "", err
+		}
+		remaining = append(remaining, filepath.Base(existingPath))
+		existingPath = parent
+	}
 }
 
 func canonicalDirectory(path string) (string, error) {

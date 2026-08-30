@@ -18,8 +18,10 @@ type Request struct {
 	Arguments   []string
 	Directory   string
 	Environment map[string]string
+	Stdin       io.Reader
 	Stdout      io.Writer
 	Stderr      io.Writer
+	Interactive bool
 }
 
 // Result contains captured process output even when the process fails.
@@ -44,6 +46,15 @@ func (OSRunner) Run(ctx context.Context, request Request) (Result, error) {
 	command := exec.CommandContext(ctx, request.Name, request.Arguments...)
 	command.Dir = request.Directory
 	command.Env = mergedEnvironment(request.Environment)
+	command.Stdin = request.Stdin
+	if request.Interactive {
+		command.Stdout = request.Stdout
+		command.Stderr = request.Stderr
+		if err := command.Run(); err != nil {
+			return Result{}, fmt.Errorf("run %s: %w", request.Name, err)
+		}
+		return Result{}, nil
+	}
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

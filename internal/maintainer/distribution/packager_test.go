@@ -71,15 +71,32 @@ func TestPackageSnapshotDoesNotReplaceExistingOutput(t *testing.T) {
 	}
 }
 
+func TestPackageSnapshotRejectsUncommittedChanges(t *testing.T) {
+	packager := testPackager(t, &recordingRunner{dirty: true})
+
+	err := packager.PackageSnapshot(context.Background(), filepath.Join(t.TempDir(), "snapshot"))
+
+	if err == nil || !strings.Contains(err.Error(), "uncommitted") {
+		t.Fatalf("PackageSnapshot() error = %v", err)
+	}
+}
+
 type recordingRunner struct {
 	requests     []command.Request
 	onGoReleaser func(string) error
+	dirty        bool
 }
 
 func (runner *recordingRunner) Run(_ context.Context, request command.Request) (command.Result, error) {
 	runner.requests = append(runner.requests, request)
 	switch request.Name {
 	case "git":
+		if len(request.Arguments) > 0 && request.Arguments[0] == "status" {
+			if runner.dirty {
+				return command.Result{Stdout: " M changed.go\n"}, nil
+			}
+			return command.Result{}, nil
+		}
 		if len(request.Arguments) > 0 && request.Arguments[0] == "clone" {
 			checkout := request.Arguments[len(request.Arguments)-1]
 			return command.Result{}, os.MkdirAll(checkout, 0o755)

@@ -39,6 +39,8 @@ for required_file in \
     mise.toml \
     cmd/rm-relay/main.go \
     cmd/rm-relay/main_test.go \
+    cmd/rm-relay-maintainer/main.go \
+    cmd/rm-relay-maintainer/main_test.go \
     cmd/rm-relay-node/.gitkeep \
     internal/cli/application.go \
     internal/project/config.go \
@@ -55,6 +57,9 @@ for required_file in \
     internal/execution/mise/invocation.go \
     internal/execution/mise/base.mise.toml \
     internal/execution/resourcecache/store.go \
+    internal/maintainer/application.go \
+    internal/maintainer/distribution/packager.go \
+    internal/maintainer/experience/service.go \
     internal/target/adapter.go \
     internal/target/openocd/adapter.go \
     internal/target/openocd/board/robomaster-c.cfg \

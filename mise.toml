@@ -35,3 +35,23 @@ run = [
   "sh scripts/verify/repository-layout.sh",
   "sh scripts/verify/toolchain-source-policy.sh",
 ]
+
+[tasks."cli:cross-build"]
+description = "Cross-build CLI binaries into an explicit external directory"
+run = "go run ./cmd/rm-relay-maintainer cli cross-build"
+
+[tasks."cli:package-snapshot"]
+description = "Package CLI snapshots into an explicit external directory"
+run = "go run ./cmd/rm-relay-maintainer cli package-snapshot"
+
+[tasks."experience:prepare"]
+description = "Prepare an isolated local candidate experience"
+run = "go run ./cmd/rm-relay-maintainer experience prepare"
+
+[tasks."experience:enter"]
+description = "Enter the prepared candidate experience"
+run = "go run ./cmd/rm-relay-maintainer experience enter"
+
+[tasks."experience:clean"]
+description = "Remove the candidate experience and restore the image tag"
+run = "go run ./cmd/rm-relay-maintainer experience clean"
