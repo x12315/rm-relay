@@ -1,60 +1,58 @@
 #include "pi_control_example/pi_controller.hpp"
 
-#include <cmath>
-#include <cstdio>
+#include <catch2/catch_approx.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 namespace {
 
-bool near(float lhs, float rhs, float tolerance = 0.00001F) {
-  return std::fabs(lhs - rhs) <= tolerance;
-}
-
-int fail(const char* message) {
-  std::fprintf(stderr, "FAIL: %s\n", message);
-  return 1;
-}
+constexpr float kTolerance = 0.00001F;
 
 }  // namespace
 
-int main() {
+TEST_CASE("nominal input produces the expected command") {
   pi_control_example::PiController controller;
+  const auto output = controller.step({.target = 1.0F, .measured = 0.25F, .valid = true},
+                                      {.microseconds = 10'000U});
 
-  const auto nominal = controller.step({.target = 1.0F, .measured = 0.25F, .valid = true},
-                                       {.microseconds = 10'000U});
-  if (nominal.fault || !near(nominal.command, 0.4515F)) {
-    return fail("nominal vector");
-  }
+  REQUIRE_FALSE(output.fault);
+  REQUIRE(output.command == Catch::Approx(0.4515F).margin(kTolerance));
+}
+
+TEST_CASE("invalid input clears the integral state") {
+  pi_control_example::PiController controller;
+  static_cast<void>(controller.step({.target = 1.0F, .measured = 0.25F, .valid = true},
+                                    {.microseconds = 10'000U}));
 
   const auto invalid = controller.step({.target = 1.0F, .measured = 0.25F, .valid = false},
                                        {.microseconds = 10'000U});
-  if (!invalid.fault || !near(invalid.command, 0.0F)) {
-    return fail("invalid input");
-  }
+  REQUIRE(invalid.fault);
+  REQUIRE(invalid.command == Catch::Approx(0.0F).margin(kTolerance));
 
   const auto recovered = controller.step({.target = 1.0F, .measured = 0.25F, .valid = true},
                                          {.microseconds = 10'000U});
-  if (recovered.fault || !near(recovered.command, 0.4515F)) {
-    return fail("fault clears integral state");
-  }
+  REQUIRE_FALSE(recovered.fault);
+  REQUIRE(recovered.command == Catch::Approx(0.4515F).margin(kTolerance));
+}
+
+TEST_CASE("invalid duration produces a deterministic fault") {
+  pi_control_example::PiController controller;
 
   const auto timeout =
       controller.step({.target = 1.0F, .measured = 0.0F, .valid = true}, {.microseconds = 20'001U});
-  if (!timeout.fault || !near(timeout.command, 0.0F)) {
-    return fail("timeout input");
-  }
+  REQUIRE(timeout.fault);
+  REQUIRE(timeout.command == Catch::Approx(0.0F).margin(kTolerance));
 
   const auto zero_dt =
       controller.step({.target = 1.0F, .measured = 0.0F, .valid = true}, {.microseconds = 0U});
-  if (!zero_dt.fault || !near(zero_dt.command, 0.0F)) {
-    return fail("zero dt");
-  }
+  REQUIRE(zero_dt.fault);
+  REQUIRE(zero_dt.command == Catch::Approx(0.0F).margin(kTolerance));
+}
+
+TEST_CASE("command saturates at the positive limit") {
+  pi_control_example::PiController controller;
 
   const auto saturated = controller.step({.target = 10.0F, .measured = 0.0F, .valid = true},
                                          {.microseconds = 10'000U});
-  if (saturated.fault || !near(saturated.command, 1.0F)) {
-    return fail("positive saturation");
-  }
-
-  controller.reset();
-  return 0;
+  REQUIRE_FALSE(saturated.fault);
+  REQUIRE(saturated.command == Catch::Approx(1.0F).margin(kTolerance));
 }

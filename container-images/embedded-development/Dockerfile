@@ -20,7 +20,8 @@ COPY container-images/embedded-development/locks/versions.env \
 COPY --from=certificates /etc/ssl/certs/ca-certificates.crt \
      /etc/ssl/certs/ca-certificates.crt
 
-RUN case "${TARGETARCH}" in \
+RUN . /opt/embedded-development/versions.env \
+    && case "${TARGETARCH}" in \
         amd64) selected_ubuntu_mirror="${UBUNTU_MIRROR}" ;; \
         arm64) selected_ubuntu_mirror="${UBUNTU_PORTS_MIRROR}" ;; \
         *) printf 'unsupported TARGETARCH: %s\n' "${TARGETARCH}" >&2; exit 1 ;; \
@@ -36,6 +37,7 @@ RUN case "${TARGETARCH}" in \
         binutils \
         build-essential \
         ca-certificates \
+        catch2="${CATCH2_PACKAGE_VERSION}" \
         ccache \
         clang \
         clang-format \
@@ -95,6 +97,7 @@ WORKDIR /workspace
 LABEL org.opencontainers.image.base.name="ubuntu:24.04" \
       dev.embedded.ubuntu.lts="24.04" \
       dev.embedded.native-gcc.major="14" \
+      dev.embedded.catch2.version="3.4.0-1build1" \
       dev.embedded.mise.version="2026.8.14" \
       dev.embedded.uv.version="0.11.29" \
       dev.embedded.capabilities="native-build,native-test,analysis"

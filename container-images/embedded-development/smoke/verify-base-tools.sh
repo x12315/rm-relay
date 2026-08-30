@@ -30,6 +30,8 @@ clang --version
 gcc-14 --version
 uv --version | grep -F "${UV_VERSION}"
 mise --version | grep -F "${MISE_VERSION}"
+test "$(dpkg-query -W -f='${Version}' catch2)" = "${CATCH2_PACKAGE_VERSION}"
+test -f /usr/lib/cmake/Catch2/Catch2Config.cmake
 
 temporary_directory="$(mktemp -d)"
 case "${temporary_directory}" in

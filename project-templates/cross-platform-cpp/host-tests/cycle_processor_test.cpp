@@ -1,28 +1,19 @@
 #include "portable_code/cycle_processor.hpp"
 
-#include <cstdio>
+#include <catch2/catch_test_macros.hpp>
 
-namespace {
+TEST_CASE("valid cycles preserve identity") {
+  const portable_code::CycleProcessor processor;
+  const auto output = processor.step({.cycle_id = 42U, .valid = true});
 
-int fail(const char* message) {
-  std::fprintf(stderr, "FAIL: %s\n", message);
-  return 1;
+  REQUIRE(output.cycle_id == 42U);
+  REQUIRE_FALSE(output.fault);
 }
 
-}  // namespace
-
-int main() {
+TEST_CASE("invalid cycles produce a deterministic fault") {
   const portable_code::CycleProcessor processor;
+  const auto output = processor.step({.cycle_id = 43U, .valid = false});
 
-  const auto valid_cycle = processor.step({.cycle_id = 42U, .valid = true});
-  if (valid_cycle.cycle_id != 42U || valid_cycle.fault) {
-    return fail("valid cycle");
-  }
-
-  const auto invalid_cycle = processor.step({.cycle_id = 43U, .valid = false});
-  if (invalid_cycle.cycle_id != 43U || !invalid_cycle.fault) {
-    return fail("invalid cycle");
-  }
-
-  return 0;
+  REQUIRE(output.cycle_id == 43U);
+  REQUIRE(output.fault);
 }
