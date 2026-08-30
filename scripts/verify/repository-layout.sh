@@ -35,7 +35,9 @@ for required_file in \
     ROADMAP.md \
     go.mod \
     go.sum \
+    mise.toml \
     cmd/rm-relay/main.go \
+    cmd/rm-relay/main_test.go \
     cmd/rm-relay-node/.gitkeep \
     internal/cli/application.go \
     internal/project/config.go \
@@ -55,6 +57,11 @@ for required_file in \
     internal/target/adapter.go \
     internal/target/openocd/adapter.go \
     internal/target/openocd/board/robomaster-c.cfg \
+    tests/architecture/dependency_direction_test.go \
+    tests/integration/development_cycle_test.go \
+    tests/integration/fixture_test.go \
+    scripts/verify/repository-layout.sh \
+    scripts/verify/toolchain-source-policy.sh \
     container-images/embedded-development/README.md \
     container-images/embedded-development/Dockerfile \
     container-images/embedded-development/docker-bake.hcl \
@@ -65,9 +72,6 @@ for required_file in \
     project-templates/cross-platform-cpp/rm-relay.toml \
     examples/deterministic-pi-control/README.md \
     validation/README.md \
-    validation/contracts/verify-repository-layout.sh \
-    validation/contracts/verify-toolchain-source-policy.sh \
-    validation/module-boundaries/dependency_direction_test.go \
     validation/acceptance/verify-project-builds.sh \
     validation/acceptance/verify-local-mcu-cycle.sh \
     validation/platform/verify-cli-build-matrix.sh; do
@@ -77,7 +81,9 @@ done
 for source_path in \
     internal/build/plan.go \
     internal/build/backend/localcontainer/backend.go \
-    internal/build/cmake/build.mise.toml; do
+    internal/build/cmake/build.mise.toml \
+    tests/architecture/dependency_direction_test.go \
+    tests/integration/development_cycle_test.go; do
     assert_source_not_ignored "${source_path}"
 done
 
@@ -87,7 +93,9 @@ for absent_path in \
     config \
     profiles \
     openocd \
-    project-templates/cross-platform-cpp/mise.toml; do
+    project-templates/cross-platform-cpp/mise.toml \
+    validation/contracts \
+    validation/module-boundaries; do
     assert_path_absent "${absent_path}"
 done
 

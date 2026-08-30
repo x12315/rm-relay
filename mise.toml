@@ -1,0 +1,46 @@
+min_version = "2026.8.14"
+
+[tools]
+go = "1.26.7"
+"go:gotest.tools/gotestsum" = "1.13.0"
+"go:github.com/goreleaser/goreleaser/v2" = "2.17.1"
+
+[settings]
+task.run_auto_install = false
+
+[tasks."test:unit"]
+description = "Run Go package unit tests"
+run = "gotestsum -- ./cmd/... ./internal/..."
+
+[tasks."test:architecture"]
+description = "Verify internal module dependency direction"
+run = "gotestsum -- ./tests/architecture/..."
+
+[tasks."test:integration"]
+description = "Run cross-module tests without external processes"
+run = "gotestsum -- ./tests/integration/..."
+
+[tasks."test:distribution"]
+description = "Build and verify CLI snapshot archives"
+depends = ["distribution:snapshot"]
+run = "gotestsum -- -tags=distribution ./tests/distribution/..."
+
+[tasks."test:e2e"]
+description = "Run the distributed CLI through Git and Docker"
+depends = ["distribution:snapshot"]
+run = "gotestsum -- -tags=e2e ./tests/e2e/..."
+
+[tasks.verify]
+description = "Verify repository layout and toolchain policy"
+run = [
+  "sh scripts/verify/repository-layout.sh",
+  "sh scripts/verify/toolchain-source-policy.sh",
+]
+
+[tasks."distribution:build"]
+description = "Cross-build unarchived CLI binaries"
+run = "goreleaser build --snapshot --clean"
+
+[tasks."distribution:snapshot"]
+description = "Create local cross-platform CLI archives"
+run = "goreleaser release --snapshot --clean"
