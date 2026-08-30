@@ -35,6 +35,7 @@ for required_file in \
     ROADMAP.md \
     go.mod \
     go.sum \
+    .goreleaser.yaml \
     mise.toml \
     cmd/rm-relay/main.go \
     cmd/rm-relay/main_test.go \
@@ -60,6 +61,7 @@ for required_file in \
     tests/architecture/dependency_direction_test.go \
     tests/integration/development_cycle_test.go \
     tests/integration/fixture_test.go \
+    tests/distribution/archives_test.go \
     scripts/verify/repository-layout.sh \
     scripts/verify/toolchain-source-policy.sh \
     container-images/embedded-development/README.md \
