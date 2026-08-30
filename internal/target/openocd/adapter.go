@@ -16,7 +16,7 @@ import (
 
 const adapterID = "openocd"
 
-// Adapter invokes OpenOCD through the mise binary shipped with RM Relay.
+// Adapter invokes OpenOCD through the host mise binary selected by RM Relay.
 type Adapter struct {
 	Runner        command.Runner
 	MiseBinary    string

@@ -22,19 +22,7 @@ import (
 var version = "development"
 
 func main() {
-	homeDirectory, err := distributionHome()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "rm-relay: distribution_invalid: %s\n", err)
-		os.Exit(1)
-	}
-	miseBinary := os.Getenv("RM_RELAY_MISE_BIN")
-	if miseBinary == "" {
-		miseName := "mise"
-		if runtime.GOOS == "windows" {
-			miseName += ".exe"
-		}
-		miseBinary = filepath.Join(homeDirectory, "bin", miseName)
-	}
+	miseBinary := resolveMiseBinary(os.Getenv, runtime.GOOS)
 	cacheRoot, err := resolveCacheDirectory()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "rm-relay: environment_invalid: %s\n", err)
@@ -82,6 +70,16 @@ func main() {
 	os.Exit(exitCode)
 }
 
+func resolveMiseBinary(getenv func(string) string, goos string) string {
+	if configuredBinary := getenv("RM_RELAY_MISE_BIN"); configuredBinary != "" {
+		return configuredBinary
+	}
+	if goos == "windows" {
+		return "mise.exe"
+	}
+	return "mise"
+}
+
 func resolveCacheDirectory() (string, error) {
 	if configuredCache := os.Getenv("RM_RELAY_CACHE_DIR"); configuredCache != "" {
 		absoluteCache, err := filepath.Abs(configuredCache)
@@ -95,23 +93,4 @@ func resolveCacheDirectory() (string, error) {
 		return "", fmt.Errorf("locate user cache directory: %w", err)
 	}
 	return filepath.Join(userCache, "rm-relay"), nil
-}
-
-func distributionHome() (string, error) {
-	if configuredHome := os.Getenv("RM_RELAY_HOME"); configuredHome != "" {
-		absoluteHome, err := filepath.Abs(configuredHome)
-		if err != nil {
-			return "", fmt.Errorf("resolve RM_RELAY_HOME: %w", err)
-		}
-		return absoluteHome, nil
-	}
-	executable, err := os.Executable()
-	if err != nil {
-		return "", fmt.Errorf("locate rm-relay executable: %w", err)
-	}
-	executable, err = filepath.EvalSymlinks(executable)
-	if err != nil {
-		return "", fmt.Errorf("resolve rm-relay executable: %w", err)
-	}
-	return filepath.Dir(filepath.Dir(executable)), nil
 }
