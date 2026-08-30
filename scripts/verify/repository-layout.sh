@@ -62,6 +62,7 @@ for required_file in \
     tests/integration/development_cycle_test.go \
     tests/integration/fixture_test.go \
     tests/distribution/archives_test.go \
+    tests/e2e/local_mcu_cycle_test.go \
     scripts/verify/repository-layout.sh \
     scripts/verify/toolchain-source-policy.sh \
     container-images/embedded-development/README.md \
@@ -74,8 +75,6 @@ for required_file in \
     project-templates/cross-platform-cpp/rm-relay.toml \
     examples/deterministic-pi-control/README.md \
     validation/README.md \
-    validation/acceptance/verify-project-builds.sh \
-    validation/acceptance/verify-local-mcu-cycle.sh \
     validation/platform/verify-cli-build-matrix.sh; do
     assert_file_exists "${required_file}"
 done
@@ -85,7 +84,8 @@ for source_path in \
     internal/build/backend/localcontainer/backend.go \
     internal/build/cmake/build.mise.toml \
     tests/architecture/dependency_direction_test.go \
-    tests/integration/development_cycle_test.go; do
+    tests/integration/development_cycle_test.go \
+    tests/e2e/local_mcu_cycle_test.go; do
     assert_source_not_ignored "${source_path}"
 done
 
