@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	"github.com/x12315/rm-relay/internal/execution/command"
-	maintainerdistribution "github.com/x12315/rm-relay/internal/maintainer/distribution"
 )
 
 const (
@@ -33,14 +32,14 @@ const (
 )
 
 type buildOutputManifest struct {
-	SchemaVersion      int             `json:"schema_version"`
-	ProjectID          string          `json:"project_id"`
-	ProfileID          string          `json:"profile_id"`
-	ProfileDigest      string          `json:"profile_digest"`
-	DevelopmentImage   string          `json:"development_image"`
-	DevelopmentImageID string          `json:"development_image_id"`
-	ProducerVersion    string          `json:"producer_version"`
-	Artifacts          []buildArtifact `json:"artifacts"`
+	SchemaVersion   int                                    `json:"schema_version"`
+	ProjectID       string                                 `json:"project_id"`
+	ProfileID       string                                 `json:"profile_id"`
+	ProfileDigest   string                                 `json:"profile_digest"`
+	ProducerVersion string                                 `json:"producer_version"`
+	Builder         struct{ ID, Kind string }              `json:"builder"`
+	Environment     struct{ ID, Reference, Digest string } `json:"environment"`
+	Artifacts       []buildArtifact                        `json:"artifacts"`
 }
 
 type buildArtifact struct {
@@ -66,13 +65,10 @@ func TestLocalMCUDevelopmentCycle(t *testing.T) {
 
 	temporaryRoot := t.TempDir()
 	distributionDirectory := filepath.Join(temporaryRoot, "snapshot")
-	packager := maintainerdistribution.Packager{
-		Runner:         command.OSRunner{},
-		RepositoryRoot: repositoryRoot(t),
-		GoReleaser:     "goreleaser",
-	}
-	if err := packager.PackageSnapshot(context.Background(), distributionDirectory); err != nil {
-		t.Fatal(err)
+	root := repositoryRoot(t)
+	result, err := (command.OSRunner{}).Run(context.Background(), command.Request{Name: "go", Arguments: []string{"run", "./distribution/cli/cmd", "snapshot"}, Directory: root, Environment: map[string]string{"RM_RELAY_CLI_OUTPUT_DIR": distributionDirectory}})
+	if err != nil {
+		t.Fatalf("build snapshot: %v: %s", err, result.Stderr)
 	}
 	archivePath := requireCurrentPlatformArchive(t, distributionDirectory)
 	distributedCLI := extractDistributedCLI(t, archivePath, filepath.Join(temporaryRoot, "distribution"))
@@ -180,10 +176,10 @@ func assertBuildOutput(t *testing.T, projectRoot, producerVersion string) buildO
 	if err := decoder.Decode(&manifest); err != nil {
 		t.Fatalf("decode Build Output manifest: %v", err)
 	}
-	if manifest.SchemaVersion != 1 || manifest.ProjectID == "" || manifest.ProfileID != profileID {
+	if manifest.SchemaVersion != 2 || manifest.ProjectID == "" || manifest.ProfileID != profileID {
 		t.Fatalf("Build Output identity = %#v", manifest)
 	}
-	if manifest.ProfileDigest == "" || manifest.DevelopmentImage != developmentImage || manifest.DevelopmentImageID == "" {
+	if manifest.ProfileDigest == "" || manifest.Builder.ID != "local" || manifest.Environment.Reference != developmentImage || manifest.Environment.Digest == "" {
 		t.Fatalf("Build Output environment identity = %#v", manifest)
 	}
 	if manifest.ProducerVersion != producerVersion {

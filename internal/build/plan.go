@@ -32,13 +32,14 @@ type Plan struct {
 	Operation       Operation
 	ProjectRoot     string
 	ProjectID       string
+	BuilderID       string
 	Profile         profile.Loaded
 	Build           project.Build
 	OutputDirectory string
 }
 
 // Resolve loads one project/Profile combination and returns deterministic absolute paths.
-func Resolve(operation Operation, projectRoot, profileOverride string, profiles profile.Catalog) (Plan, error) {
+func Resolve(operation Operation, projectRoot, profileOverride, builderOverride string, profiles profile.Catalog) (Plan, error) {
 	if operation != OperationBuild && operation != OperationFlash {
 		return Plan{}, fmt.Errorf("unsupported operation %q", operation)
 	}
@@ -57,6 +58,10 @@ func Resolve(operation Operation, projectRoot, profileOverride string, profiles 
 	if profileID == "" {
 		profileID = projectConfig.DefaultProfile
 	}
+	builderID := builderOverride
+	if builderID == "" {
+		builderID = projectConfig.DefaultBuilder
+	}
 	loadedProfile, err := profiles.Load(profileID)
 	if err != nil {
 		return Plan{}, fmt.Errorf("%w: %v", ErrProfile, err)
@@ -72,6 +77,7 @@ func Resolve(operation Operation, projectRoot, profileOverride string, profiles 
 		Operation:       operation,
 		ProjectRoot:     projectRoot,
 		ProjectID:       projectConfig.ProjectID,
+		BuilderID:       builderID,
 		Profile:         loadedProfile,
 		Build:           buildDeclaration,
 		OutputDirectory: filepath.Join(projectRoot, "install", profileID),

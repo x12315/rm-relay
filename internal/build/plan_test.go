@@ -12,7 +12,7 @@ import (
 func TestResolveUsesProjectDefaultProfile(t *testing.T) {
 	projectRoot, profiles := writePlanFixture(t)
 
-	plan, err := Resolve(OperationBuild, projectRoot, "", profiles)
+	plan, err := Resolve(OperationBuild, projectRoot, "", "", profiles)
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
 	}
@@ -31,7 +31,7 @@ func TestResolveUsesProjectDefaultProfile(t *testing.T) {
 func TestResolveUsesExplicitProfileOverride(t *testing.T) {
 	projectRoot, profiles := writePlanFixture(t)
 
-	plan, err := Resolve(OperationFlash, projectRoot, "embedded-override", profiles)
+	plan, err := Resolve(OperationFlash, projectRoot, "embedded-override", "", profiles)
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
 	}
@@ -75,8 +75,11 @@ path = "override.elf"
 	for _, profileID := range []string{"embedded-default", "embedded-override"} {
 		files["profiles/"+profileID+"/profile.toml"] = &fstest.MapFile{Data: []byte(`schema_version = 1
 id = "` + profileID + `"
-development_image = "mcu-dev/toolchain:test"
 required_output_roles = ["firmware.elf"]
+
+[environment]
+id = "embedded-development"
+local_reference = "mcu-dev/toolchain:test"
 `)}
 	}
 	return projectRoot, profile.Catalog{Files: files, Root: "profiles"}

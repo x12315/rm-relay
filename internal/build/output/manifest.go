@@ -23,19 +23,32 @@ const (
 	// ManifestFileName is the deterministic metadata file stored beside Build Output artifacts.
 	ManifestFileName = "rm-relay-output.json"
 
-	currentSchemaVersion = 1
+	currentSchemaVersion = 2
 )
 
 // Manifest records the identities and content hashes required by target adapters.
 type Manifest struct {
-	SchemaVersion      int        `json:"schema_version"`
-	ProjectID          string     `json:"project_id"`
-	ProfileID          string     `json:"profile_id"`
-	ProfileDigest      string     `json:"profile_digest"`
-	DevelopmentImage   string     `json:"development_image"`
-	DevelopmentImageID string     `json:"development_image_id"`
-	ProducerVersion    string     `json:"producer_version"`
-	Artifacts          []Artifact `json:"artifacts"`
+	SchemaVersion   int                 `json:"schema_version"`
+	ProjectID       string              `json:"project_id"`
+	ProfileID       string              `json:"profile_id"`
+	ProfileDigest   string              `json:"profile_digest"`
+	ProducerVersion string              `json:"producer_version"`
+	Builder         BuilderEvidence     `json:"builder"`
+	Environment     EnvironmentEvidence `json:"environment"`
+	Artifacts       []Artifact          `json:"artifacts"`
+}
+
+// BuilderEvidence identifies the logical Builder and its execution mechanism.
+type BuilderEvidence struct {
+	ID   string `json:"id"`
+	Kind string `json:"kind"`
+}
+
+// EnvironmentEvidence records the actual environment consumed by the backend.
+type EnvironmentEvidence struct {
+	ID        string `json:"id"`
+	Reference string `json:"reference"`
+	Digest    string `json:"digest"`
 }
 
 // Artifact identifies one deployable file by semantic role and content.
@@ -59,14 +72,15 @@ type CreateRequest struct {
 	ProjectID       string
 	Profile         profile.Loaded
 	DeclaredOutputs []project.Output
-	ImageID         string
+	Builder         BuilderEvidence
+	Environment     EnvironmentEvidence
 	ProducerVersion string
 }
 
 // Create validates declared outputs and atomically writes their deterministic manifest.
 func Create(request CreateRequest) (Manifest, error) {
-	if request.ImageID == "" {
-		return Manifest{}, fmt.Errorf("development image identity must not be empty")
+	if err := validateEvidence(request.Builder, request.Environment); err != nil {
+		return Manifest{}, err
 	}
 	if request.ProducerVersion == "" {
 		return Manifest{}, fmt.Errorf("producer version must not be empty")
@@ -83,14 +97,14 @@ func Create(request CreateRequest) (Manifest, error) {
 		return artifacts[left].Role < artifacts[right].Role
 	})
 	manifest := Manifest{
-		SchemaVersion:      currentSchemaVersion,
-		ProjectID:          request.ProjectID,
-		ProfileID:          request.Profile.Config.ID,
-		ProfileDigest:      request.Profile.Digest,
-		DevelopmentImage:   request.Profile.Config.DevelopmentImage,
-		DevelopmentImageID: request.ImageID,
-		ProducerVersion:    request.ProducerVersion,
-		Artifacts:          artifacts,
+		SchemaVersion:   currentSchemaVersion,
+		ProjectID:       request.ProjectID,
+		ProfileID:       request.Profile.Config.ID,
+		ProfileDigest:   request.Profile.Digest,
+		ProducerVersion: request.ProducerVersion,
+		Builder:         request.Builder,
+		Environment:     request.Environment,
+		Artifacts:       artifacts,
 	}
 	if err := validateRequiredRoles(manifest, request.Profile.Config.RequiredOutputRoles); err != nil {
 		return Manifest{}, err
@@ -131,10 +145,13 @@ func LoadAndValidate(outputDirectory, projectID string, loadedProfile profile.Lo
 	if manifest.ProfileDigest != loadedProfile.Digest {
 		return Verified{}, fmt.Errorf("Build Output profile digest does not match current profile")
 	}
-	if manifest.DevelopmentImage != loadedProfile.Config.DevelopmentImage {
-		return Verified{}, fmt.Errorf("Build Output development image does not match current profile")
+	if manifest.Environment.ID != loadedProfile.Config.Environment.ID {
+		return Verified{}, fmt.Errorf("Build Output environment %q does not match profile environment %q", manifest.Environment.ID, loadedProfile.Config.Environment.ID)
 	}
-	if manifest.DevelopmentImageID == "" || manifest.ProducerVersion == "" {
+	if err := validateEvidence(manifest.Builder, manifest.Environment); err != nil {
+		return Verified{}, err
+	}
+	if manifest.ProducerVersion == "" {
 		return Verified{}, fmt.Errorf("Build Output manifest has incomplete producer identity")
 	}
 	if err := validateRequiredRoles(manifest, loadedProfile.Config.RequiredOutputRoles); err != nil {
@@ -165,6 +182,28 @@ func LoadAndValidate(outputDirectory, projectID string, loadedProfile profile.Lo
 		return Verified{}, fmt.Errorf("resolve verified Build Output directory: %w", err)
 	}
 	return Verified{manifest: manifest, outputDirectory: outputDirectory}, nil
+}
+
+func validateEvidence(builder BuilderEvidence, environment EnvironmentEvidence) error {
+	if builder.ID == "" || builder.Kind == "" {
+		return fmt.Errorf("builder evidence must include ID and kind")
+	}
+	if environment.ID == "" || environment.Reference == "" || !isSHA256Digest(environment.Digest) {
+		return fmt.Errorf("environment evidence must include ID, reference, and SHA-256 digest")
+	}
+	return nil
+}
+
+func isSHA256Digest(value string) bool {
+	if len(value) != len("sha256:")+64 || !strings.HasPrefix(value, "sha256:") {
+		return false
+	}
+	for _, character := range value[len("sha256:"):] {
+		if (character < '0' || character > '9') && (character < 'a' || character > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 // ArtifactPathByRole returns the absolute path of a verified artifact.

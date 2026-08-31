@@ -29,6 +29,21 @@ func TestLoadRejectsOutputPathOutsideInstallRoot(t *testing.T) {
 	}
 }
 
+func TestLoadDefaultsAnOmittedBuilderButRejectsExplicitEmptyBuilder(t *testing.T) {
+	root := writeProjectConfig(t, validProjectConfig("firmware.elf"))
+	config, err := Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.DefaultBuilder != "local" {
+		t.Fatalf("DefaultBuilder = %q", config.DefaultBuilder)
+	}
+	explicitEmpty := strings.Replace(validProjectConfig("firmware.elf"), "default_profile = \"embedded-test\"", "default_profile = \"embedded-test\"\ndefault_builder = \"\"", 1)
+	if _, err := Load(writeProjectConfig(t, explicitEmpty)); err == nil {
+		t.Fatal("explicit empty default_builder accepted")
+	}
+}
+
 func TestBuildForProfileReturnsExactlyOneDeclaration(t *testing.T) {
 	config := Config{Builds: []Build{
 		{Profile: "embedded-test", System: "cmake", Preset: "first"},

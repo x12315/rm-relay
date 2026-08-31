@@ -4,15 +4,27 @@ package build
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 
 	"github.com/x12315/rm-relay/internal/build/output"
+	"github.com/x12315/rm-relay/internal/builder"
 )
 
-// Backend executes a workspace build and returns the immutable identity of its environment image.
+// ExecutionEvidence records the actual Builder and environment used by a backend.
+type ExecutionEvidence struct {
+	BuilderID            string
+	BuilderKind          string
+	EnvironmentID        string
+	EnvironmentReference string
+	EnvironmentDigest    string
+}
+
+// Backend executes a workspace build through one Builder kind.
 type Backend interface {
-	ID() string
-	Build(context.Context, Plan) (imageID string, err error)
+	Kind() builder.Kind
+	Build(context.Context, Plan, builder.Definition) (ExecutionEvidence, error)
 }
 
 // BackendCatalog resolves build backends by stable ID without coupling the CLI to implementations.
@@ -27,9 +39,9 @@ func NewBackendCatalog(backends ...Backend) (BackendCatalog, error) {
 		if backend == nil {
 			return BackendCatalog{}, fmt.Errorf("build backend must not be nil")
 		}
-		backendID := backend.ID()
+		backendID := string(backend.Kind())
 		if backendID == "" {
-			return BackendCatalog{}, fmt.Errorf("build backend ID must not be empty")
+			return BackendCatalog{}, fmt.Errorf("build backend kind must not be empty")
 		}
 		if _, exists := byID[backendID]; exists {
 			return BackendCatalog{}, fmt.Errorf("multiple build backends use ID %q", backendID)
@@ -56,6 +68,7 @@ func (catalog BackendCatalog) Resolve(backendID string) (Backend, error) {
 // Service creates a Build Output only after its backend succeeds.
 type Service struct {
 	Backend         Backend
+	Builder         builder.Definition
 	ProducerVersion string
 }
 
@@ -64,11 +77,14 @@ func (service Service) Execute(ctx context.Context, plan Plan) (output.Manifest,
 	if service.Backend == nil {
 		return output.Manifest{}, fmt.Errorf("build backend is not configured")
 	}
-	backendID := service.Backend.ID()
+	backendID := string(service.Backend.Kind())
 	if backendID == "" {
 		return output.Manifest{}, fmt.Errorf("build backend identity is empty")
 	}
-	imageID, err := service.Backend.Build(ctx, plan)
+	if err := os.Remove(filepath.Join(plan.OutputDirectory, output.ManifestFileName)); err != nil && !os.IsNotExist(err) {
+		return output.Manifest{}, fmt.Errorf("invalidate previous Build Output: %w", err)
+	}
+	evidence, err := service.Backend.Build(ctx, plan, service.Builder)
 	if err != nil {
 		return output.Manifest{}, fmt.Errorf("execute %s backend: %w", backendID, err)
 	}
@@ -77,7 +93,10 @@ func (service Service) Execute(ctx context.Context, plan Plan) (output.Manifest,
 		ProjectID:       plan.ProjectID,
 		Profile:         plan.Profile,
 		DeclaredOutputs: plan.Build.Outputs,
-		ImageID:         imageID,
+		Builder:         output.BuilderEvidence{ID: evidence.BuilderID, Kind: evidence.BuilderKind},
+		Environment: output.EnvironmentEvidence{
+			ID: evidence.EnvironmentID, Reference: evidence.EnvironmentReference, Digest: evidence.EnvironmentDigest,
+		},
 		ProducerVersion: service.ProducerVersion,
 	})
 	if err != nil {

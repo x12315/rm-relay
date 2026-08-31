@@ -26,6 +26,7 @@ type Config struct {
 	SchemaVersion  int     `toml:"schema_version"`
 	ProjectID      string  `toml:"project_id"`
 	DefaultProfile string  `toml:"default_profile"`
+	DefaultBuilder string  `toml:"default_builder"`
 	Builds         []Build `toml:"builds"`
 }
 
@@ -54,6 +55,9 @@ func Load(root string) (Config, error) {
 	}
 	if undecoded := metadata.Undecoded(); len(undecoded) > 0 {
 		return Config{}, fmt.Errorf("%s contains unknown key %q", FileName, undecoded[0].String())
+	}
+	if !metadata.IsDefined("default_builder") {
+		config.DefaultBuilder = "local"
 	}
 	if err := config.validate(); err != nil {
 		return Config{}, fmt.Errorf("validate %s: %w", FileName, err)
@@ -153,6 +157,9 @@ func (config Config) validate() error {
 	}
 	if config.DefaultProfile == "" {
 		return fmt.Errorf("default_profile must not be empty")
+	}
+	if !isIdentifier(config.DefaultBuilder) {
+		return fmt.Errorf("default_builder %q is not a valid identifier", config.DefaultBuilder)
 	}
 	if len(config.Builds) == 0 {
 		return fmt.Errorf("at least one build declaration is required")

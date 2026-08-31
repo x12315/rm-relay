@@ -49,8 +49,8 @@ func TestCatalogLoadsRequiredOutputRolesAndOpenOCDTarget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if loaded.Config.DevelopmentImage != "mcu-dev/toolchain:test" {
-		t.Fatalf("DevelopmentImage = %q", loaded.Config.DevelopmentImage)
+	if loaded.Config.Environment.LocalReference != "mcu-dev/toolchain:test" {
+		t.Fatalf("Environment.LocalReference = %q", loaded.Config.Environment.LocalReference)
 	}
 	if len(loaded.Config.RequiredOutputRoles) != 3 {
 		t.Fatalf("RequiredOutputRoles = %v", loaded.Config.RequiredOutputRoles)
@@ -85,8 +85,11 @@ func TestCatalogCanUseAnExternalFilesystemWithoutChangingConsumers(t *testing.T)
 	catalog := Catalog{Files: fstest.MapFS{
 		"profiles/external/profile.toml": {Data: []byte(`schema_version = 1
 id = "external"
-development_image = "example.invalid/development:1"
 required_output_roles = ["application"]
+
+[environment]
+id = "external-development"
+local_reference = "example.invalid/development:1"
 `)},
 	}, Root: "profiles"}
 
@@ -102,8 +105,11 @@ required_output_roles = ["application"]
 func TestCatalogDigestDoesNotDependOnCatalogLocation(t *testing.T) {
 	manifest := []byte(`schema_version = 1
 id = "portable"
-development_image = "example.invalid/development:1"
 required_output_roles = ["application"]
+
+[environment]
+id = "portable-development"
+local_reference = "example.invalid/development:1"
 `)
 	files := fstest.MapFS{
 		"installed/profiles/portable/profile.toml":   {Data: manifest},
@@ -135,8 +141,11 @@ func writeProfileAssets(t *testing.T, directoryID, manifestID, targetConfig stri
 	}
 	manifest := `schema_version = 1
 id = "` + manifestID + `"
-development_image = "mcu-dev/toolchain:test"
 required_output_roles = ["firmware.elf", "firmware.bin", "linker.map"]
+
+[environment]
+id = "embedded-development"
+local_reference = "mcu-dev/toolchain:test"
 
 [targets.openocd-stlink]
 adapter = "openocd"

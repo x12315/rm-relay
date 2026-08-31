@@ -13,8 +13,10 @@ import (
 	"github.com/x12315/rm-relay/internal/build/backend/localcontainer"
 	"github.com/x12315/rm-relay/internal/build/cmake"
 	"github.com/x12315/rm-relay/internal/build/output"
+	"github.com/x12315/rm-relay/internal/builder"
 	"github.com/x12315/rm-relay/internal/cli"
 	"github.com/x12315/rm-relay/internal/execution/command"
+	"github.com/x12315/rm-relay/internal/execution/docker"
 	"github.com/x12315/rm-relay/internal/execution/resourcecache"
 	"github.com/x12315/rm-relay/internal/profile"
 	"github.com/x12315/rm-relay/internal/target"
@@ -57,10 +59,14 @@ func (fixture *developmentCycleFixture) runCLI(t *testing.T, arguments ...string
 	}
 	store := resourcecache.Store{Root: fixture.cacheRoot}
 	backends, err := build.NewBackendCatalog(localcontainer.Backend{
-		Runner:         fixture.runner,
+		Docker:         docker.CLI{Runner: fixture.runner},
 		Workflows:      workflows,
 		CacheDirectory: filepath.Join(fixture.cacheRoot, "build", localcontainer.ID),
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	builders, err := builder.NewCatalog()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,8 +83,8 @@ func (fixture *developmentCycleFixture) runCLI(t *testing.T, arguments ...string
 	var stderr bytes.Buffer
 	exitCode := cli.Run(context.Background(), append([]string{"--project", fixture.projectRoot}, arguments...), cli.Dependencies{
 		Profiles:        profile.BuiltinCatalog(),
+		Builders:        builders,
 		BuildBackends:   backends,
-		DefaultBackend:  localcontainer.ID,
 		FlashAdapters:   adapters,
 		ProducerVersion: testProducerVersion,
 		Stdout:          &stdout,
@@ -106,7 +112,7 @@ type recordingRunner struct {
 func (runner *recordingRunner) Run(_ context.Context, request command.Request) (command.Result, error) {
 	runner.requests = append(runner.requests, request)
 	if request.Name == "docker" && len(request.Arguments) >= 2 && request.Arguments[0] == "image" && request.Arguments[1] == "inspect" {
-		return command.Result{Stdout: "sha256:integration-image\n"}, nil
+		return command.Result{Stdout: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n"}, nil
 	}
 	if request.Name == "docker" && len(request.Arguments) > 0 && request.Arguments[0] == "run" {
 		if runner.onDockerRun != nil {

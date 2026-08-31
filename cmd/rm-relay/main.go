@@ -10,9 +10,13 @@ import (
 
 	"github.com/x12315/rm-relay/internal/build"
 	"github.com/x12315/rm-relay/internal/build/backend/localcontainer"
+	"github.com/x12315/rm-relay/internal/build/backend/remotebuildkit"
 	"github.com/x12315/rm-relay/internal/build/cmake"
+	"github.com/x12315/rm-relay/internal/builder"
 	"github.com/x12315/rm-relay/internal/cli"
+	"github.com/x12315/rm-relay/internal/execution/buildx"
 	"github.com/x12315/rm-relay/internal/execution/command"
+	"github.com/x12315/rm-relay/internal/execution/docker"
 	"github.com/x12315/rm-relay/internal/execution/resourcecache"
 	"github.com/x12315/rm-relay/internal/profile"
 	"github.com/x12315/rm-relay/internal/target"
@@ -35,16 +39,35 @@ func main() {
 	}
 	resourceStore := resourcecache.Store{Root: cacheRoot}
 	processRunner := command.OSRunner{}
+	dockerClient := docker.CLI{Runner: processRunner}
+	buildxClient := buildx.CLI{Runner: processRunner}
 	buildBackends, err := build.NewBackendCatalog(localcontainer.Backend{
-		Runner:         processRunner,
+		Docker:         dockerClient,
 		Workflows:      workflows,
 		CacheDirectory: filepath.Join(cacheRoot, "build", localcontainer.ID),
 		Progress:       os.Stderr,
-	})
+	}, remotebuildkit.Backend{Buildx: buildxClient, Workflows: workflows, Progress: os.Stderr})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "rm-relay: distribution_invalid: %s\n", err)
 		os.Exit(1)
 	}
+	configRoot, err := resolveConfigDirectory()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "rm-relay: environment_invalid: %s\n", err)
+		os.Exit(1)
+	}
+	builderStore := builder.Store{Directory: filepath.Join(configRoot, "rm-relay")}
+	configuredBuilders, err := builderStore.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "rm-relay: environment_invalid: %s\n", err)
+		os.Exit(1)
+	}
+	builders, err := builder.NewCatalog(configuredBuilders...)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "rm-relay: distribution_invalid: %s\n", err)
+		os.Exit(1)
+	}
+	builderManager := builder.Service{Store: builderStore, Buildx: buildxClient, Docker: dockerClient}
 	flashAdapters, err := target.NewFlashAdapterCatalog(openocd.Adapter{
 		Runner:        processRunner,
 		MiseBinary:    miseBinary,
@@ -59,8 +82,9 @@ func main() {
 	commandContext, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
 	exitCode := cli.Run(commandContext, os.Args[1:], cli.Dependencies{
 		Profiles:        profile.BuiltinCatalog(),
+		Builders:        builders,
+		BuilderManager:  builderManager,
 		BuildBackends:   buildBackends,
-		DefaultBackend:  localcontainer.ID,
 		FlashAdapters:   flashAdapters,
 		ProducerVersion: version,
 		Stdout:          os.Stdout,
@@ -68,6 +92,21 @@ func main() {
 	})
 	stopSignals()
 	os.Exit(exitCode)
+}
+
+func resolveConfigDirectory() (string, error) {
+	if configured := os.Getenv("RM_RELAY_CONFIG_DIR"); configured != "" {
+		absolute, err := filepath.Abs(configured)
+		if err != nil {
+			return "", fmt.Errorf("resolve RM_RELAY_CONFIG_DIR: %w", err)
+		}
+		return absolute, nil
+	}
+	root, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("locate user config directory: %w", err)
+	}
+	return root, nil
 }
 
 func resolveMiseBinary(getenv func(string) string, goos string) string {

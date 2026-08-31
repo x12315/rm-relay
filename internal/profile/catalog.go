@@ -34,9 +34,15 @@ type Catalog struct {
 type Config struct {
 	SchemaVersion       int               `toml:"schema_version"`
 	ID                  string            `toml:"id"`
-	DevelopmentImage    string            `toml:"development_image"`
+	Environment         Environment       `toml:"environment"`
 	RequiredOutputRoles []string          `toml:"required_output_roles"`
 	Targets             map[string]Target `toml:"targets"`
+}
+
+// Environment identifies the development environment independently from its execution site.
+type Environment struct {
+	ID             string `toml:"id"`
+	LocalReference string `toml:"local_reference"`
 }
 
 // Target binds a semantic target capability to an adapter-owned board definition.
@@ -97,8 +103,11 @@ func validateConfig(requestedID string, config Config) error {
 	if config.ID != requestedID {
 		return fmt.Errorf("profile manifest ID %q does not match requested ID %q", config.ID, requestedID)
 	}
-	if strings.TrimSpace(config.DevelopmentImage) == "" {
-		return fmt.Errorf("profile %q development_image must not be empty", requestedID)
+	if !isCatalogKey(config.Environment.ID) {
+		return fmt.Errorf("profile %q environment ID %q is invalid", requestedID, config.Environment.ID)
+	}
+	if strings.TrimSpace(config.Environment.LocalReference) == "" {
+		return fmt.Errorf("profile %q environment local_reference must not be empty", requestedID)
 	}
 	if len(config.RequiredOutputRoles) == 0 {
 		return fmt.Errorf("profile %q must require at least one output role", requestedID)

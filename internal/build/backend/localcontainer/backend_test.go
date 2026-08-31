@@ -10,7 +10,9 @@ import (
 
 	"github.com/x12315/rm-relay/internal/build"
 	"github.com/x12315/rm-relay/internal/build/cmake"
+	"github.com/x12315/rm-relay/internal/builder"
 	"github.com/x12315/rm-relay/internal/execution/command"
+	"github.com/x12315/rm-relay/internal/execution/docker"
 	"github.com/x12315/rm-relay/internal/profile"
 	"github.com/x12315/rm-relay/internal/project"
 )
@@ -19,12 +21,12 @@ func TestBackendInspectsImageBeforeStartingBuilder(t *testing.T) {
 	runner := &recordingRunner{results: []command.Result{{Stdout: "sha256:image\n"}, {}}}
 	backend := testBackend(t, runner)
 
-	imageID, err := backend.Build(context.Background(), localPlan(t))
+	evidence, err := backend.Build(context.Background(), localPlan(t), localBuilder())
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
-	if imageID != "sha256:image" {
-		t.Fatalf("imageID = %q", imageID)
+	if evidence.EnvironmentDigest != "sha256:image" {
+		t.Fatalf("environment digest = %q", evidence.EnvironmentDigest)
 	}
 	if len(runner.requests) != 2 {
 		t.Fatalf("requests = %d, want image inspect and docker run", len(runner.requests))
@@ -36,8 +38,8 @@ func TestBackendInspectsImageBeforeStartingBuilder(t *testing.T) {
 }
 
 func TestBackendHasStableIdentity(t *testing.T) {
-	if (Backend{}).ID() != "local-container" {
-		t.Fatalf("Backend.ID() = %q", (Backend{}).ID())
+	if (Backend{}).Kind() != builder.KindLocalContainer {
+		t.Fatalf("Backend.Kind() = %q", (Backend{}).Kind())
 	}
 }
 
@@ -46,7 +48,7 @@ func TestBackendMountsOnlyProjectAndExpendableBuildCache(t *testing.T) {
 	backend := testBackend(t, runner)
 	plan := localPlan(t)
 
-	if _, err := backend.Build(context.Background(), plan); err != nil {
+	if _, err := backend.Build(context.Background(), plan, localBuilder()); err != nil {
 		t.Fatal(err)
 	}
 	arguments := runner.requests[1].Arguments
@@ -63,7 +65,7 @@ func TestBackendInvokesInternalWorkflowWithoutProjectMiseConfig(t *testing.T) {
 	backend := testBackend(t, runner)
 	plan := localPlan(t)
 
-	if _, err := backend.Build(context.Background(), plan); err != nil {
+	if _, err := backend.Build(context.Background(), plan, localBuilder()); err != nil {
 		t.Fatal(err)
 	}
 	arguments := runner.requests[1].Arguments
@@ -84,7 +86,7 @@ func TestBackendRejectsUnknownBuildSystemBeforeUsingDocker(t *testing.T) {
 	plan := localPlan(t)
 	plan.Build.System = "unknown"
 
-	_, err := backend.Build(context.Background(), plan)
+	_, err := backend.Build(context.Background(), plan, localBuilder())
 	if err == nil || !strings.Contains(err.Error(), "unsupported build system") {
 		t.Fatalf("Build() error = %v", err)
 	}
@@ -117,7 +119,7 @@ func testBackend(t *testing.T, runner command.Runner) Backend {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return Backend{Runner: runner, Workflows: workflows, CacheDirectory: t.TempDir()}
+	return Backend{Docker: docker.CLI{Runner: runner}, Workflows: workflows, CacheDirectory: t.TempDir()}
 }
 
 func localPlan(t *testing.T) build.Plan {
@@ -134,10 +136,14 @@ func localPlan(t *testing.T) build.Plan {
 			Preset:  "stm32f407-robomaster-c",
 		},
 		Profile: profile.Loaded{Config: profile.Config{
-			ID:               "embedded-test",
-			DevelopmentImage: "mcu-dev/toolchain:test",
+			ID:          "embedded-test",
+			Environment: profile.Environment{ID: "embedded-development", LocalReference: "mcu-dev/toolchain:test"},
 		}},
 	}
+}
+
+func localBuilder() builder.Definition {
+	return builder.Definition{ID: builder.LocalID, Kind: builder.KindLocalContainer}
 }
 
 func assertAdjacentArguments(t *testing.T, arguments []string, first, second string) {

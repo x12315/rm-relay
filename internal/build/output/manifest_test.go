@@ -37,6 +37,19 @@ func TestCreateWritesDeterministicManifestWithoutAbsolutePathsOrTime(t *testing.
 	if strings.Contains(string(first), plan.ProjectRoot) || strings.Contains(string(first), "timestamp") || strings.Contains(string(first), "created_at") {
 		t.Fatalf("manifest contains an absolute path or time field:\n%s", first)
 	}
+	if !strings.Contains(string(first), `"schema_version": 2`) || !strings.Contains(string(first), `"builder"`) || !strings.Contains(string(first), `"environment"`) {
+		t.Fatalf("manifest does not use schema v2 evidence:\n%s", first)
+	}
+}
+
+func TestCreateRejectsMalformedEnvironmentDigest(t *testing.T) {
+	plan := buildOutputPlan(t)
+	writeArtifacts(t, plan.OutputDirectory)
+	request := createRequest(plan)
+	request.Environment.Digest = "sha256:short"
+	if _, err := output.Create(request); err == nil {
+		t.Fatal("malformed environment digest accepted")
+	}
 }
 
 func TestCreateRejectsMissingRequiredArtifact(t *testing.T) {
@@ -140,7 +153,7 @@ func buildOutputPlan(t *testing.T) build.Plan {
 			Digest: strings.Repeat("a", 64),
 			Config: profile.Config{
 				ID:                  "embedded-test",
-				DevelopmentImage:    "mcu-dev/toolchain:test",
+				Environment:         profile.Environment{ID: "embedded-development", LocalReference: "mcu-dev/toolchain:test"},
 				RequiredOutputRoles: []string{"firmware.elf", "firmware.bin"},
 			},
 		},
@@ -153,7 +166,8 @@ func createRequest(plan build.Plan) output.CreateRequest {
 		ProjectID:       plan.ProjectID,
 		Profile:         plan.Profile,
 		DeclaredOutputs: plan.Build.Outputs,
-		ImageID:         "sha256:image",
+		Builder:         output.BuilderEvidence{ID: "local", Kind: "local-container"},
+		Environment:     output.EnvironmentEvidence{ID: "embedded-development", Reference: "mcu-dev/toolchain:test", Digest: "sha256:" + strings.Repeat("b", 64)},
 		ProducerVersion: "0.1.0",
 	}
 }

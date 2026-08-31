@@ -1,6 +1,7 @@
 schema_version = 1
 project_id = ""
 default_profile = "embedded-stm32f407-robomaster-c"
+default_builder = "local"
 
 [[builds]]
 profile = "embedded-stm32f407-robomaster-c"

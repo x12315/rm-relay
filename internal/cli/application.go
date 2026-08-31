@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/x12315/rm-relay/internal/build"
 	"github.com/x12315/rm-relay/internal/build/output"
+	"github.com/x12315/rm-relay/internal/builder"
 	"github.com/x12315/rm-relay/internal/profile"
 	"github.com/x12315/rm-relay/internal/project"
 	"github.com/x12315/rm-relay/internal/target"
@@ -22,8 +23,9 @@ import (
 // Dependencies contains the module boundaries supplied by the executable composition root.
 type Dependencies struct {
 	Profiles        profile.Catalog
+	Builders        builder.Catalog
+	BuilderManager  builder.Manager
 	BuildBackends   build.BackendCatalog
-	DefaultBackend  string
 	FlashAdapters   target.FlashAdapterCatalog
 	ProducerVersion string
 	Stdout          io.Writer
@@ -37,13 +39,20 @@ type application struct {
 }
 
 type commandResult struct {
-	OK        bool     `json:"ok"`
-	Operation string   `json:"operation"`
-	ProjectID string   `json:"project_id,omitempty"`
-	Profile   string   `json:"profile,omitempty"`
-	Output    string   `json:"output,omitempty"`
-	Command   []string `json:"command,omitempty"`
-	Executed  *bool    `json:"executed,omitempty"`
+	OK        bool            `json:"ok"`
+	Operation string          `json:"operation"`
+	ProjectID string          `json:"project_id,omitempty"`
+	Profile   string          `json:"profile,omitempty"`
+	Output    string          `json:"output,omitempty"`
+	Command   []string        `json:"command,omitempty"`
+	Executed  *bool           `json:"executed,omitempty"`
+	Builders  []builderResult `json:"builders,omitempty"`
+}
+
+type builderResult struct {
+	ID            string `json:"id"`
+	Kind          string `json:"kind"`
+	BuildxBuilder string `json:"buildx_builder,omitempty"`
 }
 
 type commandFailure struct {
@@ -116,8 +125,97 @@ func (app *application) newRootCommand() *cobra.Command {
 	root.SetFlagErrorFunc(func(command *cobra.Command, err error) error {
 		return invalidArguments(command.Name(), err)
 	})
-	root.AddCommand(app.newInitCommand(), app.newBuildCommand(), app.newFlashCommand())
+	root.AddCommand(app.newInitCommand(), app.newBuildCommand(), app.newFlashCommand(), app.newBuilderCommand())
 	return root
+}
+
+func (app *application) newBuilderCommand() *cobra.Command {
+	command := &cobra.Command{Use: "builder", Short: "管理本机可用的构建资源", Args: noArguments("builder")}
+	command.AddCommand(app.newBuilderAddCommand(), app.newBuilderRemoveCommand(), app.newBuilderSetEnvironmentCommand(), app.newBuilderListCommand(), app.newBuilderCheckCommand())
+	return command
+}
+
+func (app *application) newBuilderRemoveCommand() *cobra.Command {
+	return &cobra.Command{Use: "remove <name>", Short: "删除远程 Builder 登记与对应 Buildx 资源", Args: cobra.ExactArgs(1), RunE: func(command *cobra.Command, arguments []string) error {
+		if app.dependencies.BuilderManager == nil {
+			return newCLIError("builder_invalid", "builder remove", 1, fmt.Errorf("Builder manager is not configured"))
+		}
+		if err := app.dependencies.BuilderManager.Remove(command.Context(), arguments[0]); err != nil {
+			return newCLIError("builder_invalid", "builder remove", 1, err)
+		}
+		emitSuccess(app.outputFormat, app.dependencies, commandResult{OK: true, Operation: "builder remove"})
+		return nil
+	}}
+}
+
+func (app *application) newBuilderAddCommand() *cobra.Command {
+	var endpoint, caPath, certificatePath, keyPath, serverName string
+	command := &cobra.Command{Use: "add <name>", Short: "登记一个使用 mTLS 的远程 BuildKit Builder", Args: cobra.ExactArgs(1), RunE: func(command *cobra.Command, arguments []string) error {
+		if app.dependencies.BuilderManager == nil {
+			return newCLIError("builder_invalid", "builder add", 1, fmt.Errorf("Builder manager is not configured"))
+		}
+		for name, value := range map[string]string{"--endpoint": endpoint, "--ca": caPath, "--cert": certificatePath, "--key": keyPath, "--server-name": serverName} {
+			if value == "" {
+				return invalidArguments("builder add", fmt.Errorf("%s is required", name))
+			}
+		}
+		err := app.dependencies.BuilderManager.Add(command.Context(), builder.AddRequest{ID: arguments[0], Endpoint: endpoint, CAPath: caPath, CertificatePath: certificatePath, KeyPath: keyPath, ServerName: serverName})
+		if err != nil {
+			return newCLIError("builder_invalid", "builder add", 1, err)
+		}
+		emitSuccess(app.outputFormat, app.dependencies, commandResult{OK: true, Operation: "builder add"})
+		return nil
+	}}
+	command.Flags().StringVar(&endpoint, "endpoint", "", "BuildKit tcp:// endpoint")
+	command.Flags().StringVar(&caPath, "ca", "", "信任的 CA 证书路径")
+	command.Flags().StringVar(&certificatePath, "cert", "", "客户端证书路径")
+	command.Flags().StringVar(&keyPath, "key", "", "客户端私钥路径")
+	command.Flags().StringVar(&serverName, "server-name", "", "服务端证书 TLS 名称")
+	return command
+}
+
+func (app *application) newBuilderSetEnvironmentCommand() *cobra.Command {
+	return &cobra.Command{Use: "set-environment <builder> <environment> <image@sha256:digest>", Short: "登记远端 Builder 使用的不可变环境镜像", Args: cobra.ExactArgs(3), RunE: func(_ *cobra.Command, arguments []string) error {
+		if app.dependencies.BuilderManager == nil {
+			return newCLIError("builder_invalid", "builder set-environment", 1, fmt.Errorf("Builder manager is not configured"))
+		}
+		if err := app.dependencies.BuilderManager.SetEnvironment(arguments[0], arguments[1], arguments[2]); err != nil {
+			return newCLIError("builder_invalid", "builder set-environment", 1, err)
+		}
+		emitSuccess(app.outputFormat, app.dependencies, commandResult{OK: true, Operation: "builder set-environment"})
+		return nil
+	}}
+}
+
+func (app *application) newBuilderListCommand() *cobra.Command {
+	return &cobra.Command{Use: "list", Short: "列出本机登记的 Builder", Args: noArguments("builder list"), RunE: func(_ *cobra.Command, _ []string) error {
+		if app.dependencies.BuilderManager == nil {
+			return newCLIError("builder_invalid", "builder list", 1, fmt.Errorf("Builder manager is not configured"))
+		}
+		definitions, err := app.dependencies.BuilderManager.List()
+		if err != nil {
+			return newCLIError("builder_invalid", "builder list", 1, err)
+		}
+		results := make([]builderResult, 0, len(definitions))
+		for _, definition := range definitions {
+			results = append(results, builderResult{ID: definition.ID, Kind: string(definition.Kind), BuildxBuilder: definition.BuildxBuilder})
+		}
+		emitSuccess(app.outputFormat, app.dependencies, commandResult{OK: true, Operation: "builder list", Builders: results})
+		return nil
+	}}
+}
+
+func (app *application) newBuilderCheckCommand() *cobra.Command {
+	return &cobra.Command{Use: "check <name>", Short: "验证 Builder 的真实执行能力", Args: cobra.ExactArgs(1), RunE: func(command *cobra.Command, arguments []string) error {
+		if app.dependencies.BuilderManager == nil {
+			return newCLIError("builder_invalid", "builder check", 1, fmt.Errorf("Builder manager is not configured"))
+		}
+		if err := app.dependencies.BuilderManager.Check(command.Context(), arguments[0]); err != nil {
+			return newCLIError("builder_unreachable", "builder check", 1, err)
+		}
+		emitSuccess(app.outputFormat, app.dependencies, commandResult{OK: true, Operation: "builder check"})
+		return nil
+	}}
 }
 
 func (app *application) newInitCommand() *cobra.Command {
@@ -138,21 +236,30 @@ func (app *application) newInitCommand() *cobra.Command {
 
 func (app *application) newBuildCommand() *cobra.Command {
 	var profileOverride string
+	var builderOverride string
 	command := &cobra.Command{
 		Use:   "build",
 		Short: "在受控开发环境中构建项目",
 		Args:  noArguments("build"),
 		RunE: func(command *cobra.Command, _ []string) error {
-			plan, err := build.Resolve(build.OperationBuild, app.projectRoot, profileOverride, app.dependencies.Profiles)
+			plan, err := build.Resolve(build.OperationBuild, app.projectRoot, profileOverride, builderOverride, app.dependencies.Profiles)
 			if err != nil {
 				return resolutionFailure("build", err)
 			}
-			backend, err := app.dependencies.BuildBackends.Resolve(app.dependencies.DefaultBackend)
+			definition, err := app.dependencies.Builders.Resolve(plan.BuilderID)
+			if err != nil {
+				return newCLIError("builder_invalid", "build", 1, err)
+			}
+			if _, err := definition.EnvironmentReference(plan.Profile.Config.Environment.ID, plan.Profile.Config.Environment.LocalReference); err != nil {
+				return newCLIError("environment_unavailable", "build", 1, err)
+			}
+			backend, err := app.dependencies.BuildBackends.Resolve(string(definition.Kind))
 			if err != nil {
 				return newCLIError("environment_invalid", "build", 1, err)
 			}
 			service := build.Service{
 				Backend:         backend,
+				Builder:         definition,
 				ProducerVersion: app.dependencies.ProducerVersion,
 			}
 			if _, err := service.Execute(command.Context(), plan); err != nil {
@@ -174,6 +281,7 @@ func (app *application) newBuildCommand() *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&profileOverride, "profile", "", "覆盖项目默认 Profile")
+	command.Flags().StringVar(&builderOverride, "builder", "", "覆盖项目默认 Builder")
 	return command
 }
 
@@ -189,7 +297,7 @@ func (app *application) newFlashCommand() *cobra.Command {
 			if targetName == "" {
 				return invalidArguments("flash", fmt.Errorf("--target is required"))
 			}
-			plan, err := build.Resolve(build.OperationFlash, app.projectRoot, profileOverride, app.dependencies.Profiles)
+			plan, err := build.Resolve(build.OperationFlash, app.projectRoot, profileOverride, "", app.dependencies.Profiles)
 			if err != nil {
 				return resolutionFailure("flash", err)
 			}
@@ -275,6 +383,18 @@ func emitSuccess(outputFormat string, dependencies Dependencies, result commandR
 		} else {
 			fmt.Fprintf(dependencies.Stdout, "OpenOCD 命令（未执行）：%s\n", displayCommand(result.Command))
 		}
+	case "builder list":
+		for _, definition := range result.Builders {
+			fmt.Fprintf(dependencies.Stdout, "%s\t%s\n", definition.ID, definition.Kind)
+		}
+	case "builder add":
+		fmt.Fprintln(dependencies.Stdout, "Builder 已登记")
+	case "builder remove":
+		fmt.Fprintln(dependencies.Stdout, "Builder 已删除")
+	case "builder set-environment":
+		fmt.Fprintln(dependencies.Stdout, "Builder environment 已更新")
+	case "builder check":
+		fmt.Fprintln(dependencies.Stdout, "Builder 检查通过")
 	}
 }
 

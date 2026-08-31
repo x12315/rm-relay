@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/x12315/rm-relay/internal/build"
+	"github.com/x12315/rm-relay/internal/builder"
 	"github.com/x12315/rm-relay/internal/profile"
 	"github.com/x12315/rm-relay/internal/target"
 )
@@ -87,6 +88,45 @@ func TestCompletionSupportsZsh(t *testing.T) {
 	}
 }
 
+func TestBuilderListReturnsLogicalResourcesAsJSON(t *testing.T) {
+	fixture := newCLIFixture(t, testProjectID)
+	dependencies := fixture.dependencies(t)
+	dependencies.BuilderManager = fakeBuilderManager{}
+	exitCode := Run(context.Background(), []string{"builder", "list", "--format", "json"}, dependencies)
+	if exitCode != 0 {
+		t.Fatalf("Run() exitCode = %d, stderr = %s", exitCode, fixture.stderr.String())
+	}
+	if !strings.Contains(fixture.stdout.String(), `"id":"local"`) || !strings.Contains(fixture.stdout.String(), `"kind":"local-container"`) {
+		t.Fatalf("stdout = %s", fixture.stdout.String())
+	}
+}
+
+func TestBuilderCommandsReportTheirActualOperation(t *testing.T) {
+	tests := []struct {
+		name      string
+		arguments []string
+		want      string
+	}{
+		{name: "add", arguments: []string{"builder", "add", "team", "--endpoint", "tcp://build.example:1234", "--ca", "/ca.pem", "--cert", "/cert.pem", "--key", "/key.pem", "--server-name", "build.example"}, want: "Builder 已登记\n"},
+		{name: "remove", arguments: []string{"builder", "remove", "team"}, want: "Builder 已删除\n"},
+		{name: "set environment", arguments: []string{"builder", "set-environment", "team", "embedded", "registry.example/image@sha256:" + strings.Repeat("a", 64)}, want: "Builder environment 已更新\n"},
+		{name: "check", arguments: []string{"builder", "check", "local"}, want: "Builder 检查通过\n"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := newCLIFixture(t, testProjectID)
+			dependencies := fixture.dependencies(t)
+			dependencies.BuilderManager = fakeBuilderManager{}
+			if exitCode := Run(context.Background(), test.arguments, dependencies); exitCode != 0 {
+				t.Fatalf("Run() exitCode = %d, stderr = %s", exitCode, fixture.stderr.String())
+			}
+			if got := fixture.stdout.String(); got != test.want {
+				t.Fatalf("stdout = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
 const (
 	testProjectID = "1e013e16-04a7-4fd3-9f48-bfc9178f5421"
 	testProfileID = "embedded-stm32f407-robomaster-c"
@@ -119,8 +159,8 @@ func (fixture *cliFixture) dependencies(t *testing.T) Dependencies {
 	}
 	return Dependencies{
 		Profiles:        profile.BuiltinCatalog(),
+		Builders:        mustTestBuilders(t),
 		BuildBackends:   buildBackends,
-		DefaultBackend:  (cliTestBackend{}).ID(),
 		FlashAdapters:   flashAdapters,
 		ProducerVersion: "0.1.0-test",
 		Stdout:          &fixture.stdout,
@@ -130,11 +170,30 @@ func (fixture *cliFixture) dependencies(t *testing.T) Dependencies {
 
 type cliTestBackend struct{}
 
-func (cliTestBackend) ID() string { return "cli-test" }
+func (cliTestBackend) Kind() builder.Kind { return builder.KindLocalContainer }
 
-func (cliTestBackend) Build(context.Context, build.Plan) (string, error) {
-	return "", errors.New("CLI test backend must not execute")
+func (cliTestBackend) Build(context.Context, build.Plan, builder.Definition) (build.ExecutionEvidence, error) {
+	return build.ExecutionEvidence{}, errors.New("CLI test backend must not execute")
 }
+
+func mustTestBuilders(t *testing.T) builder.Catalog {
+	t.Helper()
+	catalog, err := builder.NewCatalog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return catalog
+}
+
+type fakeBuilderManager struct{}
+
+func (fakeBuilderManager) Add(context.Context, builder.AddRequest) error { return nil }
+func (fakeBuilderManager) Remove(context.Context, string) error          { return nil }
+func (fakeBuilderManager) SetEnvironment(string, string, string) error   { return nil }
+func (fakeBuilderManager) List() ([]builder.Definition, error) {
+	return []builder.Definition{{ID: "local", Kind: builder.KindLocalContainer}}, nil
+}
+func (fakeBuilderManager) Check(context.Context, string) error { return nil }
 
 type cliTestFlashAdapter struct{}
 
@@ -148,6 +207,7 @@ func projectConfig(projectID string) string {
 	return `schema_version = 1
 project_id = "` + projectID + `"
 default_profile = "` + testProfileID + `"
+default_builder = "local"
 
 [[builds]]
 profile = "` + testProfileID + `"

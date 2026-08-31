@@ -6,66 +6,63 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
-	"strings"
 
 	"github.com/x12315/rm-relay/internal/build"
-	"github.com/x12315/rm-relay/internal/execution/command"
+	"github.com/x12315/rm-relay/internal/builder"
+	"github.com/x12315/rm-relay/internal/execution/docker"
 	"github.com/x12315/rm-relay/internal/execution/mise"
 )
 
 const (
-	// ID is the stable backend identifier used by CLI and service composition.
-	ID                   = "local-container"
+	// ID is retained as the stable backend kind for cache path compatibility.
+	ID                   = string(builder.KindLocalContainer)
 	containerProjectRoot = "/workspace"
 	containerCacheRoot   = "/cache"
 )
 
 // Backend maps a build Plan to the local Docker CLI.
 type Backend struct {
-	Runner         command.Runner
+	Docker         docker.Client
 	Workflows      build.WorkflowCatalog
 	CacheDirectory string
 	Progress       io.Writer
 }
 
-// ID returns the stable backend identifier used in diagnostics and selection layers.
-func (Backend) ID() string {
-	return ID
+// Kind returns the execution mechanism implemented by this backend.
+func (Backend) Kind() builder.Kind {
+	return builder.KindLocalContainer
 }
 
-// Build runs the selected workspace workflow and returns the development image identity.
-func (backend Backend) Build(ctx context.Context, plan build.Plan) (string, error) {
-	if backend.Runner == nil {
-		return "", fmt.Errorf("process runner is not configured")
+// Build runs the selected workspace workflow and returns execution evidence.
+func (backend Backend) Build(ctx context.Context, plan build.Plan, definition builder.Definition) (build.ExecutionEvidence, error) {
+	if backend.Docker == nil {
+		return build.ExecutionEvidence{}, fmt.Errorf("Docker client is not configured")
+	}
+	if definition.Kind != builder.KindLocalContainer {
+		return build.ExecutionEvidence{}, fmt.Errorf("local backend cannot execute builder kind %q", definition.Kind)
 	}
 	workflow, err := backend.Workflows.Resolve(plan.Build.System)
 	if err != nil {
-		return "", err
+		return build.ExecutionEvidence{}, err
 	}
 	workspaceTask, err := workflow.Prepare(plan)
 	if err != nil {
-		return "", fmt.Errorf("prepare %s workspace: %w", plan.Build.System, err)
+		return build.ExecutionEvidence{}, fmt.Errorf("prepare %s workspace: %w", plan.Build.System, err)
 	}
 	if backend.CacheDirectory == "" {
-		return "", fmt.Errorf("local build cache directory is not configured")
+		return build.ExecutionEvidence{}, fmt.Errorf("local build cache directory is not configured")
 	}
 	if err := os.MkdirAll(backend.CacheDirectory, 0o755); err != nil {
-		return "", fmt.Errorf("create local build cache: %w", err)
+		return build.ExecutionEvidence{}, fmt.Errorf("create local build cache: %w", err)
 	}
 
-	imageReference := plan.Profile.Config.DevelopmentImage
-	inspectResult, err := backend.Runner.Run(ctx, command.Request{
-		Name:      "docker",
-		Arguments: []string{"image", "inspect", "--format", "{{.Id}}", imageReference},
-		Stderr:    backend.Progress,
-	})
+	imageReference, err := definition.EnvironmentReference(plan.Profile.Config.Environment.ID, plan.Profile.Config.Environment.LocalReference)
 	if err != nil {
-		return "", processFailure("inspect development image", inspectResult, err)
+		return build.ExecutionEvidence{}, err
 	}
-	imageIDFields := strings.Fields(inspectResult.Stdout)
-	if len(imageIDFields) != 1 {
-		return "", fmt.Errorf("inspect development image returned %d identities", len(imageIDFields))
+	imageID, err := backend.Docker.InspectImage(ctx, imageReference)
+	if err != nil {
+		return build.ExecutionEvidence{}, fmt.Errorf("inspect development environment: %w", err)
 	}
 
 	taskInvocation := mise.TaskInvocation(workspaceTask.MiseConfigFiles, workspaceTask.Name, ":")
@@ -73,39 +70,20 @@ func (backend Backend) Build(ctx context.Context, plan build.Plan) (string, erro
 		taskInvocation.Environment[key] = value
 	}
 	taskInvocation.Environment["CCACHE_DIR"] = containerCacheRoot + "/ccache"
-	arguments := []string{
-		"run",
-		"--rm",
-		"--volume", plan.ProjectRoot + ":" + containerProjectRoot,
-		"--volume", backend.CacheDirectory + ":" + containerCacheRoot,
-		"--workdir", containerProjectRoot,
+	if err := backend.Docker.Run(ctx, docker.RunRequest{
+		Image:       imageReference,
+		Volumes:     []string{plan.ProjectRoot + ":" + containerProjectRoot, backend.CacheDirectory + ":" + containerCacheRoot},
+		Workdir:     containerProjectRoot,
+		Environment: taskInvocation.Environment,
+		Command:     append([]string{"mise"}, taskInvocation.Arguments...),
+		Stdout:      backend.Progress,
+		Stderr:      backend.Progress,
+	}); err != nil {
+		return build.ExecutionEvidence{}, fmt.Errorf("run workspace build: %w", err)
 	}
-	environmentKeys := make([]string, 0, len(taskInvocation.Environment))
-	for key := range taskInvocation.Environment {
-		environmentKeys = append(environmentKeys, key)
-	}
-	sort.Strings(environmentKeys)
-	for _, key := range environmentKeys {
-		arguments = append(arguments, "--env", key+"="+taskInvocation.Environment[key])
-	}
-	arguments = append(arguments, imageReference, "mise")
-	arguments = append(arguments, taskInvocation.Arguments...)
-	buildResult, err := backend.Runner.Run(ctx, command.Request{
-		Name:      "docker",
-		Arguments: arguments,
-		Stdout:    backend.Progress,
-		Stderr:    backend.Progress,
-	})
-	if err != nil {
-		return "", processFailure("run workspace build", buildResult, err)
-	}
-	return imageIDFields[0], nil
-}
-
-func processFailure(action string, result command.Result, processError error) error {
-	details := strings.TrimSpace(result.Stderr)
-	if details == "" {
-		return fmt.Errorf("%s: %w", action, processError)
-	}
-	return fmt.Errorf("%s: %w: %s", action, processError, details)
+	return build.ExecutionEvidence{
+		BuilderID: definition.ID, BuilderKind: string(definition.Kind),
+		EnvironmentID: plan.Profile.Config.Environment.ID, EnvironmentReference: imageReference,
+		EnvironmentDigest: imageID,
+	}, nil
 }
