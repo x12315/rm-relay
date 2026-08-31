@@ -5,8 +5,9 @@ Linux 应用开发和 RM 常见开发板、PC、边缘计算板卡。
 
 > [!IMPORTANT]
 > 项目仍在建设。目前已跑通 STM32 项目初始化、本地容器构建、Build Output 校验与 OpenOCD
-> 命令解析；快速体验服务器、IDE 一键配置、战队部署方案、Linux 应用环境、远程构建和
-> target 数据回收尚未交付。面向普通用户的原子化 Quick Start 也尚未形成；路线图和架构
+> 命令解析。远程 BuildKit backend 与 mTLS Compose 部署已经进入代码基线，但尚未取得真实
+> 战队服务器证据；快速体验服务器、IDE 一键配置、Linux 应用环境、target 数据回收和
+> target 受控运行尚未交付。面向普通用户的原子化 Quick Start 也尚未形成；路线图和架构
 > 文档表达建设方向，不代表已经支持。
 
 RM 队伍的成员和工程经验随赛季快速流动。一套环境如果只能由少数人安装、升级和排错，
@@ -62,11 +63,11 @@ RoboMaster C 是首个支持的 board profile，不是项目结构中心。当�
 USB、烧录与调试按宿主平台接入。CLI、正式 image 与独立 Project Template 的普通用户分发
 入口尚未交付。
 
-### 战队部署（规划中）
+### 战队远程构建（已配置，待实机验证）
 
-面向战队运维人员，在战队服务器上组合 Registry、远程 workspace 构建与 K3s 虚拟 target，
-为成员提供稳定入口。部署文档尚未交付；当前维护者可以先参考
-[镜像构建与验证](docs/operator-guide/build-and-verify-images.md)。
+仓库提供 rootless BuildKit 的 mTLS Compose 配置，以及开发机侧 Builder 登记、真实 solve 检查和
+远程 workspace backend。Registry、网络接入和证书签发仍由战队选择。参见
+[Builder 配置](docs/user-guide/builders.md)与[部署 mTLS BuildKit 服务](docs/operator-guide/deploy-buildkit-service.md)。
 
 想先理解项目将如何工作，阅读[开发平台架构](docs/architecture/README.md)和
 [开发契约参考](docs/reference/development-contracts.md)。维护项目或参与建设时，再阅读

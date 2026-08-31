@@ -22,6 +22,7 @@ origin 和空工作区。
 | 场景 | 当前已验证宿主 | backend / Profile | 最高证据 |
 | --- | --- | --- | --- |
 | [本地 MCU 开发体验](user-experience/local-mcu-development.md) | macOS arm64 | `local-container` / `embedded-stm32f407-robomaster-c` | `cross-compiled`、OpenOCD `configured` |
+| [远程 MCU 构建体验](user-experience/remote-mcu-development.md) | 尚未实机验证 | `remote-buildkit` / `embedded-stm32f407-robomaster-c` | 待记录 |
 
 未连接硬件的场景不能产生 `detected`、`flashed`、`boot-observed` 或 `debug-tested` 证据。实板
 状态以[支持矩阵](../../docs/user-guide/support-matrix.md)为准。

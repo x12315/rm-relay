@@ -189,10 +189,10 @@ GoReleaser 是 CLI 支持矩阵、版本注入、archive 命名和 checksum 的�
 
 ```bash
 export RM_RELAY_CLI_OUTPUT_DIR=/absolute/path/to/rm-relay-cli
-mise run cli:cross-build
+mise run distribution:cli:build
 
 export RM_RELAY_CLI_OUTPUT_DIR=/absolute/path/to/rm-relay-cli-snapshot
-mise run cli:package-snapshot
+mise run distribution:cli:snapshot
 ```
 
 输出目录必须是仓库外尚不存在的绝对路径；两项任务只接受 clean revision。完整约束和 Windows
@@ -202,7 +202,8 @@ mise run cli:package-snapshot
 
 ## 发布与云构建扩展点
 
-本仓库当前不实现自动发布和云编译服务。未来扩展应保持以下边界：
+本仓库已提供单节点 mTLS BuildKit workspace builder 部署；尚未实现自动发布、OCI Registry
+部署和公共云服务。部署入口见[部署 mTLS BuildKit 服务](deploy-buildkit-service.md)。后续扩展应保持以下边界：
 
 - 构建服务负责选择 builder、注入 registry tag、缓存和凭据；
 - 工具版本、Dockerfile、Bake target 和 smoke contract 继续在本目录定义；

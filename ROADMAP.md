@@ -32,9 +32,9 @@ RoboMaster C 已完成首个 macOS 实板闭环。下一步根据 RM 队伍的�
 
 ## 2. 建立统一入口与 profile 模型
 
-当前 CLI 已能直接组织本地 Docker 构建，由镜像内 mise 执行固定 Workflow，并以 Project、
-Profile、Build Output 和 target adapter 串起 STM32F407 链路。宿主 mise 当前只用于
-OpenOCD adapter。下一步是在不改变这些契约的前提下接入 remote backend 和 Linux target。
+当前 CLI 已能组织本地 Docker 与远程 BuildKit 构建，由固定 Workflow 执行 CMake，并以 Project、
+Profile、Builder、Build Output 和 target adapter 串起 STM32F407 链路。远程链路目前有自动测试
+和 mTLS Compose 契约，仍需取得真实战队服务器证据。下一步在这些契约上接入 Linux target。
 CMake Presets、CMake、colcon 与原生调试后端仍是各自领域的事实源。
 
 环境镜像通过 Dockerfile 能力层与 Bake 官方 profile 组合；每个正式 profile 提供独立
@@ -67,11 +67,11 @@ image blob 仍发布到 OCI Registry。仓库职责见
 [仓库资产地图](docs/operator-guide/repository-assets.md#规划中的仓库边界)；具体目录、Skill
 内容、发布命令、CI 和支持列表留到启动时设计。
 
-## 3. 发布镜像与远程构建体验
+## 3. 发布镜像并验证远程构建服务
 
-将正式环境镜像发布到国内 OCI Registry，减少普通用户重复构建产生的大流量访问。在固定
-development image 上建立 BuildKit workspace builder，让 Build Output 直接返回开发机；
-开发机上的 Docker 与远程 backend 使用同一项目声明和下游 target 链路。
+将正式环境镜像发布到国内 OCI Registry，减少普通用户重复构建产生的大流量访问。现有 BuildKit
+workspace backend 已让 Build Output 直接返回开发机；下一步在真实服务器验证 mTLS、远端拉取、
+cache 和多人使用边界。开发机 Docker 与远程 backend 继续使用同一项目声明和下游 target 链路。
 
 编译服务器保留 BuildKit cache、依赖 cache 和可信范围内共享的 ccache。开发机上的 cache
 独立保存，不与编译服务器同步。

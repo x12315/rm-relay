@@ -5,9 +5,9 @@
 [Target 接入与数据链路](targets-and-access.md)。
 
 > [!IMPORTANT]
-> 当前仓库已经实现 `rm-relay` 嵌入式 local backend 与 `install/<profile>` 输出边界；remote
-> workspace builder 尚未实现。实际可执行命令见
-> [STM32 固件构建](../user-guide/build-stm32.md)。
+> 当前仓库已经实现嵌入式 local Docker 与 remote BuildKit backend，共用
+> `install/<profile>` 输出边界。Remote backend 已由单测和 Compose 配置验证，尚未取得真实战队
+> 服务器证据。使用入口见[Builder 配置](../user-guide/builders.md)。
 
 ## 先分开两条看似相同的构建链路
 
@@ -37,7 +37,7 @@ Local 与 remote backend 的入口和出口保持相同：
          Build Output 返回开发机
 ```
 
-`rm-relay` 协调容器、未来的远程 backend 与 target。Local backend 直接调用 Docker，
+`rm-relay` 协调容器、远程 backend 与 target。Local backend 直接调用 Docker，
 development image 内的 mise 再通过私有配置进入对应 Workflow；用户项目只声明 build
 `system`、`preset` 和输出角色。编译和测试仍由 CMake、colcon、Ninja、CTest 等原生工具
 执行，用户也可以绕过 `rm-relay` 直接调用这些工具。
@@ -78,10 +78,18 @@ RM Relay 当前不定义新的应用包格式或强制压缩包。CMake Install 
 和 MCU 固件文件已经能表达下游需要的内容。
 
 当前 MCU 模板由 RM Relay 内部的 CMake Workflow 执行 configure、build 与 install，项目
-不携带 mise task。Local backend 成功后检查 Profile 要求的输出角色，并在
-`install/<profile>/rm-relay-output.json` 记录
-Project ID、Profile digest、development image identity、文件大小和 SHA-256。Target adapter
-只接收重新校验过的 Build Output；PI 示例仍保留直接 CMake 构建，用于验证构建系统本身。
+不携带 mise task。两种 backend 成功后检查 Profile 要求的输出角色，并在
+`install/<profile>/rm-relay-output.json` 的 schema v2 记录：
+
+- `schema_version`、`project_id`、`profile_id`、`profile_digest` 和 `producer_version`；
+- Builder 的逻辑 `id` 与实现 `kind`；
+- environment 的 `id`、实际 `reference` 与 `digest`；
+- 每个 artifact 的语义 `role`、相对 `path`、`size` 与 `sha256`。
+
+Remote backend 先将 local exporter 写入
+受管临时目录，确认声明产物存在后再原子发布整个 install tree；失败构建不会留下可供 target
+消费的新 manifest。Target adapter 只接收重新校验过的 Build Output；PI 示例仍保留直接 CMake
+构建，用于验证构建系统本身。
 
 ## Cache 只改变速度
 
@@ -150,6 +158,7 @@ ROS 2、Nav2、OpenCV 等成熟依赖优先使用目标架构 binary package。�
 
 ## 仍待组件设计确定的内容
 
-Remote workspace 构建定义、失败后的断点恢复和 runtime compatibility schema 尚未确定。
-后续设计必须沿用现有 Project、Profile、Execution Plan 与 Build Output 边界：项目声明随
+Remote workspace 构建定义已经由固定 frontend、不可变 environment 与 local exporter 落实。
+远程失败后的断点恢复和 runtime compatibility schema 尚未确定。后续设计必须沿用现有 Project、
+Profile、Execution Plan 与 Build Output 边界：项目声明随
 源码存在，服务端保持通用，Build Output 先回开发机，cache 不成为项目真相源。

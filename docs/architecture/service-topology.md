@@ -4,8 +4,9 @@
 服务应该放在哪里、保存什么、由谁访问”的实现者和战队运维人员，不是现成部署手册。
 
 > [!IMPORTANT]
-> OCI Registry、workspace builder 和 K3s virtual target 尚未作为 RM Relay 产品交付。
-> 本页记录服务边界；实际部署命令要等配置经过验证后写入 operator guide。
+> Workspace builder 的代码与 mTLS Compose 配置已经交付，但尚未取得真实战队服务器证据。
+> OCI Registry 和 K3s virtual target 尚未交付。本页记录完整服务边界；已实现部分的部署入口
+> 链接到 operator guide，未实现部分不提供假想命令。
 
 ## 先按责任划角色，再决定机器数量
 
@@ -119,6 +120,7 @@ RM Relay 提供可复现配置、profile 和验证方法；战队运维负责机
 
 ## 仍待部署验证的内容
 
-Workspace builder 的配置格式、并发与磁盘配额、BuildKit 安全参数，以及 K3s 的 storage
-和 credential 发放方式尚未确定。这些内容经过真实部署验证后，才会进入 operator guide；
-在此之前不能把本页当作可执行安装说明。
+Workspace builder 已确定单节点 rootless BuildKit、mTLS、逻辑 Builder catalog 与不可变
+environment 映射，并提供[部署说明](../operator-guide/deploy-buildkit-service.md)。真实服务器上的
+并发、磁盘配额和长期 cache 参数仍待验证；K3s 的 storage 与 credential 发放方式也尚未确定。
+本页继续只说明拓扑，不代替可执行安装说明。

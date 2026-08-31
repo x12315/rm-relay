@@ -6,8 +6,9 @@
 
 > [!IMPORTANT]
 > 本组文档记录已经确认的设计基线，不等于全部能力已经交付。当前仓库交付 STM32
-> 嵌入式开发基线和本地 `rm-relay` CLI；Linux 环境、远程构建、物理 Linux target 和虚拟
-> target 仍在建设。实际能力和证据等级只以[支持矩阵](../user-guide/support-matrix.md)为准。
+> 嵌入式开发基线，以及本地 Docker、远程 BuildKit 两种 workspace backend；远程服务尚未取得
+> 真实战队服务器证据。Linux 环境、物理 Linux target 和虚拟 target 仍在建设。实际能力和
+> 证据等级只以[支持矩阵](../user-guide/support-matrix.md)为准。
 
 ## 先建立一个完整模型
 
@@ -82,7 +83,8 @@ CMake、colcon、Ninja、CTest 等原生工具；`mise` 组织常用任务，`rm
 两种 backend 的共同出口都是开发机上的 Build Output。Remote workspace 是一次性工作区，
 服务端 cache 可以删除；workspace builder 不直接把结果部署到 target。当前 MCU 模板已由
 CMake install 将 ELF/BIN/MAP 导出到 `install/<profile>`，并生成内容校验 manifest。
-Remote backend 尚未实现，详见[构建与输出](builds-and-outputs.md)。
+Remote backend 已通过 Buildx local exporter 返回同一目录，并在发布新输出前使用受管临时目录；
+真实服务器证据仍待补充。详见[构建与输出](builds-and-outputs.md)。
 
 ### 3. Target 接入回答“结果去哪里、如何调试”
 

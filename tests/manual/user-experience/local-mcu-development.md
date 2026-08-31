@@ -75,7 +75,7 @@ flash discovery and dry-run:
 highest evidence: cross-compiled; OpenOCD configured
 ```
 
-完成后退出候选 shell并回收环境：
+完成后退出候选 shell 并回收环境：
 
 ```bash
 exit

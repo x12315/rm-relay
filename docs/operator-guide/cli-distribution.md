@@ -15,14 +15,14 @@ macOS 或 Linux 示例：
 
 ```bash
 export RM_RELAY_CLI_OUTPUT_DIR=/absolute/path/to/rm-relay-cli
-mise run cli:package-snapshot
+mise run distribution:cli:snapshot
 ```
 
 PowerShell 示例：
 
 ```powershell
 $env:RM_RELAY_CLI_OUTPUT_DIR = 'C:\absolute\path\to\rm-relay-cli'
-mise run cli:package-snapshot
+mise run distribution:cli:snapshot
 ```
 
 任务不会自行选择长期制品目录。调用者负责确定保留位置和后续上传方式。
@@ -30,11 +30,11 @@ mise run cli:package-snapshot
 ## 两种输出
 
 ```bash
-mise run cli:cross-build
-mise run cli:package-snapshot
+mise run distribution:cli:build
+mise run distribution:cli:snapshot
 ```
 
-`cli:cross-build` 生成未归档的跨平台 binary，适合检查 build matrix。`cli:package-snapshot` 生成
+`distribution:cli:build` 生成未归档的跨平台 binary，适合检查 build matrix。`distribution:cli:snapshot` 生成
 Darwin、Linux、Windows 的 amd64/arm64 archive 和 SHA-256 checksum，适合检查本地候选分发。
 
 两者只使用当前已提交 revision；工作区有未提交改动时会拒绝运行，避免生成无法追溯的候选制品。
@@ -47,7 +47,7 @@ mise run test:distribution
 mise run test:e2e
 ```
 
-两项测试各自在进程临时目录中调用同一个外置 Packager。`test:distribution` 检查所有 archive、
+两项测试各自在进程临时目录中调用同一个 distribution command。`test:distribution` 检查所有 archive、
 LICENSE 和 checksum；`test:e2e` 解压当前平台 CLI，再执行 Git clone、项目初始化、Docker 构建、
 Build Output 校验与 OpenOCD dry-run。测试结束后不会留下可供人工复用的 archive；人工核验应使用
 [候选体验环境](candidate-experience-environment.md)。

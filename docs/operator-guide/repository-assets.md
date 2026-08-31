@@ -9,16 +9,18 @@
 ```text
 cmd/
 ├── rm-relay/           普通用户 CLI 的 composition root
-├── rm-relay-maintainer/维护者候选制备与本地分发入口
 └── rm-relay-node/      目标机组件的预留边界
 internal/
 ├── cli/               公开命令树与 human/JSON 结果
 ├── project/           用户 `rm-relay.toml` 契约
 ├── profile/           受支持能力组合与 builtin Profile
 ├── build/             Plan、Workflow、backend 和 Build Output
+├── builder/           开发机 Builder catalog 与 environment 映射
 ├── target/            从已验证 Build Output 到 target 的 adapter
 ├── execution/         OS process、mise 和内嵌资源物化
-└── maintainer/        仓库外候选环境与 CLI 本地分发
+
+distribution/cli/      CLI 构建、snapshot 与未来 release
+services/buildkit/     战队远程 BuildKit 的 Compose 部署
 
 environments/           可独立构建和发布的开发环境
 project-templates/      用户项目起点；当前由 monorepo 提供
@@ -28,7 +30,8 @@ tests/
 ├── integration/       跨模块组合
 ├── distribution/      CLI archive 契约
 ├── e2e/               分发二进制驱动的自动真实链路
-└── manual/            只需人判断的候选版本用户体验核验
+├── manual/            只需人判断的候选版本用户体验核验
+└── support/candidate/ 仓库外候选环境制备与回收
 scripts/verify/         仓库拓扑、版本和软件源等静态契约
 docs/                   面向人的项目事实与入口
 ```
@@ -38,7 +41,7 @@ docs/                   面向人的项目事实与入口
 选择构建 Workflow，`preset` 是该 Workflow 的输入；Profile 通过 `adapter` 和
 `board` 等语义 ID 选择 target 能力。两者都不保存跨模块文件路径。
 
-Project 把输出角色映射到项目内的相对路径；Profile 声明 development image、必需输出角色，
+Project 把输出角色映射到项目内的相对路径；Profile 声明 environment、必需输出角色，
 并把 target 的 `artifact_role` 连接到 adapter。Build Plan 负责确认两边的角色契约相容。
 
 用户项目中唯一的 RM Relay 配置入口是 `rm-relay.toml`。mise 分别承担容器内 Workflow 与
@@ -50,12 +53,15 @@ Project 把输出角色映射到项目内的相对路径；Profile 声明 develo
 |---|---|
 | CLI 命令与输出契约 | `internal/cli/` |
 | Project schema 与初始化 | `internal/project/` |
+| 开发机 Builder catalog 与管理 | `internal/builder/` |
 | 正式 Profile 组合 | `internal/profile/builtin/<profile>/` |
 | 构建系统解释与受控 task | `internal/build/<system>/` |
 | local/remote build 执行实现 | `internal/build/backend/<backend>/` |
 | target adapter 及其板卡/协议资产 | `internal/target/<adapter>/` |
 | 通用进程与工具调用边界 | `internal/execution/` |
-| 候选环境与 CLI 本地分发实现 | `internal/maintainer/` |
+| CLI 分发实现与 GoReleaser 配置 | `distribution/cli/` |
+| mTLS BuildKit 服务部署 | `services/buildkit/` |
+| 候选体验支持 | `tests/support/candidate/` |
 | 开发镜像产品 | `environments/<image>/` |
 | 用户工程起点 | `project-templates/<template>/` |
 | 完整可测行为 | `examples/<example>/` |
@@ -71,6 +77,11 @@ Project 把输出角色映射到项目内的相对路径；Profile 声明 develo
 实现或测试用品；镜像构建时的工具能力检查仍归各镜像的 `smoke/` 所有。
 GoReleaser 定义 CLI 平台矩阵与 archive，Docker Bake 定义 image 构建矩阵，两者不在测试
 代码中维护第二份目标列表。
+
+各模块的 mise task 与事实源就近保存：`distribution/cli/tasks.toml`、
+`environments/embedded-development/tasks.toml`、`services/buildkit/tasks.toml` 和
+`tests/support/candidate/tasks.toml` 分别拥有分发、环境、服务和候选体验操作。根级
+`mise.toml` 只固定维护工具并 include 这些入口；跨模块流程可以组合 task，不复制底层命令。
 
 ## 规划中的仓库边界
 

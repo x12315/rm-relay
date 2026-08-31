@@ -10,11 +10,11 @@
 
 RM Relay 通过 Go `os.UserCacheDir()` 选择平台惯用目录：
 
-| 系统 | 根目录 |
+| 系统 | `os.UserCacheDir()` base |
 | --- | --- |
-| macOS | `~/Library/Caches/rm-relay/` |
-| Linux | `${XDG_CACHE_HOME:-~/.cache}/rm-relay/` |
-| Windows | `%LocalAppData%\rm-relay\` |
+| macOS | `~/Library/Caches/` |
+| Linux | `${XDG_CACHE_HOME:-~/.cache}/` |
+| Windows | `%LocalAppData%\` |
 
 每个 repository clone 或 worktree 对应：
 
@@ -22,6 +22,7 @@ RM Relay 通过 Go `os.UserCacheDir()` 选择平台惯用目录：
 <user-cache>/rm-relay/experience/<repository-key>/
 ├── state.json
 ├── bin/
+├── config/
 ├── template.git/
 ├── workspace/
 └── logs/
@@ -58,8 +59,9 @@ mise run experience:enter
 进入前会重新核对 repository revision、CLI digest/version、development image ID 与 template
 revision。任一身份变化都会中止，避免核验者测试到混合版本。
 
-校验通过后，RM Relay 在外置 `workspace/` 打开宿主 shell，将候选 CLI 临时放到 `PATH` 首位，并
-通过 `RM_RELAY_TEMPLATE_URL` 提供本地 Git origin。它不会自动 clone、build 或运行用户程序。
+校验通过后，RM Relay 在外置 `workspace/` 打开宿主 shell，将候选 CLI 临时放到 `PATH` 首位，通过
+`RM_RELAY_TEMPLATE_URL` 提供本地 Git origin，并把候选 CLI 的用户配置隔离到 `config/`。它不会
+自动 clone、build 或运行用户程序。
 人工步骤见[本地 MCU 开发体验](../../tests/manual/user-experience/local-mcu-development.md)。
 
 ## 清理
@@ -70,9 +72,11 @@ revision。任一身份变化都会中止，避免核验者测试到混合版本
 mise run experience:clean
 ```
 
-清理命令先校验 `state.json` 的 schema、管理标记和 repository identity，再恢复
-`experience:prepare` 前的 `mcu-dev/toolchain:local` tag；原来没有该 tag 时，移除候选 tag。Docker
-操作成功后才删除对应 `experience/<repository-key>/`。
+清理命令先校验 `state.json` 的 schema、管理标记和 repository identity，再逐项删除隔离 catalog
+中登记的逻辑 Builder 及其宿主 Docker Buildx 实例，最后恢复 `experience:prepare` 前的
+`mcu-dev/toolchain:local` tag；原来没有该 tag 时，移除候选 tag。全部 Docker 操作成功后才删除
+对应 `experience/<repository-key>/`。
 
-状态文件损坏、路径是 symlink 或 image tag 无法恢复时，命令会停止并保留目录，避免扩大删除范围。
+状态文件损坏、路径是 symlink、Buildx 资源无法删除或 image tag 无法恢复时，命令会停止并保留
+目录，避免扩大删除范围。
 它不会删除其他仓库的体验环境、共享 build cache 或正式分发制品。
