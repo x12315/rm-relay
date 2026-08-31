@@ -18,7 +18,7 @@ build target。
 [镜像构建与验证](../operator-guide/build-and-verify-images.md)，不作为用户上手步骤。
 
 当前基线是 Ubuntu 24.04 LTS、native GCC 14 和 Arm GNU 13.2.Rel1。产品级版本见
-[`container-images/embedded-development/locks/versions.env`](../../container-images/embedded-development/locks/versions.env)。
+[`environments/embedded-development/locks/versions.env`](../../environments/embedded-development/locks/versions.env)。
 镜像中的 `/opt/embedded-development/base-packages.txt` 与
 `/opt/embedded-development/embedded-packages.txt` 记录该次构建实际安装的完整版本。
 

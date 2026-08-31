@@ -35,8 +35,12 @@ for required_file in \
     ROADMAP.md \
     go.mod \
     go.sum \
-    .goreleaser.yaml \
     mise.toml \
+    distribution/cli/goreleaser.yaml \
+    distribution/cli/tasks.toml \
+    environments/embedded-development/tasks.toml \
+    tests/tasks.toml \
+    tests/support/candidate/tasks.toml \
     cmd/rm-relay/main.go \
     cmd/rm-relay/main_test.go \
     cmd/rm-relay-maintainer/main.go \
@@ -77,9 +81,9 @@ for required_file in \
     tests/manual/user-experience/local-mcu-development.md \
     scripts/verify/repository-layout.sh \
     scripts/verify/toolchain-source-policy.sh \
-    container-images/embedded-development/README.md \
-    container-images/embedded-development/Dockerfile \
-    container-images/embedded-development/docker-bake.hcl \
+    environments/embedded-development/README.md \
+    environments/embedded-development/Dockerfile \
+    environments/embedded-development/docker-bake.hcl \
     project-templates/cross-platform-cpp/README.md \
     project-templates/cross-platform-cpp/.gitignore \
     project-templates/cross-platform-cpp/CMakeLists.txt \
@@ -111,7 +115,9 @@ for absent_path in \
     openocd \
     project-templates/cross-platform-cpp/mise.toml \
     tests/manual/local-mcu-development-cycle-darwin-arm64.md \
-    validation; do
+    validation \
+    container-images \
+    .goreleaser.yaml; do
     assert_path_absent "${absent_path}"
 done
 

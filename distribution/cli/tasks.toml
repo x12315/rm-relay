@@ -1,0 +1,9 @@
+["distribution:cli:build"]
+description = "Cross-build unarchived CLI binaries into an explicit external directory"
+dir = "{{ config_root }}"
+run = "go run ./cmd/rm-relay-maintainer cli cross-build"
+
+["distribution:cli:snapshot"]
+description = "Create CLI snapshot archives in an explicit external directory"
+dir = "{{ config_root }}"
+run = "go run ./cmd/rm-relay-maintainer cli package-snapshot"

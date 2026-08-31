@@ -1,0 +1,9 @@
+["environment:embedded:load"]
+description = "Build and load the embedded development environment"
+dir = "{{ config_root }}"
+run = "docker buildx bake --file environments/embedded-development/docker-bake.hcl mcu-dev --load"
+
+["environment:embedded:verify"]
+description = "Build the embedded development environment for the host architecture"
+dir = "{{ config_root }}"
+run = "docker buildx bake --file environments/embedded-development/docker-bake.hcl verify-{{ arch() }}"

@@ -20,7 +20,7 @@ internal/
 ├── execution/         OS process、mise 和内嵌资源物化
 └── maintainer/        仓库外候选环境与 CLI 本地分发
 
-container-images/       可独立构建和发布的开发环境
+environments/           可独立构建和发布的开发环境
 project-templates/      用户项目起点；当前由 monorepo 提供
 examples/               有完整行为与测试的示例
 tests/
@@ -56,7 +56,7 @@ Project 把输出角色映射到项目内的相对路径；Profile 声明 develo
 | target adapter 及其板卡/协议资产 | `internal/target/<adapter>/` |
 | 通用进程与工具调用边界 | `internal/execution/` |
 | 候选环境与 CLI 本地分发实现 | `internal/maintainer/` |
-| 开发镜像产品 | `container-images/<image>/` |
+| 开发镜像产品 | `environments/<image>/` |
 | 用户工程起点 | `project-templates/<template>/` |
 | 完整可测行为 | `examples/<example>/` |
 | 可执行依赖方向 | `tests/architecture/` |
@@ -83,6 +83,6 @@ RM Relay 按独立使用者、发布节奏和维护者拆分仓库，不按生�
 | `rm-relay-environments` | 官方与社区环境定义、image/profile 映射、兼容性验证与发布 | 规划中 |
 | `rm-relay-integrations` | 可选 VS Code/VSCodium 预设和 Agent Skill | 规划中 |
 
-`container-images/` 在环境定义形成独立发布边界前继续留在主仓库。Integration 只消费
+`environments/` 在环境定义形成独立发布边界前继续留在主仓库。Integration 只消费
 公开 CLI、schema 和 Profile ID，核心链路不反向依赖它。Project Template 迁出后仍是核心
 入口；一仓库一模板保证用户可以直接 clone，不再复制 monorepo 子目录。

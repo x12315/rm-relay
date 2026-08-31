@@ -54,7 +54,19 @@ func TestPackageSnapshotRunsGoReleaserInTemporaryClone(t *testing.T) {
 		if request.Name == "goreleaser" && testPathWithin(packager.RepositoryRoot, request.Directory) {
 			t.Fatalf("GoReleaser ran inside source repository: %#v", request)
 		}
+		if request.Name == "goreleaser" && !containsAdjacentArguments(request.Arguments, "--config", "distribution/cli/goreleaser.yaml") {
+			t.Fatalf("GoReleaser config arguments = %#v", request.Arguments)
+		}
 	}
+}
+
+func containsAdjacentArguments(arguments []string, first, second string) bool {
+	for index := 0; index+1 < len(arguments); index++ {
+		if arguments[index] == first && arguments[index+1] == second {
+			return true
+		}
+	}
+	return false
 }
 
 func TestPackageSnapshotDoesNotReplaceExistingOutput(t *testing.T) {

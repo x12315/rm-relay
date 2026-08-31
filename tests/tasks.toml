@@ -1,0 +1,24 @@
+["test:unit"]
+description = "Run Go package unit tests"
+dir = "{{ config_root }}"
+run = "gotestsum -- ./cmd/... ./internal/..."
+
+["test:architecture"]
+description = "Verify internal module dependency direction"
+dir = "{{ config_root }}"
+run = "gotestsum -- ./tests/architecture/..."
+
+["test:integration"]
+description = "Run cross-module tests without external processes"
+dir = "{{ config_root }}"
+run = "gotestsum -- ./tests/integration/..."
+
+["test:distribution"]
+description = "Build and verify CLI snapshot archives"
+dir = "{{ config_root }}"
+run = "gotestsum -- -tags=distribution ./tests/distribution/..."
+
+["test:e2e"]
+description = "Run the distributed CLI through Git and Docker"
+dir = "{{ config_root }}"
+run = "gotestsum -- -tags=e2e ./tests/e2e/..."

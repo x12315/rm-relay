@@ -15,6 +15,8 @@ import (
 	"github.com/x12315/rm-relay/internal/execution/command"
 )
 
+const goReleaserConfig = "distribution/cli/goreleaser.yaml"
+
 // Binary identifies one host CLI produced by GoReleaser.
 type Binary struct {
 	Path    string
@@ -64,7 +66,7 @@ func (packager Packager) BuildHostBinary(ctx context.Context, outputPath string)
 
 	result, err := packager.Runner.Run(ctx, command.Request{
 		Name:      packager.goReleaserBinary(),
-		Arguments: []string{"build", "--snapshot", "--clean", "--single-target", "--output", destinationPath},
+		Arguments: []string{"build", "--snapshot", "--clean", "--config", goReleaserConfig, "--single-target", "--output", destinationPath},
 		Directory: checkout,
 		Stdout:    packager.Progress,
 		Stderr:    packager.Progress,
@@ -107,7 +109,7 @@ func (packager Packager) publishDist(ctx context.Context, outputDirectory string
 
 	result, err := packager.Runner.Run(ctx, command.Request{
 		Name:      packager.goReleaserBinary(),
-		Arguments: arguments,
+		Arguments: append(arguments, "--config", goReleaserConfig),
 		Directory: checkout,
 		Stdout:    packager.Progress,
 		Stderr:    packager.Progress,

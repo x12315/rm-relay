@@ -9,25 +9,13 @@ go = "1.26.7"
 activate_aggressive = true
 task.run_auto_install = false
 
-[tasks."test:unit"]
-description = "Run Go package unit tests"
-run = "gotestsum -- ./cmd/... ./internal/..."
-
-[tasks."test:architecture"]
-description = "Verify internal module dependency direction"
-run = "gotestsum -- ./tests/architecture/..."
-
-[tasks."test:integration"]
-description = "Run cross-module tests without external processes"
-run = "gotestsum -- ./tests/integration/..."
-
-[tasks."test:distribution"]
-description = "Build and verify CLI snapshot archives"
-run = "gotestsum -- -tags=distribution ./tests/distribution/..."
-
-[tasks."test:e2e"]
-description = "Run the distributed CLI through Git and Docker"
-run = "gotestsum -- -tags=e2e ./tests/e2e/..."
+[task_config]
+includes = [
+  "distribution/cli/tasks.toml",
+  "environments/embedded-development/tasks.toml",
+  "tests/tasks.toml",
+  "tests/support/candidate/tasks.toml",
+]
 
 [tasks.verify]
 description = "Verify repository layout and toolchain policy"
@@ -37,21 +25,11 @@ run = [
 ]
 
 [tasks."cli:cross-build"]
-description = "Cross-build CLI binaries into an explicit external directory"
-run = "go run ./cmd/rm-relay-maintainer cli cross-build"
+description = "Compatibility alias for distribution:cli:build"
+hide = true
+run = [{ task = "distribution:cli:build" }]
 
 [tasks."cli:package-snapshot"]
-description = "Package CLI snapshots into an explicit external directory"
-run = "go run ./cmd/rm-relay-maintainer cli package-snapshot"
-
-[tasks."experience:prepare"]
-description = "Prepare an isolated local candidate experience"
-run = "go run ./cmd/rm-relay-maintainer experience prepare"
-
-[tasks."experience:enter"]
-description = "Enter the prepared candidate experience"
-run = "go run ./cmd/rm-relay-maintainer experience enter"
-
-[tasks."experience:clean"]
-description = "Remove the candidate experience and restore the image tag"
-run = "go run ./cmd/rm-relay-maintainer experience clean"
+description = "Compatibility alias for distribution:cli:snapshot"
+hide = true
+run = [{ task = "distribution:cli:snapshot" }]

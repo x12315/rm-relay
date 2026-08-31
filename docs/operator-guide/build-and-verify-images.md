@@ -9,7 +9,7 @@
 
 ```bash
 docker buildx bake \
-  --file container-images/embedded-development/docker-bake.hcl \
+  --file environments/embedded-development/docker-bake.hcl \
   mcu-dev-arm64 --load
 ```
 
@@ -20,11 +20,11 @@ docker buildx bake \
 
 ```bash
 docker buildx bake \
-  --file container-images/embedded-development/docker-bake.hcl \
+  --file environments/embedded-development/docker-bake.hcl \
   verify-arm64 --set '*.output=type=cacheonly'
 
 docker buildx bake \
-  --file container-images/embedded-development/docker-bake.hcl \
+  --file environments/embedded-development/docker-bake.hcl \
   verify-amd64 --set '*.output=type=cacheonly'
 ```
 
@@ -32,7 +32,7 @@ docker buildx bake \
 
 ```bash
 docker buildx bake \
-  --file container-images/embedded-development/docker-bake.hcl \
+  --file environments/embedded-development/docker-bake.hcl \
   multiarch --set '*.output=type=cacheonly'
 ```
 
@@ -42,7 +42,7 @@ Dockerfile 或维护第二份包清单。
 
 ## LTS 基线与软件源
 
-版本基线见 [镜像版本基线](../../container-images/embedded-development/locks/README.md)：
+版本基线见 [镜像版本基线](../../environments/embedded-development/locks/README.md)：
 
 - Ubuntu 固定在 24.04 LTS 系列，重新构建时接收同一 LTS 的安全更新；
 - native 构建显式使用 GCC 14，STM32 构建使用 Arm GNU 13.2.Rel1；
@@ -60,7 +60,7 @@ UBUNTU_PORTS_MIRROR=https://mirrors.ustc.edu.cn/ubuntu-ports
 
 ```bash
 docker buildx bake \
-  --file container-images/embedded-development/docker-bake.hcl \
+  --file environments/embedded-development/docker-bake.hcl \
   mcu-dev-amd64 --load \
   --set 'mcu-dev-amd64.args.UBUNTU_MIRROR=http://mirrors.cloud.aliyuncs.com/ubuntu'
 ```
