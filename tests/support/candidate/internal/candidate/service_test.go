@@ -1,4 +1,4 @@
-package experience
+package candidate
 
 import (
 	"bytes"
@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/x12315/rm-relay/internal/builder"
 	"github.com/x12315/rm-relay/internal/execution/command"
-	"github.com/x12315/rm-relay/internal/maintainer/distribution"
 )
 
 func TestPrepareRejectsDirtyRepository(t *testing.T) {
@@ -87,6 +87,9 @@ func TestEnterValidatesCandidateThenOpensShellWithoutCloning(t *testing.T) {
 	if !strings.HasPrefix(shellRequest.Environment["RM_RELAY_TEMPLATE_URL"], "file://") {
 		t.Fatalf("template URL = %q", shellRequest.Environment["RM_RELAY_TEMPLATE_URL"])
 	}
+	if shellRequest.Environment["RM_RELAY_CONFIG_DIR"] != fixture.layout.ConfigDirectory {
+		t.Fatalf("candidate config directory = %q", shellRequest.Environment["RM_RELAY_CONFIG_DIR"])
+	}
 	if !strings.Contains(fixture.service.Stdout.(*bytes.Buffer).String(), "git clone") {
 		t.Fatalf("enter instructions = %q", fixture.service.Stdout.(*bytes.Buffer).String())
 	}
@@ -113,6 +116,10 @@ func TestCleanRestoresPreviousImageBeforeRemovingCandidate(t *testing.T) {
 	if _, err := fixture.service.Prepare(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+	store := builder.Store{Directory: filepath.Join(fixture.layout.ConfigDirectory, "rm-relay")}
+	if err := store.Save([]builder.Definition{{ID: "team", Kind: builder.KindRemoteBuildKit, BuildxBuilder: "rm-relay-team", Environments: map[string]string{}}}); err != nil {
+		t.Fatal(err)
+	}
 	fixture.runner.requests = nil
 
 	if err := fixture.service.Clean(context.Background()); err != nil {
@@ -122,12 +129,16 @@ func TestCleanRestoresPreviousImageBeforeRemovingCandidate(t *testing.T) {
 	if _, err := os.Stat(fixture.layout.Root); !os.IsNotExist(err) {
 		t.Fatalf("candidate root still exists: %v", err)
 	}
-	if len(fixture.runner.requests) == 0 {
-		t.Fatal("clean did not restore Docker image tag")
+	if len(fixture.runner.requests) < 2 {
+		t.Fatalf("clean requests = %#v", fixture.runner.requests)
+	}
+	removeBuilder := []string{"buildx", "rm", "rm-relay-team"}
+	if strings.Join(fixture.runner.requests[0].Arguments, "\x00") != strings.Join(removeBuilder, "\x00") {
+		t.Fatalf("first clean request = %#v, want %#v", fixture.runner.requests[0], removeBuilder)
 	}
 	want := []string{"image", "tag", fixture.runner.previousImageID, developmentImageReference}
-	if strings.Join(fixture.runner.requests[0].Arguments, "\x00") != strings.Join(want, "\x00") {
-		t.Fatalf("first clean request = %#v, want %#v", fixture.runner.requests[0], want)
+	if strings.Join(fixture.runner.requests[1].Arguments, "\x00") != strings.Join(want, "\x00") {
+		t.Fatalf("second clean request = %#v, want %#v", fixture.runner.requests[1], want)
 	}
 }
 
@@ -195,18 +206,18 @@ type binaryBuilder struct {
 	version string
 }
 
-func (builder *binaryBuilder) BuildHostBinary(_ context.Context, outputPath string) (distribution.Binary, error) {
+func (builder *binaryBuilder) BuildHostBinary(_ context.Context, outputPath string) (Binary, error) {
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
-		return distribution.Binary{}, err
+		return Binary{}, err
 	}
 	if err := os.WriteFile(outputPath, []byte("candidate CLI"), 0o755); err != nil {
-		return distribution.Binary{}, err
+		return Binary{}, err
 	}
 	digest, err := fileSHA256(outputPath)
 	if err != nil {
-		return distribution.Binary{}, err
+		return Binary{}, err
 	}
-	return distribution.Binary{Path: outputPath, Version: builder.version, SHA256: digest}, nil
+	return Binary{Path: outputPath, Version: builder.version, SHA256: digest}, nil
 }
 
 type serviceRunner struct {
@@ -231,6 +242,9 @@ func (runner *serviceRunner) Run(_ context.Context, request command.Request) (co
 	if request.Name == "docker" {
 		return runner.runDocker(request)
 	}
+	if request.Name == "mise" && strings.Join(request.Arguments, " ") == "run environment:embedded:load" {
+		return command.Result{}, nil
+	}
 	if request.Name != "git" {
 		return command.Result{}, fmt.Errorf("unexpected command %q", request.Name)
 	}
@@ -240,10 +254,10 @@ func (runner *serviceRunner) Run(_ context.Context, request command.Request) (co
 func (runner *serviceRunner) runDocker(request command.Request) (command.Result, error) {
 	joined := strings.Join(request.Arguments, " ")
 	switch {
+	case strings.HasPrefix(joined, "buildx rm"):
+		return command.Result{}, runner.restoreError
 	case strings.HasPrefix(joined, "image ls"):
 		return command.Result{Stdout: runner.previousImageID + "\n"}, nil
-	case strings.HasPrefix(joined, "buildx bake"):
-		return command.Result{}, nil
 	case strings.HasPrefix(joined, "image inspect"):
 		return command.Result{Stdout: runner.candidateImageID + "\n"}, nil
 	case strings.HasPrefix(joined, "image tag"), strings.HasPrefix(joined, "image rm"):

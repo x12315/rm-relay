@@ -1,4 +1,4 @@
-package experience
+package candidate
 
 import (
 	"os"
@@ -37,6 +37,9 @@ func TestResolveLayoutUsesCanonicalRepositoryIdentity(t *testing.T) {
 	if filepath.Dir(direct.Root) != wantParent {
 		t.Fatalf("layout parent = %q, want %q", filepath.Dir(direct.Root), wantParent)
 	}
+	if direct.ConfigDirectory != filepath.Join(direct.Root, "config") {
+		t.Fatalf("config directory = %q", direct.ConfigDirectory)
+	}
 }
 
 func TestResolveLayoutSeparatesRepositories(t *testing.T) {
@@ -61,5 +64,25 @@ func TestResolveLayoutRejectsCacheInsideRepository(t *testing.T) {
 
 	if err == nil {
 		t.Fatal("ResolveLayout() accepted a cache path inside the repository")
+	}
+}
+
+func TestLayoutWithRootMovesEveryCandidateOwnedPath(t *testing.T) {
+	original := Layout{BinaryPath: filepath.Join("original", "bin", "rm-relay")}
+	root := filepath.Join("cache", "candidate")
+
+	moved := layoutWithRoot(original, root)
+
+	for name, path := range map[string]string{
+		"state":     moved.StatePath,
+		"binary":    moved.BinaryPath,
+		"config":    moved.ConfigDirectory,
+		"template":  moved.TemplateOrigin,
+		"workspace": moved.Workspace,
+		"logs":      moved.Logs,
+	} {
+		if !pathWithin(root, path) {
+			t.Fatalf("%s path %q is outside moved root %q", name, path, root)
+		}
 	}
 }

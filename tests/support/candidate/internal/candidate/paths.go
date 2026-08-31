@@ -1,5 +1,5 @@
-// Package experience owns the disposable local environment used to review one RM Relay candidate.
-package experience
+// Package candidate owns the disposable local environment used to review one RM Relay candidate.
+package candidate
 
 import (
 	"crypto/sha256"
@@ -19,6 +19,7 @@ type Layout struct {
 	StatePath       string
 	BinaryDirectory string
 	BinaryPath      string
+	ConfigDirectory string
 	TemplateOrigin  string
 	Workspace       string
 	Logs            string
@@ -56,6 +57,7 @@ func ResolveLayout(repositoryRoot, userCacheRoot string) (Layout, error) {
 		StatePath:       filepath.Join(root, "state.json"),
 		BinaryDirectory: binaryDirectory,
 		BinaryPath:      filepath.Join(binaryDirectory, binaryName),
+		ConfigDirectory: filepath.Join(root, "config"),
 		TemplateOrigin:  filepath.Join(root, "template.git"),
 		Workspace:       filepath.Join(root, "workspace"),
 		Logs:            filepath.Join(root, "logs"),

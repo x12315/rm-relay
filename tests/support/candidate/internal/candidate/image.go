@@ -1,4 +1,4 @@
-package experience
+package candidate
 
 import (
 	"context"
@@ -25,8 +25,8 @@ func (service Service) currentTaggedImage(ctx context.Context) (string, error) {
 
 func (service Service) buildDevelopmentImage(ctx context.Context, repositoryRoot string) (string, error) {
 	result, err := service.Runner.Run(ctx, command.Request{
-		Name:      "docker",
-		Arguments: []string{"buildx", "bake", "--file", "environments/embedded-development/docker-bake.hcl", "mcu-dev", "--load"},
+		Name:      "mise",
+		Arguments: []string{"run", "environment:embedded:load"},
 		Directory: repositoryRoot,
 		Stdout:    service.Stdout,
 		Stderr:    service.Stderr,

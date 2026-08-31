@@ -1,15 +1,15 @@
 ["experience:prepare"]
 description = "Prepare an isolated local candidate experience"
 dir = "{{ config_root }}"
-run = "go run ./cmd/rm-relay-maintainer experience prepare"
+run = "go run ./tests/support/candidate/cmd prepare"
 
 ["experience:enter"]
 description = "Enter the prepared candidate experience"
 dir = "{{ config_root }}"
 raw = true
-run = "go run ./cmd/rm-relay-maintainer experience enter"
+run = "go run ./tests/support/candidate/cmd enter"
 
 ["experience:clean"]
 description = "Remove the candidate experience and restore the image tag"
 dir = "{{ config_root }}"
-run = "go run ./cmd/rm-relay-maintainer experience clean"
+run = "go run ./tests/support/candidate/cmd clean"

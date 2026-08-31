@@ -1,4 +1,4 @@
-package experience
+package candidate
 
 import (
 	"crypto/sha256"
@@ -20,6 +20,7 @@ func layoutWithRoot(layout Layout, root string) Layout {
 	layout.StatePath = filepath.Join(root, "state.json")
 	layout.BinaryDirectory = binaryDirectory
 	layout.BinaryPath = filepath.Join(binaryDirectory, binaryName)
+	layout.ConfigDirectory = filepath.Join(root, "config")
 	layout.TemplateOrigin = filepath.Join(root, "template.git")
 	layout.Workspace = filepath.Join(root, "workspace")
 	layout.Logs = filepath.Join(root, "logs")

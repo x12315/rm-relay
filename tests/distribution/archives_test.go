@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/x12315/rm-relay/internal/execution/command"
-	maintainerdistribution "github.com/x12315/rm-relay/internal/maintainer/distribution"
 )
 
 var expectedArchives = map[string][]string{
@@ -33,12 +32,15 @@ var expectedArchives = map[string][]string{
 
 func TestSnapshotArchivesContainOnlyTheCLIAndLicense(t *testing.T) {
 	distributionDirectory := filepath.Join(t.TempDir(), "snapshot")
-	packager := maintainerdistribution.Packager{
-		Runner:         command.OSRunner{},
-		RepositoryRoot: repositoryRoot(t),
-		GoReleaser:     "goreleaser",
+	root := repositoryRoot(t)
+	result, err := (command.OSRunner{}).Run(context.Background(), command.Request{
+		Name: "go", Arguments: []string{"run", "./distribution/cli/cmd", "snapshot"}, Directory: root,
+		Environment: map[string]string{"RM_RELAY_CLI_OUTPUT_DIR": distributionDirectory},
+	})
+	if err != nil {
+		t.Fatalf("snapshot command: %v: %s", err, result.Stderr)
 	}
-	if err := packager.PackageSnapshot(context.Background(), distributionDirectory); err != nil {
+	if _, err := os.Stat(distributionDirectory); err != nil {
 		t.Fatal(err)
 	}
 	archivePaths := make(map[string]string, len(expectedArchives))

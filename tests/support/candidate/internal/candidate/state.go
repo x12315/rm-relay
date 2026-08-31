@@ -1,4 +1,4 @@
-package experience
+package candidate
 
 import (
 	"encoding/json"

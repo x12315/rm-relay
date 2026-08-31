@@ -1,4 +1,4 @@
-package experience
+package candidate
 
 import (
 	"context"
@@ -10,14 +10,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/x12315/rm-relay/internal/builder"
+	"github.com/x12315/rm-relay/internal/execution/buildx"
 	"github.com/x12315/rm-relay/internal/execution/command"
-	"github.com/x12315/rm-relay/internal/maintainer/distribution"
 )
 
 // BinaryBuilder produces the current-platform candidate CLI outside the repository.
 type BinaryBuilder interface {
-	BuildHostBinary(context.Context, string) (distribution.Binary, error)
+	BuildHostBinary(context.Context, string) (Binary, error)
 }
+
+// Binary identifies one candidate CLI file.
+type Binary struct{ Path, Version, SHA256 string }
 
 // Prepared describes the candidate environment a maintainer can enter.
 type Prepared struct {
@@ -87,7 +91,7 @@ func (service Service) Prepare(ctx context.Context) (prepared Prepared, returnEr
 		}
 	}()
 
-	for _, directory := range []string{preparingLayout.BinaryDirectory, preparingLayout.Workspace, preparingLayout.Logs} {
+	for _, directory := range []string{preparingLayout.BinaryDirectory, preparingLayout.ConfigDirectory, preparingLayout.Workspace, preparingLayout.Logs} {
 		if err := os.MkdirAll(directory, 0o755); err != nil {
 			return Prepared{}, fmt.Errorf("create candidate directory: %w", err)
 		}
@@ -191,9 +195,13 @@ func (service Service) Enter(ctx context.Context) error {
 		fmt.Fprintf(service.Stdout, "Candidate revision: %s\nCandidate CLI: %s\nDevelopment image: %s\nTemplate: %s\nClone with: git clone \"$RM_RELAY_TEMPLATE_URL\" project\n", state.Revision, state.CLIVersion, state.ImageID, templateURL(layout.TemplateOrigin))
 	}
 	_, err = service.Runner.Run(ctx, command.Request{
-		Name:        service.Shell,
-		Directory:   layout.Workspace,
-		Environment: map[string]string{"PATH": layout.BinaryDirectory + string(os.PathListSeparator) + os.Getenv("PATH"), "RM_RELAY_TEMPLATE_URL": templateURL(layout.TemplateOrigin)},
+		Name:      service.Shell,
+		Directory: layout.Workspace,
+		Environment: map[string]string{
+			"PATH":                  layout.BinaryDirectory + string(os.PathListSeparator) + os.Getenv("PATH"),
+			"RM_RELAY_CONFIG_DIR":   layout.ConfigDirectory,
+			"RM_RELAY_TEMPLATE_URL": templateURL(layout.TemplateOrigin),
+		},
 		Stdin:       service.Stdin,
 		Stdout:      service.Stdout,
 		Stderr:      service.Stderr,
@@ -210,6 +218,19 @@ func (service Service) Clean(ctx context.Context) error {
 	layout, state, err := service.loadCandidate()
 	if err != nil {
 		return err
+	}
+	configuredBuilders, err := (builder.Store{Directory: filepath.Join(layout.ConfigDirectory, "rm-relay")}).Load()
+	if err != nil {
+		return fmt.Errorf("load candidate Builder catalog: %w", err)
+	}
+	builderManager := builder.Service{
+		Store:  builder.Store{Directory: filepath.Join(layout.ConfigDirectory, "rm-relay")},
+		Buildx: buildx.CLI{Runner: service.Runner},
+	}
+	for _, definition := range configuredBuilders {
+		if err := builderManager.Remove(ctx, definition.ID); err != nil {
+			return fmt.Errorf("remove candidate Builder %q: %w", definition.ID, err)
+		}
 	}
 	if err := service.restoreImage(ctx, state.PreviousImageID); err != nil {
 		return err

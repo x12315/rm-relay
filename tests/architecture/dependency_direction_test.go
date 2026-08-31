@@ -16,13 +16,13 @@ import (
 const internalImportPrefix = "github.com/x12315/rm-relay/internal/"
 
 var allowedDependencies = map[string][]string{
-	"build":      {"build", "execution", "profile", "project"},
-	"cli":        {"build", "cli", "execution", "profile", "project", "target"},
-	"execution":  {"execution"},
-	"maintainer": {"execution", "maintainer"},
-	"profile":    {},
-	"project":    {},
-	"target":     {"build", "execution", "profile", "target"},
+	"build":     {"build", "builder", "execution", "profile", "project"},
+	"builder":   {"builder", "execution"},
+	"cli":       {"build", "builder", "cli", "execution", "profile", "project", "target"},
+	"execution": {"execution"},
+	"profile":   {},
+	"project":   {},
+	"target":    {"build", "execution", "profile", "target"},
 }
 
 func TestInternalModulesFollowDependencyDirection(t *testing.T) {
@@ -51,12 +51,50 @@ func TestInternalModulesFollowDependencyDirection(t *testing.T) {
 			return err
 		}
 		for _, imported := range parsed.Imports {
+			importPath, unquoteError := strconv.Unquote(imported.Path.Value)
+			if unquoteError != nil {
+				return unquoteError
+			}
+			if strings.HasPrefix(importPath, "github.com/x12315/rm-relay/tests/support") {
+				t.Errorf("production package %q imports test support %s", relativePath, importPath)
+			}
 			assertAllowedInternalImport(t, relativePath, owner, allowed, imported)
 		}
 		return nil
 	})
 	if err != nil {
 		t.Fatalf("inspect internal module dependencies: %v", err)
+	}
+}
+
+func TestDockerAndBuildxAdaptersDependOnlyOnCommandBoundary(t *testing.T) {
+	root := filepath.Join(locateRepositoryRoot(t), "internal", "execution")
+	for _, adapter := range []string{"docker", "buildx"} {
+		err := filepath.WalkDir(filepath.Join(root, adapter), func(sourcePath string, entry fs.DirEntry, walkError error) error {
+			if walkError != nil {
+				return walkError
+			}
+			if entry.IsDir() || filepath.Ext(sourcePath) != ".go" || strings.HasSuffix(sourcePath, "_test.go") {
+				return nil
+			}
+			parsed, err := parser.ParseFile(token.NewFileSet(), sourcePath, nil, parser.ImportsOnly)
+			if err != nil {
+				return err
+			}
+			for _, imported := range parsed.Imports {
+				path, err := strconv.Unquote(imported.Path.Value)
+				if err != nil {
+					return err
+				}
+				if strings.HasPrefix(path, internalImportPrefix) && path != internalImportPrefix+"execution/command" {
+					t.Errorf("%s adapter imports non-command internal package %s", adapter, path)
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

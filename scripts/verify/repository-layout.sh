@@ -39,12 +39,13 @@ for required_file in \
     distribution/cli/goreleaser.yaml \
     distribution/cli/tasks.toml \
     environments/embedded-development/tasks.toml \
+    services/buildkit/compose.yaml \
+    services/buildkit/buildkitd.toml \
+    services/buildkit/tasks.toml \
     tests/tasks.toml \
     tests/support/candidate/tasks.toml \
     cmd/rm-relay/main.go \
     cmd/rm-relay/main_test.go \
-    cmd/rm-relay-maintainer/main.go \
-    cmd/rm-relay-maintainer/main_test.go \
     cmd/rm-relay-node/.gitkeep \
     internal/cli/application.go \
     internal/project/config.go \
@@ -55,20 +56,22 @@ for required_file in \
     internal/build/workflow.go \
     internal/build/output/manifest.go \
     internal/build/backend/localcontainer/backend.go \
+    internal/build/backend/remotebuildkit/backend.go \
+    internal/builder/model.go \
+    internal/builder/store.go \
+    internal/builder/service.go \
     internal/build/cmake/workflow.go \
     internal/build/cmake/build.mise.toml \
     internal/execution/command/runner.go \
+    internal/execution/docker/client.go \
+    internal/execution/buildx/client.go \
     internal/execution/mise/invocation.go \
     internal/execution/mise/base.mise.toml \
     internal/execution/resourcecache/store.go \
-    internal/maintainer/application.go \
-    internal/maintainer/distribution/packager.go \
-    internal/maintainer/experience/identity.go \
-    internal/maintainer/experience/image.go \
-    internal/maintainer/experience/paths.go \
-    internal/maintainer/experience/repository.go \
-    internal/maintainer/experience/service.go \
-    internal/maintainer/experience/state.go \
+    distribution/cli/cmd/main.go \
+    distribution/cli/internal/packager/packager.go \
+    tests/support/candidate/cmd/main.go \
+    tests/support/candidate/internal/candidate/service.go \
     internal/target/adapter.go \
     internal/target/openocd/adapter.go \
     internal/target/openocd/board/robomaster-c.cfg \
@@ -86,6 +89,7 @@ for required_file in \
     environments/embedded-development/docker-bake.hcl \
     project-templates/cross-platform-cpp/README.md \
     project-templates/cross-platform-cpp/.gitignore \
+    project-templates/cross-platform-cpp/.dockerignore \
     project-templates/cross-platform-cpp/CMakeLists.txt \
     project-templates/cross-platform-cpp/CMakePresets.json \
     project-templates/cross-platform-cpp/rm-relay.toml \
@@ -116,6 +120,8 @@ for absent_path in \
     project-templates/cross-platform-cpp/mise.toml \
     tests/manual/local-mcu-development-cycle-darwin-arm64.md \
     validation \
+    cmd/rm-relay-maintainer \
+    internal/maintainer \
     container-images \
     .goreleaser.yaml; do
     assert_path_absent "${absent_path}"

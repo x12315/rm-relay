@@ -1,4 +1,4 @@
-package distribution
+package packager
 
 import (
 	"context"

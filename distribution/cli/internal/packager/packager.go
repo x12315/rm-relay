@@ -1,5 +1,5 @@
 // Package distribution builds local CLI candidates without writing generated files into the source repository.
-package distribution
+package packager
 
 import (
 	"context"
