@@ -9,6 +9,7 @@ base_smoke="${repository_root}/environments/embedded-development/smoke/verify-ba
 embedded_smoke="${repository_root}/environments/embedded-development/smoke/verify-embedded-tools.sh"
 template_presets="${repository_root}/project-templates/cross-platform-cpp/CMakePresets.json"
 example_presets="${repository_root}/examples/deterministic-pi-control/CMakePresets.json"
+buildkit_compose="${repository_root}/services/buildkit/compose.yaml"
 
 assert_contains() {
     file_path="$1"
@@ -64,5 +65,8 @@ assert_contains "${template_presets}" '"CMAKE_C_COMPILER": "gcc-14"'
 assert_contains "${template_presets}" '"CMAKE_CXX_COMPILER": "g++-14"'
 assert_contains "${example_presets}" '"CMAKE_C_COMPILER": "gcc-14"'
 assert_contains "${example_presets}" '"CMAKE_CXX_COMPILER": "g++-14"'
+
+assert_contains "${buildkit_compose}" 'moby/buildkit:v0.32.2-rootless@sha256:504731e577c20559c00f968f33219f30115e70be29ab96728d1d06e963fc494b'
+assert_absent "${buildkit_compose}" 'moby/buildkit:latest'
 
 printf '%s\n' 'toolchain and source policy contract passed'
