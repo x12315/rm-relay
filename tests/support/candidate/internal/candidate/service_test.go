@@ -46,6 +46,9 @@ func TestPrepareCreatesManagedCandidateWithoutChangingSourceRefs(t *testing.T) {
 	if state.PreviousImageID != fixture.runner.previousImageID || state.ImageID != fixture.runner.candidateImageID {
 		t.Fatalf("image identities = previous %q candidate %q", state.PreviousImageID, state.ImageID)
 	}
+	if state.EnvironmentReference != fixture.service.EnvironmentReference {
+		t.Fatalf("environment reference = %q", state.EnvironmentReference)
+	}
 	if _, err := os.Stat(fixture.layout.TemplateOrigin); err != nil {
 		t.Fatalf("template origin was not created: %v", err)
 	}
@@ -189,15 +192,16 @@ func newServiceFixture(t *testing.T) serviceFixture {
 	}
 	builder := &binaryBuilder{version: "0.0.0-SNAPSHOT-test"}
 	service := Service{
-		RepositoryRoot: repositoryRoot,
-		UserCacheRoot:  cacheRoot,
-		Runner:         runner,
-		BinaryBuilder:  builder,
-		Now:            func() time.Time { return time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC) },
-		Shell:          "candidate-shell",
-		Stdin:          strings.NewReader(""),
-		Stdout:         &bytes.Buffer{},
-		Stderr:         &bytes.Buffer{},
+		RepositoryRoot:       repositoryRoot,
+		UserCacheRoot:        cacheRoot,
+		EnvironmentReference: "registry.example/environment@sha256:" + strings.Repeat("a", 64),
+		Runner:               runner,
+		BinaryBuilder:        builder,
+		Now:                  func() time.Time { return time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC) },
+		Shell:                "candidate-shell",
+		Stdin:                strings.NewReader(""),
+		Stdout:               &bytes.Buffer{},
+		Stderr:               &bytes.Buffer{},
 	}
 	return serviceFixture{service: service, layout: layout, runner: runner}
 }

@@ -66,7 +66,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	service := candidate.Service{RepositoryRoot: repositoryRoot, UserCacheRoot: cacheRoot, Runner: runner, BinaryBuilder: binaryBuilder{runner: runner, root: repositoryRoot}, Shell: shell(), Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}
+	service := candidate.Service{RepositoryRoot: repositoryRoot, UserCacheRoot: cacheRoot, EnvironmentReference: os.Getenv("RM_RELAY_CANDIDATE_ENVIRONMENT"), Runner: runner, BinaryBuilder: binaryBuilder{runner: runner, root: repositoryRoot}, Shell: shell(), Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}
 	root := &cobra.Command{Use: "rm-relay-candidate", SilenceUsage: true, SilenceErrors: true}
 	root.AddCommand(&cobra.Command{Use: "prepare", Args: cobra.NoArgs, RunE: func(command *cobra.Command, _ []string) error {
 		prepared, err := service.Prepare(command.Context())

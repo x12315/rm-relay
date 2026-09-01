@@ -28,7 +28,7 @@ func TestServiceCreatesManifestOnlyAfterBackendSucceeds(t *testing.T) {
 	if !errors.Is(err, backendError) {
 		t.Fatalf("Execute() error = %v, want %v", err, backendError)
 	}
-	if !strings.Contains(err.Error(), "local-container") {
+	if !strings.Contains(err.Error(), "local-buildkit") {
 		t.Fatalf("Execute() error = %v, want backend identity", err)
 	}
 	if _, err := os.Stat(filepath.Join(outputDirectory, output.ManifestFileName)); !os.IsNotExist(err) {
@@ -41,11 +41,11 @@ func TestBackendCatalogResolvesByStableID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	backend, err := catalog.Resolve(string(builder.KindLocalContainer))
+	backend, err := catalog.Resolve(string(builder.KindLocalBuildKit))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if backend.Kind() != builder.KindLocalContainer {
+	if backend.Kind() != builder.KindLocalBuildKit {
 		t.Fatalf("backend kind = %q", backend.Kind())
 	}
 }
@@ -58,12 +58,12 @@ func TestBackendCatalogRejectsDuplicateIDs(t *testing.T) {
 }
 
 func TestBackendCatalogReportsAvailableBackends(t *testing.T) {
-	catalog, err := NewBackendCatalog(fakeBackend{kind: builder.KindRemoteBuildKit}, fakeBackend{kind: builder.KindLocalContainer})
+	catalog, err := NewBackendCatalog(fakeBackend{kind: builder.KindRemoteBuildKit}, fakeBackend{kind: builder.KindLocalBuildKit})
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, err = catalog.Resolve("missing")
-	if err == nil || !strings.Contains(err.Error(), "[local-container remote-buildkit]") {
+	if err == nil || !strings.Contains(err.Error(), "[local-buildkit remote-buildkit]") {
 		t.Fatalf("Resolve() error = %v", err)
 	}
 }
@@ -102,7 +102,7 @@ func (backend fakeBackend) Kind() builder.Kind {
 	if backend.kind != "" {
 		return backend.kind
 	}
-	return builder.KindLocalContainer
+	return builder.KindLocalBuildKit
 }
 
 func (backend fakeBackend) Build(context.Context, Plan, builder.Definition) (ExecutionEvidence, error) {
@@ -129,7 +129,7 @@ func servicePlan(outputDirectory string) Plan {
 			Digest: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			Config: profile.Config{
 				ID:                  "embedded-test",
-				Environment:         profile.Environment{ID: "embedded-development", LocalReference: "mcu-dev/toolchain:test"},
+				Environment:         profile.Environment{ID: "embedded-development"},
 				RequiredOutputRoles: []string{"firmware.elf"},
 			},
 		},
@@ -137,12 +137,12 @@ func servicePlan(outputDirectory string) Plan {
 }
 
 func testBuilder() builder.Definition {
-	return builder.Definition{ID: builder.LocalID, Kind: builder.KindLocalContainer}
+	return builder.Definition{ID: builder.LocalID, Kind: builder.KindLocalBuildKit, BuildxBuilder: builder.LocalBuildxBuilder, Environments: map[string]string{"embedded-development": "registry.example/environment@sha256:" + strings.Repeat("a", 64)}}
 }
 
 func testEvidence() ExecutionEvidence {
 	return ExecutionEvidence{
-		BuilderID: builder.LocalID, BuilderKind: string(builder.KindLocalContainer),
+		BuilderID: builder.LocalID, BuilderKind: string(builder.KindLocalBuildKit),
 		EnvironmentID: "embedded-development", EnvironmentReference: "mcu-dev/toolchain:test",
 		EnvironmentDigest: "sha256:" + strings.Repeat("b", 64),
 	}

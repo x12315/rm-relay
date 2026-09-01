@@ -75,17 +75,18 @@ func TestValidateStateRejectsWrongOwnership(t *testing.T) {
 
 func validState(layout Layout) State {
 	return State{
-		SchemaVersion:    StateSchemaVersion,
-		Marker:           managedStateMarker,
-		RepositoryRoot:   layout.RepositoryRoot,
-		RepositoryKey:    layout.RepositoryKey,
-		Revision:         "0123456789abcdef",
-		CLIVersion:       "0.0.0-SNAPSHOT-test",
-		CLISHA256:        strings.Repeat("a", 64),
-		ImageReference:   developmentImageReference,
-		ImageID:          "sha256:candidate",
-		PreviousImageID:  "sha256:previous",
-		TemplateRevision: "abcdef0123456789",
-		CreatedAt:        time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC),
+		SchemaVersion:        StateSchemaVersion,
+		Marker:               managedStateMarker,
+		RepositoryRoot:       layout.RepositoryRoot,
+		RepositoryKey:        layout.RepositoryKey,
+		Revision:             "0123456789abcdef",
+		CLIVersion:           "0.0.0-SNAPSHOT-test",
+		CLISHA256:            strings.Repeat("a", 64),
+		ImageReference:       developmentImageReference,
+		ImageID:              "sha256:candidate",
+		EnvironmentReference: "registry.example/environment@sha256:" + strings.Repeat("b", 64),
+		PreviousImageID:      "sha256:previous",
+		TemplateRevision:     "abcdef0123456789",
+		CreatedAt:            time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC),
 	}
 }

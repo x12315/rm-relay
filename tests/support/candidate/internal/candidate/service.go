@@ -25,24 +25,26 @@ type Binary struct{ Path, Version, SHA256 string }
 
 // Prepared describes the candidate environment a maintainer can enter.
 type Prepared struct {
-	Root        string
-	Revision    string
-	CLIVersion  string
-	ImageID     string
-	TemplateURL string
+	Root                 string
+	Revision             string
+	CLIVersion           string
+	ImageID              string
+	EnvironmentReference string
+	TemplateURL          string
 }
 
 // Service manages one repository's disposable candidate experience environment.
 type Service struct {
-	RepositoryRoot string
-	UserCacheRoot  string
-	Runner         command.Runner
-	BinaryBuilder  BinaryBuilder
-	Now            func() time.Time
-	Shell          string
-	Stdin          io.Reader
-	Stdout         io.Writer
-	Stderr         io.Writer
+	RepositoryRoot       string
+	UserCacheRoot        string
+	EnvironmentReference string
+	Runner               command.Runner
+	BinaryBuilder        BinaryBuilder
+	Now                  func() time.Time
+	Shell                string
+	Stdin                io.Reader
+	Stdout               io.Writer
+	Stderr               io.Writer
 }
 
 // Prepare creates a candidate CLI, image, template origin and empty workspace outside the repository.
@@ -53,6 +55,9 @@ func (service Service) Prepare(ctx context.Context) (prepared Prepared, returnEr
 	}
 	if service.BinaryBuilder == nil {
 		return Prepared{}, fmt.Errorf("candidate CLI builder is not configured")
+	}
+	if !builder.IsDigestReference(service.EnvironmentReference) {
+		return Prepared{}, fmt.Errorf("RM_RELAY_CANDIDATE_ENVIRONMENT must use image@sha256:<digest>")
 	}
 	if _, err := os.Lstat(layout.Root); err == nil {
 		return Prepared{}, fmt.Errorf("candidate experience already exists at %s", layout.Root)
@@ -109,24 +114,29 @@ func (service Service) Prepare(ctx context.Context) (prepared Prepared, returnEr
 	if err != nil {
 		return Prepared{}, err
 	}
+	localBuilder := builder.Definition{ID: builder.LocalID, Kind: builder.KindLocalBuildKit, BuildxBuilder: builder.LocalBuildxBuilder, Environments: map[string]string{"embedded-development": service.EnvironmentReference}}
+	if err := (builder.Store{Directory: filepath.Join(preparingLayout.ConfigDirectory, "rm-relay")}).Save([]builder.Definition{localBuilder}); err != nil {
+		return Prepared{}, fmt.Errorf("configure candidate local Builder: %w", err)
+	}
 
 	now := time.Now
 	if service.Now != nil {
 		now = service.Now
 	}
 	state := State{
-		SchemaVersion:    StateSchemaVersion,
-		Marker:           managedStateMarker,
-		RepositoryRoot:   layout.RepositoryRoot,
-		RepositoryKey:    layout.RepositoryKey,
-		Revision:         revision,
-		CLIVersion:       binary.Version,
-		CLISHA256:        binary.SHA256,
-		ImageReference:   developmentImageReference,
-		ImageID:          imageID,
-		PreviousImageID:  previousImageID,
-		TemplateRevision: templateRevision,
-		CreatedAt:        now().UTC(),
+		SchemaVersion:        StateSchemaVersion,
+		Marker:               managedStateMarker,
+		RepositoryRoot:       layout.RepositoryRoot,
+		RepositoryKey:        layout.RepositoryKey,
+		Revision:             revision,
+		CLIVersion:           binary.Version,
+		CLISHA256:            binary.SHA256,
+		ImageReference:       developmentImageReference,
+		ImageID:              imageID,
+		EnvironmentReference: service.EnvironmentReference,
+		PreviousImageID:      previousImageID,
+		TemplateRevision:     templateRevision,
+		CreatedAt:            now().UTC(),
 	}
 	if err := writeState(preparingLayout, state); err != nil {
 		return Prepared{}, err
@@ -136,11 +146,12 @@ func (service Service) Prepare(ctx context.Context) (prepared Prepared, returnEr
 	}
 	published = true
 	return Prepared{
-		Root:        layout.Root,
-		Revision:    revision,
-		CLIVersion:  binary.Version,
-		ImageID:     imageID,
-		TemplateURL: templateURL(layout.TemplateOrigin),
+		Root:                 layout.Root,
+		Revision:             revision,
+		CLIVersion:           binary.Version,
+		ImageID:              imageID,
+		EnvironmentReference: service.EnvironmentReference,
+		TemplateURL:          templateURL(layout.TemplateOrigin),
 	}, nil
 }
 
@@ -192,7 +203,7 @@ func (service Service) Enter(ctx context.Context) error {
 		return fmt.Errorf("candidate shell is not configured")
 	}
 	if service.Stdout != nil {
-		fmt.Fprintf(service.Stdout, "Candidate revision: %s\nCandidate CLI: %s\nDevelopment image: %s\nTemplate: %s\nClone with: git clone \"$RM_RELAY_TEMPLATE_URL\" project\n", state.Revision, state.CLIVersion, state.ImageID, templateURL(layout.TemplateOrigin))
+		fmt.Fprintf(service.Stdout, "Candidate revision: %s\nCandidate CLI: %s\nEnvironment: %s\nDevelopment image: %s\nTemplate: %s\nClone with: git clone \"$RM_RELAY_TEMPLATE_URL\" project\n", state.Revision, state.CLIVersion, state.EnvironmentReference, state.ImageID, templateURL(layout.TemplateOrigin))
 	}
 	_, err = service.Runner.Run(ctx, command.Request{
 		Name:      service.Shell,
@@ -228,6 +239,9 @@ func (service Service) Clean(ctx context.Context) error {
 		Buildx: buildx.CLI{Runner: service.Runner},
 	}
 	for _, definition := range configuredBuilders {
+		if definition.ID == builder.LocalID {
+			continue
+		}
 		if err := builderManager.Remove(ctx, definition.ID); err != nil {
 			return fmt.Errorf("remove candidate Builder %q: %w", definition.ID, err)
 		}

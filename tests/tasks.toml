@@ -19,6 +19,6 @@ dir = "{{ config_root }}"
 run = "gotestsum -- -tags=distribution ./tests/distribution/..."
 
 ["test:e2e"]
-description = "Run the distributed CLI through Git and Docker"
+description = "Run the distributed CLI through Git and BuildKit"
 dir = "{{ config_root }}"
 run = "gotestsum -- -tags=e2e ./tests/e2e/..."

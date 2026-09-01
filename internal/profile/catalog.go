@@ -17,7 +17,7 @@ const (
 	// FileName is the manifest stored in each Profile catalog directory.
 	FileName = "profile.toml"
 
-	currentSchemaVersion = 1
+	currentSchemaVersion = 2
 )
 
 //go:embed builtin/*/profile.toml
@@ -41,8 +41,7 @@ type Config struct {
 
 // Environment identifies the development environment independently from its execution site.
 type Environment struct {
-	ID             string `toml:"id"`
-	LocalReference string `toml:"local_reference"`
+	ID string `toml:"id"`
 }
 
 // Target binds a semantic target capability to an adapter-owned board definition.
@@ -105,9 +104,6 @@ func validateConfig(requestedID string, config Config) error {
 	}
 	if !isCatalogKey(config.Environment.ID) {
 		return fmt.Errorf("profile %q environment ID %q is invalid", requestedID, config.Environment.ID)
-	}
-	if strings.TrimSpace(config.Environment.LocalReference) == "" {
-		return fmt.Errorf("profile %q environment local_reference must not be empty", requestedID)
 	}
 	if len(config.RequiredOutputRoles) == 0 {
 		return fmt.Errorf("profile %q must require at least one output role", requestedID)

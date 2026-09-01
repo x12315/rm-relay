@@ -27,8 +27,7 @@ import (
 )
 
 const (
-	developmentImage = "mcu-dev/toolchain:local"
-	profileID        = "embedded-stm32f407-robomaster-c"
+	profileID = "embedded-stm32f407-robomaster-c"
 )
 
 type buildOutputManifest struct {
@@ -59,9 +58,12 @@ type flashResult struct {
 }
 
 func TestLocalMCUDevelopmentCycle(t *testing.T) {
+	environmentReference := os.Getenv("RM_RELAY_E2E_LOCAL_ENVIRONMENT")
+	if environmentReference == "" {
+		t.Skip("real local E2E requires RM_RELAY_E2E_LOCAL_ENVIRONMENT=image@sha256:digest")
+	}
 	requireCommand(t, "git")
 	requireCommand(t, "docker")
-	requireDockerImage(t, developmentImage)
 
 	temporaryRoot := t.TempDir()
 	distributionDirectory := filepath.Join(temporaryRoot, "snapshot")
@@ -75,13 +77,15 @@ func TestLocalMCUDevelopmentCycle(t *testing.T) {
 	producerVersion := assertDistributedVersion(t, distributedCLI)
 	projectRoot := cloneProjectTemplate(t, temporaryRoot)
 	relayEnvironment := append(
-		environmentWithout("RM_RELAY_HOME", "RM_RELAY_MISE_BIN", "RM_RELAY_CACHE_DIR"),
+		environmentWithout("RM_RELAY_HOME", "RM_RELAY_MISE_BIN", "RM_RELAY_CACHE_DIR", "RM_RELAY_CONFIG_DIR"),
 		"RM_RELAY_CACHE_DIR="+filepath.Join(temporaryRoot, "cache"),
+		"RM_RELAY_CONFIG_DIR="+filepath.Join(temporaryRoot, "config"),
 	)
 
+	runRelay(t, distributedCLI, relayEnvironment, projectRoot, "builder", "set-environment", "local", "embedded-development", environmentReference)
 	runRelay(t, distributedCLI, relayEnvironment, projectRoot, "init")
 	runRelay(t, distributedCLI, relayEnvironment, projectRoot, "build")
-	manifest := assertBuildOutput(t, projectRoot, producerVersion)
+	manifest := assertBuildOutput(t, projectRoot, producerVersion, environmentReference)
 	assertFlashDryRun(t, distributedCLI, relayEnvironment, projectRoot, manifest.ProjectID)
 }
 
@@ -161,7 +165,7 @@ func assertDistributedVersion(t *testing.T, binaryPath string) string {
 	return version
 }
 
-func assertBuildOutput(t *testing.T, projectRoot, producerVersion string) buildOutputManifest {
+func assertBuildOutput(t *testing.T, projectRoot, producerVersion, environmentReference string) buildOutputManifest {
 	t.Helper()
 	outputDirectory := filepath.Join(projectRoot, "install", profileID)
 	manifestPath := filepath.Join(outputDirectory, "rm-relay-output.json")
@@ -179,7 +183,7 @@ func assertBuildOutput(t *testing.T, projectRoot, producerVersion string) buildO
 	if manifest.SchemaVersion != 2 || manifest.ProjectID == "" || manifest.ProfileID != profileID {
 		t.Fatalf("Build Output identity = %#v", manifest)
 	}
-	if manifest.ProfileDigest == "" || manifest.Builder.ID != "local" || manifest.Environment.Reference != developmentImage || manifest.Environment.Digest == "" {
+	if manifest.ProfileDigest == "" || manifest.Environment.Reference != environmentReference || manifest.Environment.Digest == "" {
 		t.Fatalf("Build Output environment identity = %#v", manifest)
 	}
 	if manifest.ProducerVersion != producerVersion {
@@ -415,18 +419,6 @@ func requireCurrentPlatformArchive(t *testing.T, distributionDirectory string) s
 		t.Fatalf("current-platform CLI archive pattern %q matched %d files", pattern, len(matches))
 	}
 	return matches[0]
-}
-
-func requireDockerImage(t *testing.T, image string) {
-	t.Helper()
-	command := exec.Command("docker", "image", "inspect", image)
-	output, err := command.CombinedOutput()
-	if err != nil {
-		t.Fatalf("development image %q is unavailable; build and load it before running mise run test:e2e: %v\n%s", image, err, output)
-	}
-	if strings.TrimSpace(string(output)) == "" {
-		t.Fatalf("development image %q returned no inspection data; rebuild it before running mise run test:e2e", image)
-	}
 }
 
 func repositoryRoot(t *testing.T) string {

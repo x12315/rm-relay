@@ -23,6 +23,7 @@ type Manager interface {
 	Remove(context.Context, string) error
 	SetEnvironment(string, string, string) error
 	List() ([]Definition, error)
+	Prepare(context.Context, string) error
 	Check(context.Context, string) error
 }
 
@@ -131,6 +132,12 @@ func (service Service) SetEnvironment(builderID, environmentID, reference string
 		definitions[index].Environments[environmentID] = reference
 		found = true
 	}
+	if !found && builderID == LocalID {
+		local := canonicalLocalDefinition()
+		local.Environments[environmentID] = reference
+		definitions = append(definitions, local)
+		found = true
+	}
 	if !found {
 		return fmt.Errorf("builder %q does not exist", builderID)
 	}
@@ -143,12 +150,63 @@ func (service Service) List() ([]Definition, error) {
 	if err != nil {
 		return nil, err
 	}
-	definitions = append(definitions, Definition{ID: LocalID, Kind: KindLocalContainer})
-	sort.Slice(definitions, func(i, j int) bool { return definitions[i].ID < definitions[j].ID })
-	return definitions, nil
+	catalog, err := NewCatalog(definitions...)
+	if err != nil {
+		return nil, err
+	}
+	listed := make([]Definition, 0, len(catalog.definitions))
+	for _, definition := range catalog.definitions {
+		listed = append(listed, definition)
+	}
+	sort.Slice(listed, func(i, j int) bool { return listed[i].ID < listed[j].ID })
+	return listed, nil
 }
 
-// Check performs a real BuildKit solve for remote Builders.
+// Prepare makes one registered Builder ready without changing the user's active Buildx selection.
+func (service Service) Prepare(ctx context.Context, builderID string) error {
+	definitions, err := service.List()
+	if err != nil {
+		return err
+	}
+	var selected *Definition
+	for index := range definitions {
+		if definitions[index].ID == builderID {
+			selected = &definitions[index]
+			break
+		}
+	}
+	if selected == nil {
+		return fmt.Errorf("builder %q does not exist", builderID)
+	}
+	if service.Buildx == nil {
+		return fmt.Errorf("Buildx client is not configured")
+	}
+	if selected.Kind == KindRemoteBuildKit {
+		return service.Buildx.InspectBuilder(ctx, selected.BuildxBuilder)
+	}
+	if service.Docker == nil {
+		return fmt.Errorf("Docker client is not configured")
+	}
+	if err := service.Docker.CheckEngine(ctx); err != nil {
+		return err
+	}
+	registered, err := service.Buildx.ListBuilders(ctx)
+	if err != nil {
+		return err
+	}
+	for _, resource := range registered {
+		if resource.Name != LocalBuildxBuilder {
+			continue
+		}
+		if resource.Driver != "docker-container" {
+			return fmt.Errorf("Buildx resource %q uses driver %q; RM Relay requires docker-container", LocalBuildxBuilder, resource.Driver)
+		}
+		return service.Buildx.InspectBuilder(ctx, LocalBuildxBuilder)
+	}
+	return service.Buildx.CreateLocal(ctx, buildx.CreateLocalRequest{Name: LocalBuildxBuilder, Image: LocalBuildKitImage})
+}
+
+// Check prepares a Builder and proves it can execute a real BuildKit solve.
 func (service Service) Check(ctx context.Context, builderID string) error {
 	definitions, err := service.List()
 	if err != nil {
@@ -164,16 +222,7 @@ func (service Service) Check(ctx context.Context, builderID string) error {
 	if selected == nil {
 		return fmt.Errorf("builder %q does not exist", builderID)
 	}
-	if selected.Kind == KindLocalContainer {
-		if service.Docker == nil {
-			return fmt.Errorf("Docker client is not configured")
-		}
-		return service.Docker.CheckEngine(ctx)
-	}
-	if service.Buildx == nil {
-		return fmt.Errorf("Buildx client is not configured")
-	}
-	if err := service.Buildx.InspectBuilder(ctx, selected.BuildxBuilder); err != nil {
+	if err := service.Prepare(ctx, builderID); err != nil {
 		return err
 	}
 	root, err := os.MkdirTemp("", "rm-relay-builder-check-*")

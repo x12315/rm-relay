@@ -33,6 +33,18 @@ func TestStoreRoundTripKeepsOnlyLogicalMappings(t *testing.T) {
 	}
 }
 
+func TestStoreAcceptsOnlyCanonicalLocalDefinition(t *testing.T) {
+	store := Store{Directory: filepath.Join(t.TempDir(), "config")}
+	canonical := Definition{ID: LocalID, Kind: KindLocalBuildKit, BuildxBuilder: LocalBuildxBuilder, Environments: map[string]string{}}
+	if err := store.Save([]Definition{canonical}); err != nil {
+		t.Fatal(err)
+	}
+	canonical.BuildxBuilder = "foreign-local"
+	if err := store.Save([]Definition{canonical}); err == nil {
+		t.Fatal("noncanonical local Builder accepted")
+	}
+}
+
 func TestStoreRejectsUnknownKeysAndSymlinkCatalog(t *testing.T) {
 	root := t.TempDir()
 	store := Store{Directory: root}

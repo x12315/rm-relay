@@ -15,7 +15,20 @@ import (
 type fakeBuildx struct {
 	created, removed []string
 	createRequest    buildx.CreateRemoteRequest
+	localRequest     buildx.CreateLocalRequest
+	listed           []buildx.BuilderSummary
 	removeError      error
+	inspectCallCount int
+}
+
+func (client *fakeBuildx) ListBuilders(context.Context) ([]buildx.BuilderSummary, error) {
+	return append([]buildx.BuilderSummary(nil), client.listed...), nil
+}
+func (client *fakeBuildx) CreateLocal(_ context.Context, request buildx.CreateLocalRequest) error {
+	client.created = append(client.created, request.Name)
+	client.localRequest = request
+	client.listed = append(client.listed, buildx.BuilderSummary{Name: request.Name, Driver: "docker-container"})
+	return nil
 }
 
 func (client *fakeBuildx) CreateRemote(_ context.Context, request buildx.CreateRemoteRequest) error {
@@ -27,7 +40,10 @@ func (client *fakeBuildx) RemoveBuilder(_ context.Context, name string) error {
 	client.removed = append(client.removed, name)
 	return client.removeError
 }
-func (*fakeBuildx) InspectBuilder(context.Context, string) error { return nil }
+func (client *fakeBuildx) InspectBuilder(context.Context, string) error {
+	client.inspectCallCount++
+	return nil
+}
 func (*fakeBuildx) Build(_ context.Context, request buildx.BuildRequest) error {
 	return os.WriteFile(filepath.Join(request.OutputDirectory, "probe"), []byte("rm-relay\n"), 0o600)
 }
@@ -75,6 +91,47 @@ func TestSetEnvironmentRequiresImmutableDigest(t *testing.T) {
 	reference := "registry/image@sha256:" + strings.Repeat("a", 64)
 	if err := service.SetEnvironment("team", "embedded-development", reference); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSetEnvironmentCreatesPersistentLocalMapping(t *testing.T) {
+	store := Store{Directory: filepath.Join(t.TempDir(), "config")}
+	service := Service{Store: store}
+	reference := "registry/image@sha256:" + strings.Repeat("b", 64)
+	if err := service.SetEnvironment(LocalID, "embedded-development", reference); err != nil {
+		t.Fatal(err)
+	}
+	definitions, err := store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(definitions) != 1 || definitions[0].ID != LocalID || definitions[0].Environments["embedded-development"] != reference {
+		t.Fatalf("definitions = %#v", definitions)
+	}
+}
+
+func TestPrepareLocalCreatesPinnedBuilderOnce(t *testing.T) {
+	client := &fakeBuildx{}
+	service := Service{Store: Store{Directory: filepath.Join(t.TempDir(), "config")}, Buildx: client, Docker: fakeDocker{}}
+	if err := service.Prepare(context.Background(), LocalID); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Prepare(context.Background(), LocalID); err != nil {
+		t.Fatal(err)
+	}
+	if len(client.created) != 1 || client.localRequest.Image != LocalBuildKitImage {
+		t.Fatalf("created = %#v, request = %#v", client.created, client.localRequest)
+	}
+	if client.inspectCallCount != 1 {
+		t.Fatalf("inspect calls = %d, want 1", client.inspectCallCount)
+	}
+}
+
+func TestPrepareLocalRejectsForeignBuildxDriver(t *testing.T) {
+	client := &fakeBuildx{listed: []buildx.BuilderSummary{{Name: LocalBuildxBuilder, Driver: "docker"}}}
+	service := Service{Store: Store{Directory: filepath.Join(t.TempDir(), "config")}, Buildx: client, Docker: fakeDocker{}}
+	if err := service.Prepare(context.Background(), LocalID); err == nil || !strings.Contains(err.Error(), "docker-container") {
+		t.Fatalf("Prepare() error = %v", err)
 	}
 }
 

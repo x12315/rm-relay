@@ -30,7 +30,7 @@ func TestCatalogDigestChangesWhenProfileManifestChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(manifestPath, []byte(strings.Replace(string(content), "mcu-dev/toolchain:test", "mcu-dev/toolchain:changed", 1)), 0o644); err != nil {
+	if err := os.WriteFile(manifestPath, []byte(strings.Replace(string(content), "embedded-development", "embedded-development-changed", 1)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	after, err := catalog.Load("embedded-test")
@@ -49,8 +49,8 @@ func TestCatalogLoadsRequiredOutputRolesAndOpenOCDTarget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if loaded.Config.Environment.LocalReference != "mcu-dev/toolchain:test" {
-		t.Fatalf("Environment.LocalReference = %q", loaded.Config.Environment.LocalReference)
+	if loaded.Config.Environment.ID != "embedded-development" {
+		t.Fatalf("Environment.ID = %q", loaded.Config.Environment.ID)
 	}
 	if len(loaded.Config.RequiredOutputRoles) != 3 {
 		t.Fatalf("RequiredOutputRoles = %v", loaded.Config.RequiredOutputRoles)
@@ -83,13 +83,12 @@ func TestBuiltinCatalogProvidesSupportedProfile(t *testing.T) {
 
 func TestCatalogCanUseAnExternalFilesystemWithoutChangingConsumers(t *testing.T) {
 	catalog := Catalog{Files: fstest.MapFS{
-		"profiles/external/profile.toml": {Data: []byte(`schema_version = 1
+		"profiles/external/profile.toml": {Data: []byte(`schema_version = 2
 id = "external"
 required_output_roles = ["application"]
 
 [environment]
 id = "external-development"
-local_reference = "example.invalid/development:1"
 `)},
 	}, Root: "profiles"}
 
@@ -103,13 +102,12 @@ local_reference = "example.invalid/development:1"
 }
 
 func TestCatalogDigestDoesNotDependOnCatalogLocation(t *testing.T) {
-	manifest := []byte(`schema_version = 1
+	manifest := []byte(`schema_version = 2
 id = "portable"
 required_output_roles = ["application"]
 
 [environment]
 id = "portable-development"
-local_reference = "example.invalid/development:1"
 `)
 	files := fstest.MapFS{
 		"installed/profiles/portable/profile.toml":   {Data: manifest},
@@ -139,13 +137,12 @@ func writeProfileAssets(t *testing.T, directoryID, manifestID, targetConfig stri
 	if err := os.MkdirAll(filepath.Join(assetsRoot, "openocd"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	manifest := `schema_version = 1
+	manifest := `schema_version = 2
 id = "` + manifestID + `"
 required_output_roles = ["firmware.elf", "firmware.bin", "linker.map"]
 
 [environment]
 id = "embedded-development"
-local_reference = "mcu-dev/toolchain:test"
 
 [targets.openocd-stlink]
 adapter = "openocd"

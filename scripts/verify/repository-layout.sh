@@ -57,8 +57,8 @@ for required_file in \
     internal/build/service.go \
     internal/build/workflow.go \
     internal/build/output/manifest.go \
-    internal/build/backend/localcontainer/backend.go \
-    internal/build/backend/remotebuildkit/backend.go \
+    internal/build/backend/buildkit/backend.go \
+    internal/build/backend/buildkit/workspace.Dockerfile \
     internal/builder/model.go \
     internal/builder/store.go \
     internal/builder/service.go \
@@ -101,7 +101,7 @@ done
 
 for source_path in \
     internal/build/plan.go \
-    internal/build/backend/localcontainer/backend.go \
+    internal/build/backend/buildkit/backend.go \
     internal/build/cmake/build.mise.toml \
     tests/architecture/dependency_direction_test.go \
     tests/integration/development_cycle_test.go \

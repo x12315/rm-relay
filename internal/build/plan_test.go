@@ -73,13 +73,12 @@ path = "override.elf"
 	}
 	files := fstest.MapFS{}
 	for _, profileID := range []string{"embedded-default", "embedded-override"} {
-		files["profiles/"+profileID+"/profile.toml"] = &fstest.MapFile{Data: []byte(`schema_version = 1
+		files["profiles/"+profileID+"/profile.toml"] = &fstest.MapFile{Data: []byte(`schema_version = 2
 id = "` + profileID + `"
 required_output_roles = ["firmware.elf"]
 
 [environment]
 id = "embedded-development"
-local_reference = "mcu-dev/toolchain:test"
 `)}
 	}
 	return projectRoot, profile.Catalog{Files: files, Root: "profiles"}

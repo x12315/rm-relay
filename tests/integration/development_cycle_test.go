@@ -10,7 +10,6 @@ import (
 
 func TestDevelopmentCycleComposesProjectBuildOutputAndFlashTarget(t *testing.T) {
 	fixture := newDevelopmentCycleFixture(t)
-	fixture.runner.onDockerRun = func() { fixture.writeInstalledArtifacts(t) }
 
 	initResult := fixture.runCLI(t, "init")
 	if initResult.exitCode != 0 {
@@ -30,6 +29,9 @@ func TestDevelopmentCycleComposesProjectBuildOutputAndFlashTarget(t *testing.T) 
 	if manifest.ProjectID == "" || manifest.ProfileID != testProfileID || manifest.ProducerVersion != testProducerVersion {
 		t.Fatalf("Build Output identity = %#v", manifest)
 	}
+	if len(fixture.builders.prepared) != 1 || fixture.builders.prepared[0] != "local" {
+		t.Fatalf("prepared Builders = %v", fixture.builders.prepared)
+	}
 
 	var result struct {
 		OK        bool     `json:"ok"`
@@ -43,7 +45,7 @@ func TestDevelopmentCycleComposesProjectBuildOutputAndFlashTarget(t *testing.T) 
 	if !result.OK || result.Operation != "flash" || result.Executed || !contains(result.Command, "openocd") {
 		t.Fatalf("flash result = %#v", result)
 	}
-	if got := len(fixture.runner.requests); got != 2 {
-		t.Fatalf("process count = %d, want Docker inspect and Docker run", got)
+	if got := len(fixture.runner.requests); got != 0 {
+		t.Fatalf("process count = %d, want no host process for dry-run integration", got)
 	}
 }

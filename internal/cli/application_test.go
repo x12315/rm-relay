@@ -96,7 +96,7 @@ func TestBuilderListReturnsLogicalResourcesAsJSON(t *testing.T) {
 	if exitCode != 0 {
 		t.Fatalf("Run() exitCode = %d, stderr = %s", exitCode, fixture.stderr.String())
 	}
-	if !strings.Contains(fixture.stdout.String(), `"id":"local"`) || !strings.Contains(fixture.stdout.String(), `"kind":"local-container"`) {
+	if !strings.Contains(fixture.stdout.String(), `"id":"local"`) || !strings.Contains(fixture.stdout.String(), `"kind":"local-buildkit"`) {
 		t.Fatalf("stdout = %s", fixture.stdout.String())
 	}
 }
@@ -111,6 +111,7 @@ func TestBuilderCommandsReportTheirActualOperation(t *testing.T) {
 		{name: "remove", arguments: []string{"builder", "remove", "team"}, want: "Builder 已删除\n"},
 		{name: "set environment", arguments: []string{"builder", "set-environment", "team", "embedded", "registry.example/image@sha256:" + strings.Repeat("a", 64)}, want: "Builder environment 已更新\n"},
 		{name: "check", arguments: []string{"builder", "check", "local"}, want: "Builder 检查通过\n"},
+		{name: "prepare", arguments: []string{"builder", "prepare", "local"}, want: "Builder 已就绪\n"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -160,6 +161,7 @@ func (fixture *cliFixture) dependencies(t *testing.T) Dependencies {
 	return Dependencies{
 		Profiles:        profile.BuiltinCatalog(),
 		Builders:        mustTestBuilders(t),
+		BuilderManager:  fakeBuilderManager{},
 		BuildBackends:   buildBackends,
 		FlashAdapters:   flashAdapters,
 		ProducerVersion: "0.1.0-test",
@@ -170,7 +172,7 @@ func (fixture *cliFixture) dependencies(t *testing.T) Dependencies {
 
 type cliTestBackend struct{}
 
-func (cliTestBackend) Kind() builder.Kind { return builder.KindLocalContainer }
+func (cliTestBackend) Kind() builder.Kind { return builder.KindLocalBuildKit }
 
 func (cliTestBackend) Build(context.Context, build.Plan, builder.Definition) (build.ExecutionEvidence, error) {
 	return build.ExecutionEvidence{}, errors.New("CLI test backend must not execute")
@@ -178,7 +180,8 @@ func (cliTestBackend) Build(context.Context, build.Plan, builder.Definition) (bu
 
 func mustTestBuilders(t *testing.T) builder.Catalog {
 	t.Helper()
-	catalog, err := builder.NewCatalog()
+	reference := "registry.example/environment@sha256:" + strings.Repeat("a", 64)
+	catalog, err := builder.NewCatalog(builder.Definition{ID: builder.LocalID, Kind: builder.KindLocalBuildKit, BuildxBuilder: builder.LocalBuildxBuilder, Environments: map[string]string{"embedded-development": reference}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,9 +194,10 @@ func (fakeBuilderManager) Add(context.Context, builder.AddRequest) error { retur
 func (fakeBuilderManager) Remove(context.Context, string) error          { return nil }
 func (fakeBuilderManager) SetEnvironment(string, string, string) error   { return nil }
 func (fakeBuilderManager) List() ([]builder.Definition, error) {
-	return []builder.Definition{{ID: "local", Kind: builder.KindLocalContainer}}, nil
+	return []builder.Definition{{ID: "local", Kind: builder.KindLocalBuildKit}}, nil
 }
-func (fakeBuilderManager) Check(context.Context, string) error { return nil }
+func (fakeBuilderManager) Prepare(context.Context, string) error { return nil }
+func (fakeBuilderManager) Check(context.Context, string) error   { return nil }
 
 type cliTestFlashAdapter struct{}
 

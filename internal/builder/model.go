@@ -10,12 +10,16 @@ import (
 type Kind string
 
 const (
-	// KindLocalContainer builds through the workstation Docker Engine.
-	KindLocalContainer Kind = "local-container"
+	// KindLocalBuildKit builds through an RM Relay-owned Buildx docker-container resource.
+	KindLocalBuildKit Kind = "local-buildkit"
 	// KindRemoteBuildKit builds through a named Buildx remote builder.
 	KindRemoteBuildKit Kind = "remote-buildkit"
 	// LocalID is the built-in logical Builder available without user configuration.
 	LocalID = "local"
+	// LocalBuildxBuilder is the only workstation Buildx resource owned by RM Relay.
+	LocalBuildxBuilder = "rm-relay-local"
+	// LocalBuildKitImage pins the BuildKit daemon used by the local Builder.
+	LocalBuildKitImage = "moby/buildkit:v0.32.2@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8"
 )
 
 // Definition is the resolved workstation resource used for one build.
@@ -26,14 +30,8 @@ type Definition struct {
 	Environments  map[string]string
 }
 
-// EnvironmentReference resolves the immutable or local image reference for a Profile environment.
-func (definition Definition) EnvironmentReference(environmentID, localReference string) (string, error) {
-	if definition.Kind == KindLocalContainer {
-		if localReference == "" {
-			return "", fmt.Errorf("environment %q has no local reference", environmentID)
-		}
-		return localReference, nil
-	}
+// EnvironmentReference resolves the immutable image selected for a Profile environment.
+func (definition Definition) EnvironmentReference(environmentID string) (string, error) {
 	reference := definition.Environments[environmentID]
 	if reference == "" {
 		return "", fmt.Errorf("builder %q has no mapping for environment %q", definition.ID, environmentID)
@@ -48,10 +46,19 @@ type Catalog struct {
 
 // NewCatalog validates and indexes definitions. The built-in local Builder is always present.
 func NewCatalog(definitions ...Definition) (Catalog, error) {
-	indexed := map[string]Definition{LocalID: {ID: LocalID, Kind: KindLocalContainer}}
+	indexed := map[string]Definition{LocalID: canonicalLocalDefinition()}
+	localConfigured := false
 	for _, definition := range definitions {
 		if err := ValidateDefinition(definition); err != nil {
 			return Catalog{}, err
+		}
+		if definition.ID == LocalID {
+			if localConfigured {
+				return Catalog{}, fmt.Errorf("multiple builders use ID %q", definition.ID)
+			}
+			indexed[LocalID] = definition
+			localConfigured = true
+			continue
 		}
 		if _, exists := indexed[definition.ID]; exists {
 			return Catalog{}, fmt.Errorf("multiple builders use ID %q", definition.ID)
@@ -82,10 +89,14 @@ func (catalog Catalog) IDs() []string {
 
 // ValidateDefinition checks persistent Builder invariants.
 func ValidateDefinition(definition Definition) error {
-	if !IsIdentifier(definition.ID) || definition.ID == LocalID {
-		return fmt.Errorf("builder ID %q is invalid or reserved", definition.ID)
+	if !IsIdentifier(definition.ID) {
+		return fmt.Errorf("builder ID %q is invalid", definition.ID)
 	}
-	if definition.Kind != KindRemoteBuildKit {
+	if definition.ID == LocalID {
+		if definition.Kind != KindLocalBuildKit || definition.BuildxBuilder != LocalBuildxBuilder {
+			return fmt.Errorf("local Builder must use kind %q and Buildx resource %q", KindLocalBuildKit, LocalBuildxBuilder)
+		}
+	} else if definition.Kind != KindRemoteBuildKit {
 		return fmt.Errorf("builder %q has unsupported kind %q", definition.ID, definition.Kind)
 	}
 	if !IsIdentifier(definition.BuildxBuilder) {
@@ -100,6 +111,10 @@ func ValidateDefinition(definition Definition) error {
 		}
 	}
 	return nil
+}
+
+func canonicalLocalDefinition() Definition {
+	return Definition{ID: LocalID, Kind: KindLocalBuildKit, BuildxBuilder: LocalBuildxBuilder, Environments: map[string]string{}}
 }
 
 // IsIdentifier reports whether value is a stable RM Relay identifier.

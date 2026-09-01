@@ -131,8 +131,21 @@ func (app *application) newRootCommand() *cobra.Command {
 
 func (app *application) newBuilderCommand() *cobra.Command {
 	command := &cobra.Command{Use: "builder", Short: "管理本机可用的构建资源", Args: noArguments("builder")}
-	command.AddCommand(app.newBuilderAddCommand(), app.newBuilderRemoveCommand(), app.newBuilderSetEnvironmentCommand(), app.newBuilderListCommand(), app.newBuilderCheckCommand())
+	command.AddCommand(app.newBuilderAddCommand(), app.newBuilderRemoveCommand(), app.newBuilderSetEnvironmentCommand(), app.newBuilderListCommand(), app.newBuilderPrepareCommand(), app.newBuilderCheckCommand())
 	return command
+}
+
+func (app *application) newBuilderPrepareCommand() *cobra.Command {
+	return &cobra.Command{Use: "prepare <name>", Short: "准备由 RM Relay 管理的 Builder 资源", Args: cobra.ExactArgs(1), RunE: func(command *cobra.Command, arguments []string) error {
+		if app.dependencies.BuilderManager == nil {
+			return newCLIError("builder_invalid", "builder prepare", 1, fmt.Errorf("Builder manager is not configured"))
+		}
+		if err := app.dependencies.BuilderManager.Prepare(command.Context(), arguments[0]); err != nil {
+			return newCLIError("builder_unreachable", "builder prepare", 1, err)
+		}
+		emitSuccess(app.outputFormat, app.dependencies, commandResult{OK: true, Operation: "builder prepare"})
+		return nil
+	}}
 }
 
 func (app *application) newBuilderRemoveCommand() *cobra.Command {
@@ -250,8 +263,14 @@ func (app *application) newBuildCommand() *cobra.Command {
 			if err != nil {
 				return newCLIError("builder_invalid", "build", 1, err)
 			}
-			if _, err := definition.EnvironmentReference(plan.Profile.Config.Environment.ID, plan.Profile.Config.Environment.LocalReference); err != nil {
+			if _, err := definition.EnvironmentReference(plan.Profile.Config.Environment.ID); err != nil {
 				return newCLIError("environment_unavailable", "build", 1, err)
+			}
+			if app.dependencies.BuilderManager == nil {
+				return newCLIError("builder_invalid", "build", 1, fmt.Errorf("Builder manager is not configured"))
+			}
+			if err := app.dependencies.BuilderManager.Prepare(command.Context(), definition.ID); err != nil {
+				return newCLIError("builder_unreachable", "build", 1, err)
 			}
 			backend, err := app.dependencies.BuildBackends.Resolve(string(definition.Kind))
 			if err != nil {
@@ -395,6 +414,8 @@ func emitSuccess(outputFormat string, dependencies Dependencies, result commandR
 		fmt.Fprintln(dependencies.Stdout, "Builder environment 已更新")
 	case "builder check":
 		fmt.Fprintln(dependencies.Stdout, "Builder 检查通过")
+	case "builder prepare":
+		fmt.Fprintln(dependencies.Stdout, "Builder 已就绪")
 	}
 }
 

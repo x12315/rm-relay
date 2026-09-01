@@ -147,7 +147,7 @@ func openOCDTestFixture(t *testing.T) openOCDTestAssets {
 		Digest: strings.Repeat("a", 64),
 		Config: profile.Config{
 			ID:                  "embedded-test",
-			Environment:         profile.Environment{ID: "embedded-development", LocalReference: "mcu-dev/toolchain:test"},
+			Environment:         profile.Environment{ID: "embedded-development"},
 			RequiredOutputRoles: []string{"firmware.elf"},
 			Targets: map[string]profile.Target{
 				"openocd-stlink": {
@@ -163,7 +163,7 @@ func openOCDTestFixture(t *testing.T) openOCDTestAssets {
 		ProjectID:       "1e013e16-04a7-4fd3-9f48-bfc9178f5421",
 		Profile:         loadedProfile,
 		DeclaredOutputs: []project.Output{{Role: "firmware.elf", Path: "firmware.elf"}},
-		Builder:         output.BuilderEvidence{ID: "local", Kind: "local-container"},
+		Builder:         output.BuilderEvidence{ID: "local", Kind: "local-buildkit"},
 		Environment:     output.EnvironmentEvidence{ID: "embedded-development", Reference: "mcu-dev/toolchain:test", Digest: "sha256:" + strings.Repeat("b", 64)},
 		ProducerVersion: "0.1.0",
 	}); err != nil {

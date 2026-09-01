@@ -153,7 +153,7 @@ func buildOutputPlan(t *testing.T) build.Plan {
 			Digest: strings.Repeat("a", 64),
 			Config: profile.Config{
 				ID:                  "embedded-test",
-				Environment:         profile.Environment{ID: "embedded-development", LocalReference: "mcu-dev/toolchain:test"},
+				Environment:         profile.Environment{ID: "embedded-development"},
 				RequiredOutputRoles: []string{"firmware.elf", "firmware.bin"},
 			},
 		},
@@ -166,7 +166,7 @@ func createRequest(plan build.Plan) output.CreateRequest {
 		ProjectID:       plan.ProjectID,
 		Profile:         plan.Profile,
 		DeclaredOutputs: plan.Build.Outputs,
-		Builder:         output.BuilderEvidence{ID: "local", Kind: "local-container"},
+		Builder:         output.BuilderEvidence{ID: "local", Kind: "local-buildkit"},
 		Environment:     output.EnvironmentEvidence{ID: "embedded-development", Reference: "mcu-dev/toolchain:test", Digest: "sha256:" + strings.Repeat("b", 64)},
 		ProducerVersion: "0.1.0",
 	}

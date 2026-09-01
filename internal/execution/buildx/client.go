@@ -2,7 +2,9 @@
 package buildx
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -17,6 +19,19 @@ type CreateRemoteRequest struct {
 	Name, Endpoint, CAPath, CertificatePath, KeyPath, ServerName string
 }
 
+// CreateLocalRequest creates an RM Relay-owned docker-container Builder.
+type CreateLocalRequest struct {
+	Name  string
+	Image string
+}
+
+// BuilderSummary is the stable subset of docker buildx ls used for ownership checks.
+type BuilderSummary struct {
+	Name   string `json:"Name"`
+	Driver string `json:"Driver"`
+	Error  string `json:"Err"`
+}
+
 // BuildRequest describes one BuildKit solve and local export.
 type BuildRequest struct {
 	Builder, ContextDirectory, OutputDirectory string
@@ -27,6 +42,8 @@ type BuildRequest struct {
 
 // Client is the Buildx operation boundary consumed by Builder and backend modules.
 type Client interface {
+	ListBuilders(context.Context) ([]BuilderSummary, error)
+	CreateLocal(context.Context, CreateLocalRequest) error
 	CreateRemote(context.Context, CreateRemoteRequest) error
 	RemoveBuilder(context.Context, string) error
 	InspectBuilder(context.Context, string) error
@@ -35,6 +52,49 @@ type Client interface {
 
 // CLI executes Buildx operations through the shared process runner.
 type CLI struct{ Runner command.Runner }
+
+// ListBuilders returns registered Buildx resources without changing the selected Builder.
+func (client CLI) ListBuilders(ctx context.Context) ([]BuilderSummary, error) {
+	result, err := client.run(ctx, command.Request{Name: "docker", Arguments: []string{"buildx", "ls", "--format", "{{json .}}"}})
+	if err != nil {
+		return nil, failure("list Buildx builders", result, err)
+	}
+	var builders []BuilderSummary
+	scanner := bufio.NewScanner(strings.NewReader(result.Stdout))
+	for scanner.Scan() {
+		if strings.TrimSpace(scanner.Text()) == "" {
+			continue
+		}
+		var builder BuilderSummary
+		if err := json.Unmarshal(scanner.Bytes(), &builder); err != nil {
+			return nil, fmt.Errorf("decode Buildx builder list: %w", err)
+		}
+		if builder.Name == "" || (builder.Driver == "" && builder.Error == "") {
+			return nil, fmt.Errorf("decode Buildx builder list: name and either driver or error are required")
+		}
+		builders = append(builders, builder)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("read Buildx builder list: %w", err)
+	}
+	return builders, nil
+}
+
+// CreateLocal creates one pinned docker-container Builder owned by RM Relay.
+func (client CLI) CreateLocal(ctx context.Context, request CreateLocalRequest) error {
+	if request.Name == "" || strings.ContainsAny(request.Name, " ,\r\n") {
+		return fmt.Errorf("local Builder name is invalid")
+	}
+	if !isDigestReference(request.Image) || strings.ContainsAny(request.Image, " ,\r\n") {
+		return fmt.Errorf("local Builder image must use image@sha256:<digest>")
+	}
+	arguments := []string{"buildx", "create", "--name", request.Name, "--driver", "docker-container", "--driver-opt", "image=" + request.Image, "--bootstrap"}
+	result, err := client.run(ctx, command.Request{Name: "docker", Arguments: arguments})
+	if err != nil {
+		return failure("create local Buildx builder", result, err)
+	}
+	return nil
+}
 
 // CreateRemote registers one named remote driver. mTLS inputs are mandatory.
 func (client CLI) CreateRemote(ctx context.Context, request CreateRemoteRequest) error {
@@ -130,4 +190,22 @@ func failure(action string, result command.Result, err error) error {
 		return fmt.Errorf("%s: %w", action, err)
 	}
 	return fmt.Errorf("%s: %w: %s", action, err, details)
+}
+
+func isDigestReference(reference string) bool {
+	const marker = "@sha256:"
+	index := strings.LastIndex(reference, marker)
+	if index <= 0 {
+		return false
+	}
+	digest := reference[index+len(marker):]
+	if len(digest) != 64 {
+		return false
+	}
+	for _, character := range digest {
+		if (character < '0' || character > '9') && (character < 'a' || character > 'f') {
+			return false
+		}
+	}
+	return true
 }

@@ -9,8 +9,7 @@ import (
 	"runtime"
 
 	"github.com/x12315/rm-relay/internal/build"
-	"github.com/x12315/rm-relay/internal/build/backend/localcontainer"
-	"github.com/x12315/rm-relay/internal/build/backend/remotebuildkit"
+	buildkitbackend "github.com/x12315/rm-relay/internal/build/backend/buildkit"
 	"github.com/x12315/rm-relay/internal/build/cmake"
 	"github.com/x12315/rm-relay/internal/builder"
 	"github.com/x12315/rm-relay/internal/cli"
@@ -41,12 +40,17 @@ func main() {
 	processRunner := command.OSRunner{}
 	dockerClient := docker.CLI{Runner: processRunner}
 	buildxClient := buildx.CLI{Runner: processRunner}
-	buildBackends, err := build.NewBackendCatalog(localcontainer.Backend{
-		Docker:         dockerClient,
-		Workflows:      workflows,
-		CacheDirectory: filepath.Join(cacheRoot, "build", localcontainer.ID),
-		Progress:       os.Stderr,
-	}, remotebuildkit.Backend{Buildx: buildxClient, Workflows: workflows, Progress: os.Stderr})
+	localBackend, err := buildkitbackend.NewBackend(builder.KindLocalBuildKit, buildxClient, workflows, os.Stderr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "rm-relay: distribution_invalid: %s\n", err)
+		os.Exit(1)
+	}
+	remoteBackend, err := buildkitbackend.NewBackend(builder.KindRemoteBuildKit, buildxClient, workflows, os.Stderr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "rm-relay: distribution_invalid: %s\n", err)
+		os.Exit(1)
+	}
+	buildBackends, err := build.NewBackendCatalog(localBackend, remoteBackend)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "rm-relay: distribution_invalid: %s\n", err)
 		os.Exit(1)

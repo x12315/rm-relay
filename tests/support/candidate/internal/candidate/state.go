@@ -6,11 +6,13 @@ import (
 	"io"
 	"os"
 	"time"
+
+	"github.com/x12315/rm-relay/internal/builder"
 )
 
 const (
 	// StateSchemaVersion is the candidate environment state format understood by this CLI.
-	StateSchemaVersion = 1
+	StateSchemaVersion = 2
 	managedStateMarker = "rm-relay-candidate-experience"
 
 	developmentImageReference = "mcu-dev/toolchain:local"
@@ -19,18 +21,19 @@ const (
 
 // State records the identities required to enter or safely clean one candidate environment.
 type State struct {
-	SchemaVersion    int       `json:"schema_version"`
-	Marker           string    `json:"marker"`
-	RepositoryRoot   string    `json:"repository_root"`
-	RepositoryKey    string    `json:"repository_key"`
-	Revision         string    `json:"revision"`
-	CLIVersion       string    `json:"cli_version"`
-	CLISHA256        string    `json:"cli_sha256"`
-	ImageReference   string    `json:"image_reference"`
-	ImageID          string    `json:"image_id"`
-	PreviousImageID  string    `json:"previous_image_id,omitempty"`
-	TemplateRevision string    `json:"template_revision"`
-	CreatedAt        time.Time `json:"created_at"`
+	SchemaVersion        int       `json:"schema_version"`
+	Marker               string    `json:"marker"`
+	RepositoryRoot       string    `json:"repository_root"`
+	RepositoryKey        string    `json:"repository_key"`
+	Revision             string    `json:"revision"`
+	CLIVersion           string    `json:"cli_version"`
+	CLISHA256            string    `json:"cli_sha256"`
+	ImageReference       string    `json:"image_reference"`
+	ImageID              string    `json:"image_id"`
+	EnvironmentReference string    `json:"environment_reference"`
+	PreviousImageID      string    `json:"previous_image_id,omitempty"`
+	TemplateRevision     string    `json:"template_revision"`
+	CreatedAt            time.Time `json:"created_at"`
 }
 
 func writeState(layout Layout, state State) error {
@@ -112,6 +115,9 @@ func validateState(layout Layout, state State) error {
 	}
 	if state.ImageReference != developmentImageReference || state.ImageID == "" {
 		return fmt.Errorf("candidate state image identity is invalid")
+	}
+	if !builder.IsDigestReference(state.EnvironmentReference) {
+		return fmt.Errorf("candidate state environment reference is invalid")
 	}
 	if state.TemplateRevision == "" || state.CreatedAt.IsZero() {
 		return fmt.Errorf("candidate state template identity or creation time is incomplete")

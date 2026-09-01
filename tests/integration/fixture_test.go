@@ -10,13 +10,13 @@ import (
 	"testing"
 
 	"github.com/x12315/rm-relay/internal/build"
-	"github.com/x12315/rm-relay/internal/build/backend/localcontainer"
+	buildkitbackend "github.com/x12315/rm-relay/internal/build/backend/buildkit"
 	"github.com/x12315/rm-relay/internal/build/cmake"
 	"github.com/x12315/rm-relay/internal/build/output"
 	"github.com/x12315/rm-relay/internal/builder"
 	"github.com/x12315/rm-relay/internal/cli"
+	"github.com/x12315/rm-relay/internal/execution/buildx"
 	"github.com/x12315/rm-relay/internal/execution/command"
-	"github.com/x12315/rm-relay/internal/execution/docker"
 	"github.com/x12315/rm-relay/internal/execution/resourcecache"
 	"github.com/x12315/rm-relay/internal/profile"
 	"github.com/x12315/rm-relay/internal/target"
@@ -32,6 +32,7 @@ type developmentCycleFixture struct {
 	projectRoot string
 	cacheRoot   string
 	runner      *recordingRunner
+	builders    *integrationBuilderManager
 }
 
 type cliResult struct {
@@ -46,6 +47,7 @@ func newDevelopmentCycleFixture(t *testing.T) *developmentCycleFixture {
 		projectRoot: filepath.Join(t.TempDir(), "project"),
 		cacheRoot:   filepath.Join(t.TempDir(), "cache"),
 		runner:      &recordingRunner{},
+		builders:    &integrationBuilderManager{},
 	}
 	writeFile(t, filepath.Join(fixture.projectRoot, "rm-relay.toml"), projectConfig)
 	return fixture
@@ -58,15 +60,16 @@ func (fixture *developmentCycleFixture) runCLI(t *testing.T, arguments ...string
 		t.Fatal(err)
 	}
 	store := resourcecache.Store{Root: fixture.cacheRoot}
-	backends, err := build.NewBackendCatalog(localcontainer.Backend{
-		Docker:         docker.CLI{Runner: fixture.runner},
-		Workflows:      workflows,
-		CacheDirectory: filepath.Join(fixture.cacheRoot, "build", localcontainer.ID),
-	})
+	backend, err := buildkitbackend.NewBackend(builder.KindLocalBuildKit, integrationBuildx{}, workflows, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	builders, err := builder.NewCatalog()
+	backends, err := build.NewBackendCatalog(backend)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reference := "registry.example/environment@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	builders, err := builder.NewCatalog(builder.Definition{ID: builder.LocalID, Kind: builder.KindLocalBuildKit, BuildxBuilder: builder.LocalBuildxBuilder, Environments: map[string]string{"embedded-development": reference}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,6 +87,7 @@ func (fixture *developmentCycleFixture) runCLI(t *testing.T, arguments ...string
 	exitCode := cli.Run(context.Background(), append([]string{"--project", fixture.projectRoot}, arguments...), cli.Dependencies{
 		Profiles:        profile.BuiltinCatalog(),
 		Builders:        builders,
+		BuilderManager:  fixture.builders,
 		BuildBackends:   backends,
 		FlashAdapters:   adapters,
 		ProducerVersion: testProducerVersion,
@@ -105,22 +109,42 @@ func (fixture *developmentCycleFixture) writeInstalledArtifacts(t *testing.T) {
 }
 
 type recordingRunner struct {
-	requests    []command.Request
-	onDockerRun func()
+	requests []command.Request
 }
 
 func (runner *recordingRunner) Run(_ context.Context, request command.Request) (command.Result, error) {
 	runner.requests = append(runner.requests, request)
-	if request.Name == "docker" && len(request.Arguments) >= 2 && request.Arguments[0] == "image" && request.Arguments[1] == "inspect" {
-		return command.Result{Stdout: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n"}, nil
-	}
-	if request.Name == "docker" && len(request.Arguments) > 0 && request.Arguments[0] == "run" {
-		if runner.onDockerRun != nil {
-			runner.onDockerRun()
-		}
-		return command.Result{}, nil
-	}
 	return command.Result{}, fmt.Errorf("unexpected process %q", request.Name)
+}
+
+type integrationBuildx struct{}
+
+type integrationBuilderManager struct{ prepared []string }
+
+func (integrationBuilderManager) Add(context.Context, builder.AddRequest) error { return nil }
+func (integrationBuilderManager) Remove(context.Context, string) error          { return nil }
+func (integrationBuilderManager) SetEnvironment(string, string, string) error   { return nil }
+func (integrationBuilderManager) List() ([]builder.Definition, error)           { return nil, nil }
+func (manager *integrationBuilderManager) Prepare(_ context.Context, id string) error {
+	manager.prepared = append(manager.prepared, id)
+	return nil
+}
+func (integrationBuilderManager) Check(context.Context, string) error { return nil }
+
+func (integrationBuildx) ListBuilders(context.Context) ([]buildx.BuilderSummary, error) {
+	return nil, nil
+}
+func (integrationBuildx) CreateLocal(context.Context, buildx.CreateLocalRequest) error   { return nil }
+func (integrationBuildx) CreateRemote(context.Context, buildx.CreateRemoteRequest) error { return nil }
+func (integrationBuildx) RemoveBuilder(context.Context, string) error                    { return nil }
+func (integrationBuildx) InspectBuilder(context.Context, string) error                   { return nil }
+func (integrationBuildx) Build(_ context.Context, request buildx.BuildRequest) error {
+	for name, contents := range map[string]string{"robomaster-c-starter.elf": "elf", "robomaster-c-starter.bin": "bin", "robomaster-c-starter.map": "map"} {
+		if err := os.WriteFile(filepath.Join(request.OutputDirectory, name), []byte(contents), 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func readBuildOutputManifest(t *testing.T, path string) output.Manifest {

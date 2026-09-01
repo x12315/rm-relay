@@ -33,7 +33,7 @@ func TestRemoteMCUDevelopmentCycle(t *testing.T) {
 	runRelay(t, distributedCLI, environment, projectRoot, "init")
 	runRelay(t, distributedCLI, environment, projectRoot, "build", "--builder", "team")
 	producerVersion := assertDistributedVersion(t, distributedCLI)
-	manifest := assertBuildOutput(t, projectRoot, producerVersion)
+	manifest := assertBuildOutput(t, projectRoot, producerVersion, values["environment"])
 	if manifest.Builder.ID != "team" || manifest.Builder.Kind != "remote-buildkit" {
 		t.Fatalf("remote Builder evidence = %#v", manifest.Builder)
 	}
