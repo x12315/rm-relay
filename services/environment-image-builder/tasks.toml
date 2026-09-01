@@ -1,0 +1,32 @@
+["service:environment-image-builder:load"]
+description = "Build and load an environment image for definition maintenance"
+dir = "{{ config_root }}"
+run = """
+source_root="${RM_RELAY_ENVIRONMENT_SOURCE:-{{ config_root }}}"
+bake_file="${RM_RELAY_ENVIRONMENT_BAKE_FILE:-environments/embedded-development/docker-bake.hcl}"
+cd "${source_root}"
+docker buildx bake --file "${bake_file}" mcu-dev --load
+"""
+
+["service:environment-image-builder:verify"]
+description = "Build an environment definition for the host architecture"
+dir = "{{ config_root }}"
+run = """
+source_root="${RM_RELAY_ENVIRONMENT_SOURCE:-{{ config_root }}}"
+bake_file="${RM_RELAY_ENVIRONMENT_BAKE_FILE:-environments/embedded-development/docker-bake.hcl}"
+cd "${source_root}"
+docker buildx bake --file "${bake_file}" "verify-{{ arch() }}"
+"""
+
+["service:environment-image-builder:publish"]
+description = "Publish a multi-platform environment image and immutable handoff"
+dir = "{{ config_root }}"
+run = """
+sh services/environment-image-builder/publish.sh \
+  "${RM_RELAY_ENVIRONMENT_SOURCE:-{{ config_root }}}" \
+  "${RM_RELAY_ENVIRONMENT_BAKE_FILE:-environments/embedded-development/docker-bake.hcl}" \
+  "${RM_RELAY_ENVIRONMENT_IDENTITY_FILE:-environments/embedded-development/identity.toml}" \
+  "${RM_RELAY_IMAGE_BUILDER:?set RM_RELAY_IMAGE_BUILDER}" \
+  "${RM_RELAY_ENVIRONMENT_TAG:?set RM_RELAY_ENVIRONMENT_TAG}" \
+  "${RM_RELAY_ENVIRONMENT_HANDOFF:?set RM_RELAY_ENVIRONMENT_HANDOFF}"
+"""

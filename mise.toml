@@ -12,8 +12,8 @@ task.run_auto_install = false
 [task_config]
 includes = [
   "scripts/release/tasks.toml",
-  "environments/embedded-development/tasks.toml",
   "services/buildkit/tasks.toml",
+  "services/environment-image-builder/tasks.toml",
   "tests/tasks.toml",
   "tests/support/candidate/tasks.toml",
 ]

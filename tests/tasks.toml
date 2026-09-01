@@ -1,7 +1,7 @@
 ["test:unit"]
-description = "Run Go package unit tests"
+description = "Run module-local Go tests"
 dir = "{{ config_root }}"
-run = "gotestsum -- ./cmd/... ./internal/..."
+run = "gotestsum -- ./cmd/... ./internal/... ./services/... ./tests/support/..."
 
 ["test:architecture"]
 description = "Verify internal module dependency direction"

@@ -40,12 +40,14 @@ for required_file in \
     scripts/release/goreleaser.yaml \
     scripts/release/README.md \
     scripts/release/tasks.toml \
-    environments/embedded-development/tasks.toml \
     environments/embedded-development/identity.toml \
-    environments/embedded-development/publish.sh \
     services/buildkit/compose.yaml \
     services/buildkit/buildkitd.toml \
     services/buildkit/tasks.toml \
+    services/environment-image-builder/README.md \
+    services/environment-image-builder/publish.sh \
+    services/environment-image-builder/publish_test.go \
+    services/environment-image-builder/tasks.toml \
     tests/tasks.toml \
     tests/support/candidate/tasks.toml \
     cmd/rm-relay/main.go \
@@ -82,7 +84,6 @@ for required_file in \
     internal/target/openocd/board/robomaster-c.cfg \
     tests/architecture/dependency_direction_test.go \
     tests/integration/development_cycle_test.go \
-    tests/integration/environment_publication_test.go \
     tests/integration/fixture_test.go \
     tests/release/archives_test.go \
     tests/e2e/local_mcu_cycle_test.go \
