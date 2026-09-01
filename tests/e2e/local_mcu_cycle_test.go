@@ -66,7 +66,7 @@ func TestLocalMCUDevelopmentCycle(t *testing.T) {
 	temporaryRoot := t.TempDir()
 	distributionDirectory := filepath.Join(temporaryRoot, "snapshot")
 	root := repositoryRoot(t)
-	result, err := (command.OSRunner{}).Run(context.Background(), command.Request{Name: "go", Arguments: []string{"run", "./distribution/cli/cmd", "snapshot"}, Directory: root, Environment: map[string]string{"RM_RELAY_CLI_OUTPUT_DIR": distributionDirectory}})
+	result, err := (command.OSRunner{}).Run(context.Background(), command.Request{Name: "sh", Arguments: []string{"scripts/release/cli.sh", "snapshot", distributionDirectory}, Directory: root})
 	if err != nil {
 		t.Fatalf("build snapshot: %v: %s", err, result.Stderr)
 	}

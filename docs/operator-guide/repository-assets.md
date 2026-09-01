@@ -19,7 +19,7 @@ internal/
 ├── target/            从已验证 Build Output 到 target 的 adapter
 ├── execution/         OS process、mise 和内嵌资源物化
 
-distribution/cli/      CLI 构建、snapshot 与未来 release
+scripts/release/       CLI 构建、snapshot 与未来 release
 services/buildkit/     战队远程 BuildKit 的 Compose 部署
 
 environments/           可独立构建和发布的开发环境
@@ -59,7 +59,7 @@ Project 把输出角色映射到项目内的相对路径；Profile 声明 enviro
 | local/remote build 执行实现 | `internal/build/backend/<backend>/` |
 | target adapter 及其板卡/协议资产 | `internal/target/<adapter>/` |
 | 通用进程与工具调用边界 | `internal/execution/` |
-| CLI 分发实现与 GoReleaser 配置 | `distribution/cli/` |
+| CLI 发布脚本与 GoReleaser 配置 | `scripts/release/` |
 | mTLS BuildKit 服务部署 | `services/buildkit/` |
 | 候选体验支持 | `tests/support/candidate/` |
 | 开发镜像产品 | `environments/<image>/` |
@@ -78,7 +78,7 @@ Project 把输出角色映射到项目内的相对路径；Profile 声明 enviro
 GoReleaser 定义 CLI 平台矩阵与 archive，Docker Bake 定义 image 构建矩阵，两者不在测试
 代码中维护第二份目标列表。
 
-各模块的 mise task 与事实源就近保存：`distribution/cli/tasks.toml`、
+各模块的 mise task 与事实源就近保存：`scripts/release/tasks.toml`、
 `environments/embedded-development/tasks.toml`、`services/buildkit/tasks.toml` 和
 `tests/support/candidate/tasks.toml` 分别拥有分发、环境、服务和候选体验操作。根级
 `mise.toml` 只固定维护工具并 include 这些入口；跨模块流程可以组合 task，不复制底层命令。

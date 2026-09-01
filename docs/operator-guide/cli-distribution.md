@@ -1,7 +1,7 @@
 # CLI 本地分发制品
 
-GoReleaser 继续定义 `rm-relay` 的平台矩阵、版本注入、archive 命名与 checksum。维护者任务在仓库
-外的临时 clone 中运行 GoReleaser，再把结果原子写入指定目录；仓库根不生成 `dist/`。
+GoReleaser 继续定义 `rm-relay` 的平台矩阵、版本注入、archive 命名与 checksum。薄发布脚本在
+仓库外的临时 clone 中运行 GoReleaser，再把结果原子写入指定目录；仓库根不生成 `dist/`。
 
 ## 输出目录
 
@@ -11,21 +11,14 @@ GoReleaser 继续定义 `rm-relay` 的平台矩阵、版本注入、archive 命�
 - 必须位于仓库外；
 - 目标路径不能已经存在。
 
-macOS 或 Linux 示例：
+维护者在 macOS 或 Linux 上可以直接调用脚本：
 
 ```bash
-export RM_RELAY_CLI_OUTPUT_DIR=/absolute/path/to/rm-relay-cli
-mise run distribution:cli:snapshot
+scripts/release/cli.sh snapshot /absolute/path/to/rm-relay-cli
 ```
 
-PowerShell 示例：
-
-```powershell
-$env:RM_RELAY_CLI_OUTPUT_DIR = 'C:\absolute\path\to\rm-relay-cli'
-mise run distribution:cli:snapshot
-```
-
-任务不会自行选择长期制品目录。调用者负责确定保留位置和后续上传方式。
+需要通过 mise 组合维护任务时，设置 `RM_RELAY_CLI_OUTPUT_DIR` 后运行同名 task。脚本和 task 都
+不会自行选择长期制品目录；调用者负责确定保留位置和后续上传方式。
 
 ## 两种输出
 

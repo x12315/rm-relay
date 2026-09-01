@@ -21,7 +21,15 @@ type binaryBuilder struct {
 }
 
 func (builder binaryBuilder) BuildHostBinary(ctx context.Context, output string) (candidate.Binary, error) {
-	result, err := builder.runner.Run(ctx, command.Request{Name: "go", Arguments: []string{"run", "./distribution/cli/cmd", "host-binary", output}, Directory: builder.root, Stderr: os.Stderr})
+	revisionResult, err := builder.runner.Run(ctx, command.Request{Name: "git", Arguments: []string{"rev-parse", "--short=12", "HEAD"}, Directory: builder.root})
+	if err != nil {
+		return candidate.Binary{}, fmt.Errorf("read candidate revision: %w", err)
+	}
+	version := "candidate-" + strings.TrimSpace(revisionResult.Stdout)
+	result, err := builder.runner.Run(ctx, command.Request{
+		Name: "go", Arguments: []string{"build", "-trimpath", "-ldflags", "-s -w -X main.version=" + version, "-o", output, "./cmd/rm-relay"},
+		Directory: builder.root, Stderr: os.Stderr,
+	})
 	if err != nil {
 		return candidate.Binary{}, fmt.Errorf("build candidate CLI: %w: %s", err, strings.TrimSpace(result.Stderr))
 	}
@@ -29,7 +37,10 @@ func (builder binaryBuilder) BuildHostBinary(ctx context.Context, output string)
 	if err != nil {
 		return candidate.Binary{}, fmt.Errorf("read candidate CLI version: %w", err)
 	}
-	version := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(versionResult.Stdout), "rm-relay version "))
+	actualVersion := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(versionResult.Stdout), "rm-relay version "))
+	if actualVersion != version {
+		return candidate.Binary{}, fmt.Errorf("candidate CLI version = %q, want %q", actualVersion, version)
+	}
 	file, err := os.Open(output)
 	if err != nil {
 		return candidate.Binary{}, err
@@ -39,7 +50,7 @@ func (builder binaryBuilder) BuildHostBinary(ctx context.Context, output string)
 	if _, err := io.Copy(hash, file); err != nil {
 		return candidate.Binary{}, err
 	}
-	return candidate.Binary{Path: output, Version: version, SHA256: hex.EncodeToString(hash.Sum(nil))}, nil
+	return candidate.Binary{Path: output, Version: actualVersion, SHA256: hex.EncodeToString(hash.Sum(nil))}, nil
 }
 
 func main() {

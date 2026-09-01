@@ -42,7 +42,7 @@ func TestRemoteMCUDevelopmentCycle(t *testing.T) {
 func buildCurrentPlatformCLI(t *testing.T, temporaryRoot string) string {
 	t.Helper()
 	distributionDirectory := filepath.Join(temporaryRoot, "snapshot")
-	result := runCommand(t, repositoryRoot(t), append(environmentWithout("RM_RELAY_CLI_OUTPUT_DIR"), "RM_RELAY_CLI_OUTPUT_DIR="+distributionDirectory), "go", "run", "./distribution/cli/cmd", "snapshot")
+	result := runCommand(t, repositoryRoot(t), environmentWithout("RM_RELAY_CLI_OUTPUT_DIR"), "sh", "scripts/release/cli.sh", "snapshot", distributionDirectory)
 	_ = result
 	archivePath := requireCurrentPlatformArchive(t, distributionDirectory)
 	return extractDistributedCLI(t, archivePath, filepath.Join(temporaryRoot, "distribution"))

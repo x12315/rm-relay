@@ -36,8 +36,10 @@ for required_file in \
     go.mod \
     go.sum \
     mise.toml \
-    distribution/cli/goreleaser.yaml \
-    distribution/cli/tasks.toml \
+    scripts/release/cli.sh \
+    scripts/release/goreleaser.yaml \
+    scripts/release/README.md \
+    scripts/release/tasks.toml \
     environments/embedded-development/tasks.toml \
     services/buildkit/compose.yaml \
     services/buildkit/buildkitd.toml \
@@ -68,8 +70,6 @@ for required_file in \
     internal/execution/mise/invocation.go \
     internal/execution/mise/base.mise.toml \
     internal/execution/resourcecache/store.go \
-    distribution/cli/cmd/main.go \
-    distribution/cli/internal/packager/packager.go \
     tests/support/candidate/cmd/main.go \
     tests/support/candidate/internal/candidate/service.go \
     internal/target/adapter.go \
@@ -122,6 +122,7 @@ for absent_path in \
     validation \
     cmd/rm-relay-maintainer \
     internal/maintainer \
+    distribution \
     container-images \
     .goreleaser.yaml; do
     assert_path_absent "${absent_path}"
