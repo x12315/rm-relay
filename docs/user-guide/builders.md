@@ -8,6 +8,9 @@ environment 映射到不可变 OCI image。Project 只保存逻辑 Builder 名�
 environment digest 时选择远程 Builder。两者执行同一 BuildKit frontend，最终都把 Build Output
 返回开发机。
 
+本页的构建步骤以“已经从维护者取得 Profile 对应的 immutable environment digest”为前提。
+正式 digest 尚未发布时，可以审查和验证 Builder 控制面，但不能据此声称普通用户入口已经可用。
+
 ## 本地 Builder
 
 `local` 是内建 Builder。RM Relay 不安装 Docker；开发机必须已有 Docker Desktop 或 Docker
@@ -26,8 +29,8 @@ rm-relay builder set-environment local embedded-development \
 rm-relay build --builder local
 ```
 
-第一次构建时，CLI 会准备名为 `rm-relay-local` 的 Buildx `docker-container` resource，并固定
-其 BuildKit image 版本；后续构建复用该资源及其 cache。CLI 不执行 `docker buildx use`，不会
+第一次构建时，CLI 会准备名为 `rm-relay-local` 的 Buildx `docker-container` resource，并把
+BuildKit image 固定到 OCI digest；后续构建复用该资源及其 cache。CLI 不执行 `docker buildx use`，不会
 改变用户在其他项目中选择的 Builder。也可以单独准备或检查：
 
 ```bash
