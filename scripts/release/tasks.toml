@@ -1,9 +1,9 @@
-["distribution:cli:build"]
+["release:build"]
 description = "Cross-build unarchived CLI binaries into an explicit external directory"
 dir = "{{ config_root }}"
 run = "sh scripts/release/cli.sh build \"${RM_RELAY_CLI_OUTPUT_DIR:?set RM_RELAY_CLI_OUTPUT_DIR to an absolute external directory}\""
 
-["distribution:cli:snapshot"]
+["release:snapshot"]
 description = "Create CLI snapshot archives in an explicit external directory"
 dir = "{{ config_root }}"
 run = "sh scripts/release/cli.sh snapshot \"${RM_RELAY_CLI_OUTPUT_DIR:?set RM_RELAY_CLI_OUTPUT_DIR to an absolute external directory}\""

@@ -112,7 +112,7 @@ Container Template 也属于 profile 的环境交付，不等同于某个 IDE �
 
 环境定义与可选 integration 以后可以形成独立仓库，但不改变上述两类核心 Template 的归属。
 三个仓库分别组织什么、当前资产为何仍留在 monorepo，集中见
-[仓库资产地图](../operator-guide/repository-assets.md#规划中的仓库边界)。
+[仓库资产地图](repository-assets.md#规划中的仓库边界)。
 
 ## 项目依赖通过派生镜像进入
 

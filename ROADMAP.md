@@ -50,7 +50,7 @@ Dev Container Template 同样属于核心 profile 契约，不作为 IDE 插件�
 当前环境定义继续保留在主仓库。Profile schema、环境与 image 的映射、独立验证和发布流程
 稳定后，再建立 `rm-relay-environments`，分别组织官方默认与社区环境定义；构建后的
 image blob 仍发布到 OCI Registry。仓库职责见
-[仓库资产地图](docs/operator-guide/repository-assets.md#规划中的仓库边界)。
+[仓库资产地图](docs/architecture/repository-assets.md#规划中的仓库边界)。
 
 ### 可选 IDE 与 Agent integration
 
@@ -64,7 +64,7 @@ image blob 仍发布到 OCI Registry。仓库职责见
 
 当前[VS Code 示例](docs/user-guide/vscode-example.md)只是可复制的参考片段，不是一键导入或
 独立发布的 integration package。规划仓库的资产边界见
-[仓库资产地图](docs/operator-guide/repository-assets.md#规划中的仓库边界)；具体目录、Skill
+[仓库资产地图](docs/architecture/repository-assets.md#规划中的仓库边界)；具体目录、Skill
 内容、发布命令、CI 和支持列表留到启动时设计。
 
 ## 3. 发布正式镜像并验证远程构建服务

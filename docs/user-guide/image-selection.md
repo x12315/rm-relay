@@ -15,7 +15,7 @@ build target。
 
 公开镜像尚未发布，因此普通用户目前没有稳定的 image 获取入口。本页只说明已获得 image 后的
 使用边界；候选 image 的构建、双架构检查与发布准备属于
-[镜像构建与验证](../operator-guide/build-and-verify-images.md)，不作为用户上手步骤。
+[`embedded-development` 维护指南](../../environments/embedded-development/MAINTAINING.md)，不作为用户上手步骤。
 
 取得维护者提供的 immutable reference 后，不需要手动 `docker pull`：
 

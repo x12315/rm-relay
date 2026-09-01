@@ -8,8 +8,8 @@ archive 内容、checksum、manifest、错误码和模块契约属于自动测�
 
 ## 执行顺序
 
-1. 先通过 `test:unit`、`test:architecture`、`test:integration`、`test:distribution` 和适用的 E2E；
-2. 按[候选体验环境](../../docs/operator-guide/candidate-experience-environment.md)运行
+1. 先通过 `test:unit`、`test:architecture`、`test:integration`、`test:release` 和适用的 E2E；
+2. 按[候选体验环境](../support/candidate/README.md)运行
    `experience:prepare` 与 `experience:enter`；
 3. 在候选 shell 中选择下方场景，逐条输入普通用户命令；
 4. 退出 shell 后运行 `experience:clean`。

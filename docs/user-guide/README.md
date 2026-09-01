@@ -31,5 +31,6 @@
 | 按错误症状定位问题 | [故障排查](troubleshooting.md) |
 | 判断某个平台或 backend 是否经过真实验证 | [支持矩阵](support-matrix.md) |
 
-镜像维护和发布不属于用户操作，见[镜像构建与验证](../operator-guide/build-and-verify-images.md)。
+镜像维护和发布不属于用户操作，见
+[`embedded-development` 维护指南](../../environments/embedded-development/MAINTAINING.md)。
 架构角色、目标能力和未来设计见[开发平台架构](../architecture/README.md)。

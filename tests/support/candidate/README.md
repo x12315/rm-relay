@@ -1,6 +1,6 @@
 # 候选体验环境
 
-候选体验环境供维护者在正式 CLI Release、OCI image 和独立 Project Template 尚未发布时检查完整
+本测试支持模块供维护者在正式 CLI Release、OCI image 和独立 Project Template 尚未发布时检查完整
 用户入口。它把测试用品放在仓库外，核验者进入后仍按普通用户方式 clone、初始化和构建项目。
 
 这不是远程 staging。staging 是将来部署在独立服务器上的预生产服务实例，不由本地体验环境
@@ -35,7 +35,8 @@ RM Relay 通过 Go `os.UserCacheDir()` 选择平台惯用目录：
 
 候选环境需要一个可由 BuildKit 拉取的 development image digest。当前 Registry 产品和正式
 官方 image 尚未确定，因此先由维护者显式提供；需要制作候选 digest 时使用
-[镜像构建与验证](build-and-verify-images.md#推送-oci-image)中的共用发布入口：
+[`embedded-development` 维护指南](../../../environments/embedded-development/MAINTAINING.md#推送-oci-image)
+中的共用发布入口：
 
 ```bash
 export RM_RELAY_CANDIDATE_ENVIRONMENT='registry.example.org/rm-relay/embedded-development@sha256:<64位小写十六进制摘要>'
@@ -66,7 +67,7 @@ image ID 与 template revision。任一身份变化都会中止，避免核验�
 校验通过后，RM Relay 在外置 `workspace/` 打开宿主 shell，将候选 CLI 临时放到 `PATH` 首位，通过
 `RM_RELAY_TEMPLATE_URL` 提供本地 Git origin，并把候选 CLI 的用户配置隔离到 `config/`。它不会
 自动 clone、build 或运行用户程序。
-人工步骤见[本地 MCU 开发体验](../../tests/manual/user-experience/local-mcu-development.md)。
+人工步骤见[本地 MCU 开发体验](../../manual/user-experience/local-mcu-development.md)。
 人工链路首先执行 `rm-relay environment check`，由真实 local Builder 拉取并核验候选 image；
 候选制备阶段写入映射本身不算 image 可用性证据。
 

@@ -13,10 +13,10 @@ description = "Run cross-module tests without external processes"
 dir = "{{ config_root }}"
 run = "gotestsum -- ./tests/integration/..."
 
-["test:distribution"]
+["test:release"]
 description = "Build and verify CLI snapshot archives"
 dir = "{{ config_root }}"
-run = "gotestsum -- -tags=distribution ./tests/distribution/..."
+run = "gotestsum -- -tags=release ./tests/release/..."
 
 ["test:e2e"]
 description = "Run the distributed CLI through Git and BuildKit"

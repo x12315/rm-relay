@@ -84,13 +84,14 @@ for required_file in \
     tests/integration/development_cycle_test.go \
     tests/integration/environment_publication_test.go \
     tests/integration/fixture_test.go \
-    tests/distribution/archives_test.go \
+    tests/release/archives_test.go \
     tests/e2e/local_mcu_cycle_test.go \
     tests/manual/README.md \
     tests/manual/user-experience/local-mcu-development.md \
     scripts/verify/repository-layout.sh \
     scripts/verify/toolchain-source-policy.sh \
     environments/embedded-development/README.md \
+    environments/embedded-development/MAINTAINING.md \
     environments/embedded-development/Dockerfile \
     environments/embedded-development/docker-bake.hcl \
     project-templates/cross-platform-cpp/README.md \
@@ -100,8 +101,10 @@ for required_file in \
     project-templates/cross-platform-cpp/CMakePresets.json \
     project-templates/cross-platform-cpp/rm-relay.toml \
     examples/deterministic-pi-control/README.md \
-    docs/operator-guide/candidate-experience-environment.md \
-    docs/operator-guide/cli-distribution.md; do
+    docs/architecture/repository-assets.md \
+    docs/operator-guide/README.md \
+    docs/operator-guide/deploy-buildkit-service.md \
+    tests/support/candidate/README.md; do
     assert_file_exists "${required_file}"
 done
 
@@ -129,11 +132,28 @@ for absent_path in \
     cmd/rm-relay-maintainer \
     internal/maintainer \
     distribution \
+    tests/distribution \
     container-images \
-    .goreleaser.yaml; do
+    .goreleaser.yaml \
+    docs/operator-guide/build-and-verify-images.md \
+    docs/operator-guide/candidate-experience-environment.md \
+    docs/operator-guide/cli-distribution.md \
+    docs/operator-guide/repository-assets.md; do
     assert_path_absent "${absent_path}"
 done
 
 assert_path_absent "dist"
+
+for operator_document in "${repository_root}/docs/operator-guide"/*; do
+    [ -e "${operator_document}" ] || continue
+    case "${operator_document}" in
+        "${repository_root}/docs/operator-guide/README.md"|\
+        "${repository_root}/docs/operator-guide/deploy-buildkit-service.md") ;;
+        *)
+            printf 'undeclared operator guide document: %s\n' "${operator_document#"${repository_root}/"}" >&2
+            exit 1
+            ;;
+    esac
+done
 
 printf '%s\n' 'repository layout contract passed'

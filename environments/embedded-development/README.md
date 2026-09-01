@@ -22,5 +22,4 @@ Builder、带版本的 OCI tag 和仓库外 handoff 路径；发布要求 clean 
 `rm-relay environment add` 的 immutable reference。该 Builder 与普通开发者执行
 `rm-relay build` 使用的 workspace Builder 保持独立。
 
-构建、验证和发布方式见
-[镜像构建与验证](../../docs/operator-guide/build-and-verify-images.md)。
+构建、验证和发布方式见[维护指南](MAINTAINING.md)。

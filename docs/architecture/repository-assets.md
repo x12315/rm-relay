@@ -1,6 +1,6 @@
 # 仓库资产地图
 
-本页用于判断新文件应由哪个模块负责。RM Relay 不设置全局 `config/`、`assets/`
+本页是贡献者查询仓库资产归属和模块拓扑的架构参考。RM Relay 不设置全局 `config/`、`assets/`
 或 `profiles/` 杂项层；TOML、OpenOCD cfg 和其他声明式文件也是源码，跟随解释它们的
 模块。
 
@@ -29,12 +29,14 @@ examples/               有完整行为与测试的示例
 tests/
 ├── architecture/      可执行依赖方向
 ├── integration/       跨模块组合
-├── distribution/      CLI archive 契约
+├── release/           CLI archive 契约
 ├── e2e/               分发二进制驱动的自动真实链路
 ├── manual/            只需人判断的候选版本用户体验核验
 └── support/candidate/ 仓库外候选环境制备与回收
 scripts/verify/         仓库拓扑、版本和软件源等静态契约
-docs/                   面向人的项目事实与入口
+docs/
+├── architecture/      跨模块结构与边界
+└── operator-guide/    战队长期服务的部署与维护
 ```
 
 `internal/build/cmake/build.mise.toml` 归 CMake Workflow 所有；
@@ -69,7 +71,7 @@ Project 把输出角色映射到项目内的相对路径；Profile 声明 enviro
 | 完整可测行为 | `examples/<example>/` |
 | 可执行依赖方向 | `tests/architecture/` |
 | 跨模块组合行为 | `tests/integration/` |
-| CLI archive 契约 | `tests/distribution/` |
+| CLI archive 契约 | `tests/release/` |
 | 分发二进制驱动的真实开发链路 | `tests/e2e/` |
 | 候选版本的用户体验人工核验 | `tests/manual/user-experience/` |
 | 静态仓库契约 | `scripts/verify/` |
@@ -82,8 +84,12 @@ GoReleaser 定义 CLI 平台矩阵与 archive，Docker Bake 定义 image 构建�
 
 各模块的 mise task 与事实源就近保存：`scripts/release/tasks.toml`、
 `environments/embedded-development/tasks.toml`、`services/buildkit/tasks.toml` 和
-`tests/support/candidate/tasks.toml` 分别拥有分发、环境、服务和候选体验操作。根级
+`tests/support/candidate/tasks.toml` 分别拥有 Release、environment、service 和候选体验操作。根级
 `mise.toml` 只固定维护工具并 include 这些入口；跨模块流程可以组合 task，不复制底层命令。
+
+维护说明也跟随负责的资产：CLI Release 说明位于 `scripts/release/`，environment image 维护
+说明位于对应 `environments/<environment>/`，候选体验说明位于 `tests/support/candidate/`。
+`docs/operator-guide/` 只保留战队运维实际部署和维护长期服务所需的指南。
 
 ## 规划中的仓库边界
 

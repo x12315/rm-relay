@@ -5,7 +5,7 @@ Build Output。它要求已有可达的 mTLS BuildKit 服务和远端可拉取�
 
 ## 制备测试用品
 
-维护者先运行自动测试，并按[候选体验环境](../../../docs/operator-guide/candidate-experience-environment.md)
+维护者先运行自动测试，并按[候选体验环境](../../support/candidate/README.md)
 制备仓库外候选 CLI、development image、模板 Git origin 和空 workspace：
 
 ```bash

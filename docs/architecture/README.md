@@ -187,4 +187,4 @@ sandbox 不阻塞当前开发闭环，见[路线图的后续可选模块](../../
 | 某个术语、身份、目录或生命周期的准确契约 | [开发契约参考](../reference/development-contracts.md) |
 | 现在究竟支持哪些平台和后端 | [支持矩阵](../user-guide/support-matrix.md) |
 | 下一步按什么顺序建设 | [路线图](../../ROADMAP.md) |
-| 源码、镜像、模板、示例、测试和静态检查如何分工 | [仓库资产地图](../operator-guide/repository-assets.md) |
+| 源码、镜像、模板、示例、测试和静态检查如何分工 | [仓库资产地图](repository-assets.md) |

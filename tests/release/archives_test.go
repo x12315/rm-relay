@@ -1,6 +1,6 @@
-//go:build distribution
+//go:build release
 
-package distribution
+package release
 
 import (
 	"archive/tar"
@@ -31,15 +31,15 @@ var expectedArchives = map[string][]string{
 }
 
 func TestSnapshotArchivesContainOnlyTheCLIAndLicense(t *testing.T) {
-	distributionDirectory := filepath.Join(t.TempDir(), "snapshot")
+	releaseDirectory := filepath.Join(t.TempDir(), "snapshot")
 	root := repositoryRoot(t)
 	result, err := (command.OSRunner{}).Run(context.Background(), command.Request{
-		Name: "sh", Arguments: []string{"scripts/release/cli.sh", "snapshot", distributionDirectory}, Directory: root,
+		Name: "sh", Arguments: []string{"scripts/release/cli.sh", "snapshot", releaseDirectory}, Directory: root,
 	})
 	if err != nil {
 		t.Fatalf("snapshot command: %v: %s", err, result.Stderr)
 	}
-	if _, err := os.Stat(distributionDirectory); err != nil {
+	if _, err := os.Stat(releaseDirectory); err != nil {
 		t.Fatal(err)
 	}
 	archivePaths := make(map[string]string, len(expectedArchives))
@@ -48,11 +48,11 @@ func TestSnapshotArchivesContainOnlyTheCLIAndLicense(t *testing.T) {
 		if strings.HasPrefix(platform, "windows_") {
 			extension = ".zip"
 		}
-		archivePath := singleMatch(t, filepath.Join(distributionDirectory, "rm-relay_*_"+platform+extension))
+		archivePath := singleMatch(t, filepath.Join(releaseDirectory, "rm-relay_*_"+platform+extension))
 		archivePaths[filepath.Base(archivePath)] = archivePath
 		assertArchiveFiles(t, archivePath, expectedFiles)
 	}
-	assertChecksums(t, distributionDirectory, archivePaths)
+	assertChecksums(t, releaseDirectory, archivePaths)
 }
 
 func singleMatch(t *testing.T, pattern string) string {
@@ -138,9 +138,9 @@ func readTarGzip(t *testing.T, archivePath string) map[string]int64 {
 	return contents
 }
 
-func assertChecksums(t *testing.T, distributionDirectory string, archivePaths map[string]string) {
+func assertChecksums(t *testing.T, releaseDirectory string, archivePaths map[string]string) {
 	t.Helper()
-	checksumPath := singleMatch(t, filepath.Join(distributionDirectory, "rm-relay_*_checksums.txt"))
+	checksumPath := singleMatch(t, filepath.Join(releaseDirectory, "rm-relay_*_checksums.txt"))
 	checksumFile, err := os.Open(checksumPath)
 	if err != nil {
 		t.Fatal(err)
@@ -199,7 +199,7 @@ func repositoryRoot(t *testing.T) string {
 	t.Helper()
 	_, sourcePath, _, ok := runtime.Caller(0)
 	if !ok {
-		t.Fatal("locate distribution test source")
+		t.Fatal("locate release test source")
 	}
 	root := filepath.Clean(filepath.Join(filepath.Dir(sourcePath), "..", ".."))
 	if _, err := os.Stat(filepath.Join(root, "go.mod")); err != nil {

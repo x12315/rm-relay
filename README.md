@@ -72,10 +72,12 @@ USB、烧录与调试按宿主平台接入。CLI 已支持拉取、核验并登�
 
 想先理解项目将如何工作，阅读[开发平台架构](docs/architecture/README.md)和
 [开发契约参考](docs/reference/development-contracts.md)。维护项目或参与建设时，再阅读
-[仓库资产地图](docs/operator-guide/repository-assets.md)、[项目路线](ROADMAP.md)、
+[仓库资产地图](docs/architecture/repository-assets.md)、[项目路线](ROADMAP.md)、
 [开发者人工核验](tests/manual/README.md)、[社区工作](docs/community/README.md)与
 [贡献指南](CONTRIBUTING.md)。当前功能的使用方式从[使用指南](docs/user-guide/README.md)
-进入，自动测试与镜像验证见[镜像构建与验证](docs/operator-guide/build-and-verify-images.md)。
+进入，CLI 制品维护见[发布脚本](scripts/release/README.md)，environment image 维护见
+[`embedded-development` 维护指南](environments/embedded-development/MAINTAINING.md)，战队服务部署从
+[运维指南](docs/operator-guide/README.md)进入。
 
 ## 发起与许可证
 

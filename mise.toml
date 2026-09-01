@@ -24,13 +24,3 @@ run = [
   "sh scripts/verify/repository-layout.sh",
   "sh scripts/verify/toolchain-source-policy.sh",
 ]
-
-[tasks."cli:cross-build"]
-description = "Compatibility alias for distribution:cli:build"
-hide = true
-run = [{ task = "distribution:cli:build" }]
-
-[tasks."cli:package-snapshot"]
-description = "Compatibility alias for distribution:cli:snapshot"
-hide = true
-run = [{ task = "distribution:cli:snapshot" }]

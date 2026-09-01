@@ -1,7 +1,7 @@
-# 镜像构建与验证
+# embedded-development 维护指南
 
-本页供镜像维护者和构建服务部署者使用。功能使用方式从
-[使用指南](../user-guide/README.md)进入，不必了解镜像内部的安装过程。
+本页供 environment image 维护者构建、验证和发布当前嵌入式开发环境。
+普通开发者从[使用指南](../../docs/user-guide/README.md)进入，不需要了解镜像内部的安装过程。
 
 ## 唯一构建入口
 
@@ -76,7 +76,7 @@ Registry 与 CI 产品仍未选定。
 
 ## LTS 基线与软件源
 
-版本基线见 [镜像版本基线](../../environments/embedded-development/locks/README.md)：
+版本基线见 [镜像版本基线](locks/README.md)：
 
 - Ubuntu 固定在 24.04 LTS 系列，重新构建时接收同一 LTS 的安全更新；
 - native 构建显式使用 GCC 14，STM32 构建使用 Arm GNU 13.2.Rel1；
@@ -190,56 +190,26 @@ docker run --rm -t \
 这些命令应在候选 development image 内执行。前三个 workflow 由 CTest 发现并运行 Catch2
 测试，最后一个生成 F407 固件，但不访问硬件。
 
-最后验证 CLI archive。完整本地链路还需要一个已推送的 immutable environment：
+要验证该 environment 能被公开 CLI 消费，还需要一个已推送的 immutable reference：
 
 ```bash
-mise run test:distribution
 export RM_RELAY_E2E_LOCAL_ENVIRONMENT='registry.example.org/rm-relay/embedded-development@sha256:<64位小写十六进制摘要>'
 mise run test:e2e
 ```
 
-`test:distribution` 检查 Darwin、Linux、Windows 的 amd64/arm64 archive 和 SHA-256；它不在
-当前主机运行其他平台的二进制。`test:e2e` 解压当前平台 archive，真实执行 Git clone、
-`rm-relay init`、受管 Buildx 构建、Build Output 校验和 OpenOCD dry-run。两项任务都在临时目录生成
-并消费自己的候选制品，不向仓库写入 `dist/`，结束后也不保留可供人工核验的环境。缺少 Git、
+`test:e2e` 解压当前平台 CLI archive，真实执行 Git clone、
+`rm-relay init`、受管 Buildx 构建、Build Output 校验和 OpenOCD dry-run。该任务在临时目录生成
+并消费自己的候选制品，不向仓库写入 `dist/`。缺少 Git、
 Docker 或可用的 Docker daemon 时，实际执行会失败；未设置 environment digest 时，本地 E2E
 明确跳过。dry-run 只解析 adapter 配置并生成宿主 mise/OpenOCD 命令，不执行 mise 或 OpenOCD。
 
 这组结果最多证明 `host-tested`、`cross-compiled` 和 OpenOCD `configured`。真实烧录、启动
-和源码调试仍以[支持矩阵](../user-guide/support-matrix.md)的硬件证据为准。
-
-## 开发者人工核验
-
-自动 E2E 通过后，先按[候选体验环境](candidate-experience-environment.md)制备仓库外的候选 CLI、
-development image 和 Project Template origin，再从[人工测试索引](../../tests/manual/README.md)
-选择与宿主和链路匹配的场景。核验者只逐条输入普通用户会执行的公开命令，判断文档顺序、可见
-输出和理解成本；确定性的 archive、checksum、manifest 与错误码继续由自动测试负责。
-
-人工结果同样遵守证据等级：没有连接硬件的场景只能记录 `cross-compiled` 与 adapter
-`configured`，不能升级为 `detected`、`flashed`、`boot-observed` 或 `debug-tested`。
-
-## CLI 本地候选制品
-
-GoReleaser 是 CLI 支持矩阵、版本注入、archive 命名和 checksum 的事实源：
-
-```bash
-export RM_RELAY_CLI_OUTPUT_DIR=/absolute/path/to/rm-relay-cli
-mise run distribution:cli:build
-
-export RM_RELAY_CLI_OUTPUT_DIR=/absolute/path/to/rm-relay-cli-snapshot
-mise run distribution:cli:snapshot
-```
-
-输出目录必须是仓库外尚不存在的绝对路径；两项任务只接受 clean revision。完整约束和 Windows
-示例见 [CLI 本地分发制品](cli-distribution.md)。当前命令不发布 GitHub Release。CLI archive
-只包含 `rm-relay[.exe]` 与 `LICENSE`；mise、development image 和 Project Template 分别通过
-自身渠道交付。
+和源码调试仍以[支持矩阵](../../docs/user-guide/support-matrix.md)的硬件证据为准。
 
 ## 自动化扩展点
 
-本仓库已提供可独立调用的 environment publish task，以及单节点 mTLS workspace builder 部署；
-尚未实现官方 CI workflow、OCI Registry 部署和公共云服务。Workspace builder 部署入口见
-[部署 mTLS BuildKit 服务](deploy-buildkit-service.md)。后续 adapter 应保持以下边界：
+本仓库已提供可独立调用的 environment publish task；尚未实现官方 CI workflow、
+OCI Registry 部署和公共云服务。后续 adapter 应保持以下边界：
 
 - 构建服务负责选择 builder、注入 registry tag、缓存和凭据；
 - 工具版本、Dockerfile、Bake target 和 smoke contract 继续在本目录定义；
