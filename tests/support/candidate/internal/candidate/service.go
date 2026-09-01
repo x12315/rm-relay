@@ -2,7 +2,6 @@ package candidate
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/x12315/rm-relay/internal/builder"
 	"github.com/x12315/rm-relay/internal/environment"
-	"github.com/x12315/rm-relay/internal/execution/buildx"
 	"github.com/x12315/rm-relay/internal/execution/command"
 )
 
@@ -29,7 +27,7 @@ type Prepared struct {
 	Root                 string
 	Revision             string
 	CLIVersion           string
-	ImageID              string
+	BuilderID            string
 	EnvironmentReference string
 	TemplateURL          string
 }
@@ -38,6 +36,8 @@ type Prepared struct {
 type Service struct {
 	RepositoryRoot       string
 	UserCacheRoot        string
+	Builder              builder.Definition
+	EnvironmentID        string
 	EnvironmentReference string
 	Runner               command.Runner
 	BinaryBuilder        BinaryBuilder
@@ -48,8 +48,8 @@ type Service struct {
 	Stderr               io.Writer
 }
 
-// Prepare creates a candidate CLI, image, template origin and empty workspace outside the repository.
-func (service Service) Prepare(ctx context.Context) (prepared Prepared, returnError error) {
+// Prepare creates a candidate CLI, isolated resource mapping, template origin and empty workspace outside the repository.
+func (service Service) Prepare(ctx context.Context) (Prepared, error) {
 	layout, err := service.validatedLayout()
 	if err != nil {
 		return Prepared{}, err
@@ -57,8 +57,12 @@ func (service Service) Prepare(ctx context.Context) (prepared Prepared, returnEr
 	if service.BinaryBuilder == nil {
 		return Prepared{}, fmt.Errorf("candidate CLI builder is not configured")
 	}
-	if _, err := environment.ParseDigestReference(service.EnvironmentReference); err != nil {
-		return Prepared{}, fmt.Errorf("RM_RELAY_CANDIDATE_ENVIRONMENT must use image@sha256:<digest>")
+	if service.Runner == nil {
+		return Prepared{}, fmt.Errorf("process runner is not configured")
+	}
+	selectedBuilder, err := service.isolatedBuilderDefinition()
+	if err != nil {
+		return Prepared{}, err
 	}
 	if _, err := os.Lstat(layout.Root); err == nil {
 		return Prepared{}, fmt.Errorf("candidate experience already exists at %s", layout.Root)
@@ -72,11 +76,6 @@ func (service Service) Prepare(ctx context.Context) (prepared Prepared, returnEr
 	if err != nil {
 		return Prepared{}, err
 	}
-	previousImageID, err := service.currentTaggedImage(ctx)
-	if err != nil {
-		return Prepared{}, err
-	}
-
 	if err := os.MkdirAll(filepath.Dir(layout.Root), 0o755); err != nil {
 		return Prepared{}, fmt.Errorf("create candidate experience parent: %w", err)
 	}
@@ -85,15 +84,10 @@ func (service Service) Prepare(ctx context.Context) (prepared Prepared, returnEr
 		return Prepared{}, fmt.Errorf("create candidate preparation directory: %w", err)
 	}
 	preparingLayout := layoutWithRoot(layout, preparingRoot)
-	imageChanged := false
 	published := false
 	defer func() {
-		if published {
-			return
-		}
-		_ = os.RemoveAll(preparingRoot)
-		if imageChanged {
-			returnError = errors.Join(returnError, service.restoreImage(ctx, previousImageID))
+		if !published {
+			_ = os.RemoveAll(preparingRoot)
 		}
 	}()
 
@@ -110,14 +104,8 @@ func (service Service) Prepare(ctx context.Context) (prepared Prepared, returnEr
 	if err != nil {
 		return Prepared{}, err
 	}
-	imageChanged = true
-	imageID, err := service.buildDevelopmentImage(ctx, layout.RepositoryRoot)
-	if err != nil {
-		return Prepared{}, err
-	}
-	localBuilder := builder.Definition{ID: builder.LocalID, Kind: builder.KindLocalBuildKit, BuildxBuilder: builder.LocalBuildxBuilder, Environments: map[string]string{"embedded-development": service.EnvironmentReference}}
-	if err := (builder.Store{Directory: filepath.Join(preparingLayout.ConfigDirectory, "rm-relay")}).Save([]builder.Definition{localBuilder}); err != nil {
-		return Prepared{}, fmt.Errorf("configure candidate local Builder: %w", err)
+	if err := (builder.Store{Directory: filepath.Join(preparingLayout.ConfigDirectory, "rm-relay")}).Save([]builder.Definition{selectedBuilder}); err != nil {
+		return Prepared{}, fmt.Errorf("configure candidate Builder: %w", err)
 	}
 
 	now := time.Now
@@ -132,10 +120,11 @@ func (service Service) Prepare(ctx context.Context) (prepared Prepared, returnEr
 		Revision:             revision,
 		CLIVersion:           binary.Version,
 		CLISHA256:            binary.SHA256,
-		ImageReference:       developmentImageReference,
-		ImageID:              imageID,
+		BuilderID:            selectedBuilder.ID,
+		BuilderKind:          selectedBuilder.Kind,
+		BuildxBuilder:        selectedBuilder.BuildxBuilder,
+		EnvironmentID:        service.EnvironmentID,
 		EnvironmentReference: service.EnvironmentReference,
-		PreviousImageID:      previousImageID,
 		TemplateRevision:     templateRevision,
 		CreatedAt:            now().UTC(),
 	}
@@ -150,7 +139,7 @@ func (service Service) Prepare(ctx context.Context) (prepared Prepared, returnEr
 		Root:                 layout.Root,
 		Revision:             revision,
 		CLIVersion:           binary.Version,
-		ImageID:              imageID,
+		BuilderID:            selectedBuilder.ID,
 		EnvironmentReference: service.EnvironmentReference,
 		TemplateURL:          templateURL(layout.TemplateOrigin),
 	}, nil
@@ -161,6 +150,9 @@ func (service Service) Enter(ctx context.Context) error {
 	layout, state, err := service.loadCandidate()
 	if err != nil {
 		return err
+	}
+	if service.Runner == nil {
+		return fmt.Errorf("process runner is not configured")
 	}
 	if err := service.requireCleanRepository(ctx, layout.RepositoryRoot); err != nil {
 		return err
@@ -190,27 +182,26 @@ func (service Service) Enter(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("load candidate Builder catalog: %w", err)
 	}
+	if len(definitions) != 1 || definitions[0].ID != state.BuilderID {
+		return fmt.Errorf("candidate Builder catalog identity changed")
+	}
 	catalog, err := builder.NewCatalog(definitions...)
 	if err != nil {
 		return fmt.Errorf("resolve candidate Builder catalog: %w", err)
 	}
-	localBuilder, err := catalog.Resolve(builder.LocalID)
+	selectedBuilder, err := catalog.Resolve(state.BuilderID)
 	if err != nil {
 		return err
 	}
-	environmentReference, err := localBuilder.EnvironmentReference("embedded-development")
+	if selectedBuilder.Kind != state.BuilderKind || selectedBuilder.BuildxBuilder != state.BuildxBuilder {
+		return fmt.Errorf("candidate Builder identity changed")
+	}
+	environmentReference, err := selectedBuilder.EnvironmentReference(state.EnvironmentID)
 	if err != nil {
 		return err
 	}
 	if environmentReference != state.EnvironmentReference {
 		return fmt.Errorf("candidate environment identity changed: got %s, want %s", environmentReference, state.EnvironmentReference)
-	}
-	imageID, err := service.inspectImage(ctx)
-	if err != nil {
-		return err
-	}
-	if imageID != state.ImageID {
-		return fmt.Errorf("candidate image identity changed: got %s, want %s", imageID, state.ImageID)
 	}
 	templateRevision, err := service.bareRepositoryRevision(ctx, layout.TemplateOrigin)
 	if err != nil {
@@ -223,7 +214,7 @@ func (service Service) Enter(ctx context.Context) error {
 		return fmt.Errorf("candidate shell is not configured")
 	}
 	if service.Stdout != nil {
-		fmt.Fprintf(service.Stdout, "Candidate revision: %s\nCandidate CLI: %s\nEnvironment: %s\nDevelopment image: %s\nTemplate: %s\nClone with: git clone \"$RM_RELAY_TEMPLATE_URL\" project\n", state.Revision, state.CLIVersion, state.EnvironmentReference, state.ImageID, templateURL(layout.TemplateOrigin))
+		fmt.Fprintf(service.Stdout, "Candidate revision: %s\nCandidate CLI: %s\nBuilder: %s\nEnvironment: %s\nTemplate: %s\nClone with: git clone \"$RM_RELAY_TEMPLATE_URL\" project\n", state.Revision, state.CLIVersion, state.BuilderID, state.EnvironmentReference, templateURL(layout.TemplateOrigin))
 	}
 	_, err = service.Runner.Run(ctx, command.Request{
 		Name:      service.Shell,
@@ -244,29 +235,10 @@ func (service Service) Enter(ctx context.Context) error {
 	return nil
 }
 
-// Clean restores the previous development-image tag before deleting the managed candidate directory.
-func (service Service) Clean(ctx context.Context) error {
-	layout, state, err := service.loadCandidate()
+// Clean removes only the files owned by the candidate environment.
+func (service Service) Clean(_ context.Context) error {
+	layout, _, err := service.loadCandidate()
 	if err != nil {
-		return err
-	}
-	configuredBuilders, err := (builder.Store{Directory: filepath.Join(layout.ConfigDirectory, "rm-relay")}).Load()
-	if err != nil {
-		return fmt.Errorf("load candidate Builder catalog: %w", err)
-	}
-	builderManager := builder.Service{
-		Store:  builder.Store{Directory: filepath.Join(layout.ConfigDirectory, "rm-relay")},
-		Buildx: buildx.CLI{Runner: service.Runner},
-	}
-	for _, definition := range configuredBuilders {
-		if definition.ID == builder.LocalID {
-			continue
-		}
-		if err := builderManager.Remove(ctx, definition.ID); err != nil {
-			return fmt.Errorf("remove candidate Builder %q: %w", definition.ID, err)
-		}
-	}
-	if err := service.restoreImage(ctx, state.PreviousImageID); err != nil {
 		return err
 	}
 	if err := os.RemoveAll(layout.Root); err != nil {
@@ -276,10 +248,30 @@ func (service Service) Clean(ctx context.Context) error {
 }
 
 func (service Service) validatedLayout() (Layout, error) {
-	if service.Runner == nil {
-		return Layout{}, fmt.Errorf("process runner is not configured")
-	}
 	return ResolveLayout(service.RepositoryRoot, service.UserCacheRoot)
+}
+
+func (service Service) isolatedBuilderDefinition() (builder.Definition, error) {
+	if err := builder.ValidateDefinition(service.Builder); err != nil {
+		return builder.Definition{}, fmt.Errorf("candidate Builder is invalid: %w", err)
+	}
+	if !environment.IsIdentifier(service.EnvironmentID) {
+		return builder.Definition{}, fmt.Errorf("RM_RELAY_CANDIDATE_ENVIRONMENT_ID is invalid")
+	}
+	if _, err := environment.ParseDigestReference(service.EnvironmentReference); err != nil {
+		return builder.Definition{}, fmt.Errorf("RM_RELAY_CANDIDATE_ENVIRONMENT must use image@sha256:<digest>")
+	}
+	environments := make(map[string]string, len(service.Builder.Environments)+1)
+	for environmentID, reference := range service.Builder.Environments {
+		environments[environmentID] = reference
+	}
+	environments[service.EnvironmentID] = service.EnvironmentReference
+	definition := service.Builder
+	definition.Environments = environments
+	if err := builder.ValidateDefinition(definition); err != nil {
+		return builder.Definition{}, fmt.Errorf("candidate Builder mapping is invalid: %w", err)
+	}
+	return definition, nil
 }
 
 func (service Service) loadCandidate() (Layout, State, error) {

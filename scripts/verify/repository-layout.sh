@@ -78,6 +78,7 @@ for required_file in \
     internal/execution/mise/base.mise.toml \
     internal/execution/resourcecache/store.go \
     tests/support/candidate/cmd/main.go \
+    tests/support/candidate/cmd/main_test.go \
     tests/support/candidate/internal/candidate/service.go \
     internal/target/adapter.go \
     internal/target/openocd/adapter.go \
@@ -135,6 +136,9 @@ for absent_path in \
     distribution \
     tests/distribution \
     container-images \
+    environments/embedded-development/publish.sh \
+    environments/embedded-development/tasks.toml \
+    tests/support/candidate/internal/candidate/image.go \
     .goreleaser.yaml \
     docs/operator-guide/build-and-verify-images.md \
     docs/operator-guide/candidate-experience-environment.md \

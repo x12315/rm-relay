@@ -10,6 +10,6 @@ raw = true
 run = "go run ./tests/support/candidate/cmd enter"
 
 ["experience:clean"]
-description = "Remove the candidate experience and restore the image tag"
+description = "Remove the candidate-owned experience files"
 dir = "{{ config_root }}"
 run = "go run ./tests/support/candidate/cmd clean"

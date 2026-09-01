@@ -7,13 +7,17 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/x12315/rm-relay/internal/builder"
 	"github.com/x12315/rm-relay/internal/execution/command"
 	"github.com/x12315/rm-relay/tests/support/candidate/internal/candidate"
 )
+
+const defaultCandidateEnvironmentID = "embedded-development"
 
 type binaryBuilder struct {
 	runner command.Runner
@@ -66,12 +70,32 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	service := candidate.Service{RepositoryRoot: repositoryRoot, UserCacheRoot: cacheRoot, EnvironmentReference: os.Getenv("RM_RELAY_CANDIDATE_ENVIRONMENT"), Runner: runner, BinaryBuilder: binaryBuilder{runner: runner, root: repositoryRoot}, Shell: shell(), Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}
+	service := candidate.Service{RepositoryRoot: repositoryRoot, UserCacheRoot: cacheRoot, Runner: runner, BinaryBuilder: binaryBuilder{runner: runner, root: repositoryRoot}, Shell: shell(), Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}
 	root := &cobra.Command{Use: "rm-relay-candidate", SilenceUsage: true, SilenceErrors: true}
 	root.AddCommand(&cobra.Command{Use: "prepare", Args: cobra.NoArgs, RunE: func(command *cobra.Command, _ []string) error {
-		prepared, err := service.Prepare(command.Context())
+		configRoot, err := candidateConfigDirectory()
+		if err != nil {
+			return err
+		}
+		builderID := os.Getenv("RM_RELAY_CANDIDATE_BUILDER")
+		if builderID == "" {
+			builderID = builder.LocalID
+		}
+		selectedBuilder, err := resolveCandidateBuilder(configRoot, builderID)
+		if err != nil {
+			return err
+		}
+		environmentID := os.Getenv("RM_RELAY_CANDIDATE_ENVIRONMENT_ID")
+		if environmentID == "" {
+			environmentID = defaultCandidateEnvironmentID
+		}
+		preparingService := service
+		preparingService.Builder = selectedBuilder
+		preparingService.EnvironmentID = environmentID
+		preparingService.EnvironmentReference = os.Getenv("RM_RELAY_CANDIDATE_ENVIRONMENT")
+		prepared, err := preparingService.Prepare(command.Context())
 		if err == nil {
-			fmt.Printf("Candidate environment: %s\n", prepared.Root)
+			fmt.Printf("Candidate environment: %s\nBuilder: %s\n", prepared.Root, prepared.BuilderID)
 		}
 		return err
 	}})
@@ -81,6 +105,37 @@ func main() {
 		fmt.Fprintf(os.Stderr, "rm-relay-candidate: %s\n", err)
 		os.Exit(1)
 	}
+}
+
+func candidateConfigDirectory() (string, error) {
+	if configured := os.Getenv("RM_RELAY_CONFIG_DIR"); configured != "" {
+		absolute, err := filepath.Abs(configured)
+		if err != nil {
+			return "", fmt.Errorf("resolve RM_RELAY_CONFIG_DIR: %w", err)
+		}
+		return absolute, nil
+	}
+	root, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("locate user config directory: %w", err)
+	}
+	return root, nil
+}
+
+func resolveCandidateBuilder(configRoot, builderID string) (builder.Definition, error) {
+	definitions, err := (builder.Store{Directory: filepath.Join(configRoot, "rm-relay")}).Load()
+	if err != nil {
+		return builder.Definition{}, fmt.Errorf("load workstation Builder catalog: %w", err)
+	}
+	catalog, err := builder.NewCatalog(definitions...)
+	if err != nil {
+		return builder.Definition{}, fmt.Errorf("resolve workstation Builder catalog: %w", err)
+	}
+	definition, err := catalog.Resolve(builderID)
+	if err != nil {
+		return builder.Definition{}, err
+	}
+	return definition, nil
 }
 
 func locateRepositoryRoot(ctx context.Context, runner command.Runner) (string, error) {

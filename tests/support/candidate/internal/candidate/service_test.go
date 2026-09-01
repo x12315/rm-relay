@@ -43,20 +43,58 @@ func TestPrepareCreatesManagedCandidateWithoutChangingSourceRefs(t *testing.T) {
 	if prepared.Root != fixture.layout.Root || state.Revision != fixture.runner.repositoryRevision {
 		t.Fatalf("prepared candidate = %#v state = %#v", prepared, state)
 	}
-	if state.PreviousImageID != fixture.runner.previousImageID || state.ImageID != fixture.runner.candidateImageID {
-		t.Fatalf("image identities = previous %q candidate %q", state.PreviousImageID, state.ImageID)
+	if state.BuilderID != fixture.service.Builder.ID || state.BuilderKind != fixture.service.Builder.Kind || state.BuildxBuilder != fixture.service.Builder.BuildxBuilder {
+		t.Fatalf("Builder identity = %#v", state)
 	}
-	if state.EnvironmentReference != fixture.service.EnvironmentReference {
-		t.Fatalf("environment reference = %q", state.EnvironmentReference)
+	if state.EnvironmentID != fixture.service.EnvironmentID || state.EnvironmentReference != fixture.service.EnvironmentReference {
+		t.Fatalf("environment identity = %q %q", state.EnvironmentID, state.EnvironmentReference)
 	}
 	if _, err := os.Stat(fixture.layout.TemplateOrigin); err != nil {
 		t.Fatalf("template origin was not created: %v", err)
 	}
 	for _, request := range fixture.runner.requests {
+		if request.Name == "docker" || request.Name == "mise" {
+			t.Fatalf("prepare mutated environment infrastructure: %#v", request)
+		}
 		joined := strings.Join(request.Arguments, " ")
 		if strings.Contains(joined, "subtree") || strings.Contains(joined, " branch ") {
 			t.Fatalf("prepare changed source refs: %#v", request)
 		}
+	}
+	configuredBuilders, err := (builder.Store{Directory: filepath.Join(fixture.layout.ConfigDirectory, "rm-relay")}).Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(configuredBuilders) != 1 || configuredBuilders[0].ID != fixture.service.Builder.ID {
+		t.Fatalf("isolated Builder catalog = %#v", configuredBuilders)
+	}
+	wantReference, err := configuredBuilders[0].EnvironmentReference(fixture.service.EnvironmentID)
+	if err != nil || wantReference != fixture.service.EnvironmentReference {
+		t.Fatalf("isolated environment reference = %q, %v", wantReference, err)
+	}
+}
+
+func TestPrepareCopiesSelectedRemoteBuilderWithoutOwningIt(t *testing.T) {
+	fixture := newServiceFixture(t)
+	fixture.service.Builder = builder.Definition{
+		ID:            "team",
+		Kind:          builder.KindRemoteBuildKit,
+		BuildxBuilder: "rm-relay-team",
+		Environments:  map[string]string{"other": "registry.example/other@sha256:" + strings.Repeat("c", 64)},
+	}
+
+	if _, err := fixture.service.Prepare(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	definitions, err := (builder.Store{Directory: filepath.Join(fixture.layout.ConfigDirectory, "rm-relay")}).Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(definitions) != 1 || definitions[0].ID != "team" || definitions[0].BuildxBuilder != "rm-relay-team" {
+		t.Fatalf("isolated Builder catalog = %#v", definitions)
+	}
+	if definitions[0].Environments["other"] == "" || definitions[0].Environments[fixture.service.EnvironmentID] != fixture.service.EnvironmentReference {
+		t.Fatalf("isolated Builder environments = %#v", definitions[0].Environments)
 	}
 }
 
@@ -119,7 +157,8 @@ func TestEnterRejectsChangedEnvironmentMapping(t *testing.T) {
 	if _, err := fixture.service.Prepare(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	changed := builder.Definition{ID: builder.LocalID, Kind: builder.KindLocalBuildKit, BuildxBuilder: builder.LocalBuildxBuilder, Environments: map[string]string{"embedded-development": "registry.example/changed@sha256:" + strings.Repeat("c", 64)}}
+	changed := fixture.service.Builder
+	changed.Environments = map[string]string{fixture.service.EnvironmentID: "registry.example/changed@sha256:" + strings.Repeat("c", 64)}
 	store := builder.Store{Directory: filepath.Join(fixture.layout.ConfigDirectory, "rm-relay")}
 	if err := store.Save([]builder.Definition{changed}); err != nil {
 		t.Fatal(err)
@@ -132,16 +171,13 @@ func TestEnterRejectsChangedEnvironmentMapping(t *testing.T) {
 	}
 }
 
-func TestCleanRestoresPreviousImageBeforeRemovingCandidate(t *testing.T) {
+func TestCleanRemovesOnlyCandidateOwnedFiles(t *testing.T) {
 	fixture := newServiceFixture(t)
 	if _, err := fixture.service.Prepare(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	store := builder.Store{Directory: filepath.Join(fixture.layout.ConfigDirectory, "rm-relay")}
-	if err := store.Save([]builder.Definition{{ID: "team", Kind: builder.KindRemoteBuildKit, BuildxBuilder: "rm-relay-team", Environments: map[string]string{}}}); err != nil {
-		t.Fatal(err)
-	}
 	fixture.runner.requests = nil
+	fixture.service.Runner = nil
 
 	if err := fixture.service.Clean(context.Background()); err != nil {
 		t.Fatal(err)
@@ -150,33 +186,27 @@ func TestCleanRestoresPreviousImageBeforeRemovingCandidate(t *testing.T) {
 	if _, err := os.Stat(fixture.layout.Root); !os.IsNotExist(err) {
 		t.Fatalf("candidate root still exists: %v", err)
 	}
-	if len(fixture.runner.requests) < 2 {
-		t.Fatalf("clean requests = %#v", fixture.runner.requests)
-	}
-	removeBuilder := []string{"buildx", "rm", "rm-relay-team"}
-	if strings.Join(fixture.runner.requests[0].Arguments, "\x00") != strings.Join(removeBuilder, "\x00") {
-		t.Fatalf("first clean request = %#v, want %#v", fixture.runner.requests[0], removeBuilder)
-	}
-	want := []string{"image", "tag", fixture.runner.previousImageID, developmentImageReference}
-	if strings.Join(fixture.runner.requests[1].Arguments, "\x00") != strings.Join(want, "\x00") {
-		t.Fatalf("second clean request = %#v, want %#v", fixture.runner.requests[1], want)
+	if len(fixture.runner.requests) != 0 {
+		t.Fatalf("clean touched borrowed resources: %#v", fixture.runner.requests)
 	}
 }
 
-func TestCleanKeepsStateWhenImageRestoreFails(t *testing.T) {
+func TestCleanRejectsInvalidStateBeforeRemovingFiles(t *testing.T) {
 	fixture := newServiceFixture(t)
 	if _, err := fixture.service.Prepare(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	fixture.runner.restoreError = fmt.Errorf("tag restore failed")
+	if err := os.WriteFile(fixture.layout.StatePath, []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	err := fixture.service.Clean(context.Background())
 
-	if err == nil || !strings.Contains(err.Error(), "tag restore failed") {
+	if err == nil || !strings.Contains(err.Error(), "schema version") {
 		t.Fatalf("Clean() error = %v", err)
 	}
-	if _, statError := os.Stat(fixture.layout.StatePath); statError != nil {
-		t.Fatalf("candidate state was removed after failed restore: %v", statError)
+	if _, statError := os.Stat(fixture.layout.Root); statError != nil {
+		t.Fatalf("candidate root was removed after rejected clean: %v", statError)
 	}
 }
 
@@ -204,17 +234,17 @@ func newServiceFixture(t *testing.T) serviceFixture {
 	runner := &serviceRunner{
 		repositoryRevision: "0123456789abcdef0123456789abcdef01234567",
 		templateRevision:   "abcdef0123456789abcdef0123456789abcdef01",
-		previousImageID:    "sha256:previous",
-		candidateImageID:   "sha256:candidate",
 		templateFile:       "project-templates/cross-platform-cpp/rm-relay.toml",
 	}
-	builder := &binaryBuilder{version: "0.0.0-SNAPSHOT-test"}
+	candidateCLIBuilder := &binaryBuilder{version: "0.0.0-SNAPSHOT-test"}
 	service := Service{
 		RepositoryRoot:       repositoryRoot,
 		UserCacheRoot:        cacheRoot,
+		Builder:              builder.Definition{ID: builder.LocalID, Kind: builder.KindLocalBuildKit, BuildxBuilder: builder.LocalBuildxBuilder, Environments: map[string]string{}},
+		EnvironmentID:        "embedded-development",
 		EnvironmentReference: "registry.example/environment@sha256:" + strings.Repeat("a", 64),
 		Runner:               runner,
-		BinaryBuilder:        builder,
+		BinaryBuilder:        candidateCLIBuilder,
 		Now:                  func() time.Time { return time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC) },
 		Shell:                "candidate-shell",
 		Stdin:                strings.NewReader(""),
@@ -245,11 +275,8 @@ func (builder *binaryBuilder) BuildHostBinary(_ context.Context, outputPath stri
 type serviceRunner struct {
 	requests           []command.Request
 	dirty              bool
-	restoreError       error
 	repositoryRevision string
 	templateRevision   string
-	previousImageID    string
-	candidateImageID   string
 	templateFile       string
 }
 
@@ -261,32 +288,10 @@ func (runner *serviceRunner) Run(_ context.Context, request command.Request) (co
 	if strings.HasSuffix(request.Name, "rm-relay") || strings.HasSuffix(request.Name, "rm-relay.exe") {
 		return command.Result{Stdout: "rm-relay version 0.0.0-SNAPSHOT-test\n"}, nil
 	}
-	if request.Name == "docker" {
-		return runner.runDocker(request)
-	}
-	if request.Name == "mise" && strings.Join(request.Arguments, " ") == "run environment:embedded:load" {
-		return command.Result{}, nil
-	}
 	if request.Name != "git" {
 		return command.Result{}, fmt.Errorf("unexpected command %q", request.Name)
 	}
 	return runner.runGit(request)
-}
-
-func (runner *serviceRunner) runDocker(request command.Request) (command.Result, error) {
-	joined := strings.Join(request.Arguments, " ")
-	switch {
-	case strings.HasPrefix(joined, "buildx rm"):
-		return command.Result{}, runner.restoreError
-	case strings.HasPrefix(joined, "image ls"):
-		return command.Result{Stdout: runner.previousImageID + "\n"}, nil
-	case strings.HasPrefix(joined, "image inspect"):
-		return command.Result{Stdout: runner.candidateImageID + "\n"}, nil
-	case strings.HasPrefix(joined, "image tag"), strings.HasPrefix(joined, "image rm"):
-		return command.Result{}, runner.restoreError
-	default:
-		return command.Result{}, fmt.Errorf("unexpected Docker arguments %q", joined)
-	}
 }
 
 func (runner *serviceRunner) runGit(request command.Request) (command.Result, error) {

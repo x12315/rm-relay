@@ -7,33 +7,34 @@ import (
 	"os"
 	"time"
 
+	"github.com/x12315/rm-relay/internal/builder"
 	"github.com/x12315/rm-relay/internal/environment"
 )
 
 const (
 	// StateSchemaVersion is the candidate environment state format understood by this CLI.
-	StateSchemaVersion = 2
+	StateSchemaVersion = 3
 	managedStateMarker = "rm-relay-candidate-experience"
 
-	developmentImageReference = "mcu-dev/toolchain:local"
-	sha256HexLength           = 64
+	sha256HexLength = 64
 )
 
 // State records the identities required to enter or safely clean one candidate environment.
 type State struct {
-	SchemaVersion        int       `json:"schema_version"`
-	Marker               string    `json:"marker"`
-	RepositoryRoot       string    `json:"repository_root"`
-	RepositoryKey        string    `json:"repository_key"`
-	Revision             string    `json:"revision"`
-	CLIVersion           string    `json:"cli_version"`
-	CLISHA256            string    `json:"cli_sha256"`
-	ImageReference       string    `json:"image_reference"`
-	ImageID              string    `json:"image_id"`
-	EnvironmentReference string    `json:"environment_reference"`
-	PreviousImageID      string    `json:"previous_image_id,omitempty"`
-	TemplateRevision     string    `json:"template_revision"`
-	CreatedAt            time.Time `json:"created_at"`
+	SchemaVersion        int          `json:"schema_version"`
+	Marker               string       `json:"marker"`
+	RepositoryRoot       string       `json:"repository_root"`
+	RepositoryKey        string       `json:"repository_key"`
+	Revision             string       `json:"revision"`
+	CLIVersion           string       `json:"cli_version"`
+	CLISHA256            string       `json:"cli_sha256"`
+	BuilderID            string       `json:"builder_id"`
+	BuilderKind          builder.Kind `json:"builder_kind"`
+	BuildxBuilder        string       `json:"buildx_builder"`
+	EnvironmentID        string       `json:"environment_id"`
+	EnvironmentReference string       `json:"environment_reference"`
+	TemplateRevision     string       `json:"template_revision"`
+	CreatedAt            time.Time    `json:"created_at"`
 }
 
 func writeState(layout Layout, state State) error {
@@ -113,8 +114,17 @@ func validateState(layout Layout, state State) error {
 	if state.Revision == "" || state.CLIVersion == "" || len(state.CLISHA256) != sha256HexLength {
 		return fmt.Errorf("candidate state CLI identity is incomplete")
 	}
-	if state.ImageReference != developmentImageReference || state.ImageID == "" {
-		return fmt.Errorf("candidate state image identity is invalid")
+	definition := builder.Definition{
+		ID:            state.BuilderID,
+		Kind:          state.BuilderKind,
+		BuildxBuilder: state.BuildxBuilder,
+		Environments:  map[string]string{state.EnvironmentID: state.EnvironmentReference},
+	}
+	if err := builder.ValidateDefinition(definition); err != nil {
+		return fmt.Errorf("candidate state Builder identity is invalid: %w", err)
+	}
+	if !environment.IsIdentifier(state.EnvironmentID) {
+		return fmt.Errorf("candidate state environment ID is invalid")
 	}
 	if _, err := environment.ParseDigestReference(state.EnvironmentReference); err != nil {
 		return fmt.Errorf("candidate state environment reference is invalid")

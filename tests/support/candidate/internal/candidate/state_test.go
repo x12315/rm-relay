@@ -73,6 +73,29 @@ func TestValidateStateRejectsWrongOwnership(t *testing.T) {
 	}
 }
 
+func TestReadStateRejectsLegacyImageOwnershipFields(t *testing.T) {
+	layout, err := ResolveLayout(t.TempDir(), t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(layout.Root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	legacy := `{
+  "schema_version": 3,
+  "marker": "rm-relay-candidate-experience",
+  "image_id": "sha256:legacy"
+}`
+	if err := os.WriteFile(layout.StatePath, []byte(legacy), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = readState(layout)
+	if err == nil || !strings.Contains(err.Error(), "unknown field") {
+		t.Fatalf("readState() error = %v", err)
+	}
+}
+
 func validState(layout Layout) State {
 	return State{
 		SchemaVersion:        StateSchemaVersion,
@@ -82,10 +105,11 @@ func validState(layout Layout) State {
 		Revision:             "0123456789abcdef",
 		CLIVersion:           "0.0.0-SNAPSHOT-test",
 		CLISHA256:            strings.Repeat("a", 64),
-		ImageReference:       developmentImageReference,
-		ImageID:              "sha256:candidate",
+		BuilderID:            "local",
+		BuilderKind:          "local-buildkit",
+		BuildxBuilder:        "rm-relay-local",
+		EnvironmentID:        "embedded-development",
 		EnvironmentReference: "registry.example/environment@sha256:" + strings.Repeat("b", 64),
-		PreviousImageID:      "sha256:previous",
 		TemplateRevision:     "abcdef0123456789",
 		CreatedAt:            time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC),
 	}
