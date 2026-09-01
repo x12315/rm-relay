@@ -114,6 +114,24 @@ func TestEnterRejectsChangedBinary(t *testing.T) {
 	}
 }
 
+func TestEnterRejectsChangedEnvironmentMapping(t *testing.T) {
+	fixture := newServiceFixture(t)
+	if _, err := fixture.service.Prepare(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	changed := builder.Definition{ID: builder.LocalID, Kind: builder.KindLocalBuildKit, BuildxBuilder: builder.LocalBuildxBuilder, Environments: map[string]string{"embedded-development": "registry.example/changed@sha256:" + strings.Repeat("c", 64)}}
+	store := builder.Store{Directory: filepath.Join(fixture.layout.ConfigDirectory, "rm-relay")}
+	if err := store.Save([]builder.Definition{changed}); err != nil {
+		t.Fatal(err)
+	}
+
+	err := fixture.service.Enter(context.Background())
+
+	if err == nil || !strings.Contains(err.Error(), "environment identity changed") {
+		t.Fatalf("Enter() error = %v", err)
+	}
+}
+
 func TestCleanRestoresPreviousImageBeforeRemovingCandidate(t *testing.T) {
 	fixture := newServiceFixture(t)
 	if _, err := fixture.service.Prepare(context.Background()); err != nil {

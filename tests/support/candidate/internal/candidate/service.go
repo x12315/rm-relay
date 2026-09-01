@@ -185,6 +185,25 @@ func (service Service) Enter(ctx context.Context) error {
 	if strings.TrimSpace(versionResult.Stdout) != "rm-relay version "+state.CLIVersion {
 		return fmt.Errorf("candidate CLI version output does not match %q", state.CLIVersion)
 	}
+	definitions, err := (builder.Store{Directory: filepath.Join(layout.ConfigDirectory, "rm-relay")}).Load()
+	if err != nil {
+		return fmt.Errorf("load candidate Builder catalog: %w", err)
+	}
+	catalog, err := builder.NewCatalog(definitions...)
+	if err != nil {
+		return fmt.Errorf("resolve candidate Builder catalog: %w", err)
+	}
+	localBuilder, err := catalog.Resolve(builder.LocalID)
+	if err != nil {
+		return err
+	}
+	environmentReference, err := localBuilder.EnvironmentReference("embedded-development")
+	if err != nil {
+		return err
+	}
+	if environmentReference != state.EnvironmentReference {
+		return fmt.Errorf("candidate environment identity changed: got %s, want %s", environmentReference, state.EnvironmentReference)
+	}
 	imageID, err := service.inspectImage(ctx)
 	if err != nil {
 		return err
