@@ -14,6 +14,8 @@
 |---|---|---|
 | Project | 用户的一项逻辑软件项目，可以包含多个 package 或仓库 | 开发机上的源码与项目声明 |
 | Profile | 一组经过验证的环境、架构和 target 兼容要求 | RM Relay Bake 与 profile 配置 |
+| Environment image | 带 RM Relay identity、供 workspace Builder 消费的 OCI development image | `environments/` 定义；OCI Registry 分发 |
+| Builder | 在本机或远端执行一次 workspace BuildKit solve 的逻辑资源 | 开发机 `rm-relay` catalog；Buildx 提供执行连接 |
 | Build Job | 一次 local 或 remote build 操作 | build backend |
 | Build Output | 可以交给烧录、传输或 debugger 的构建结果 | 开发机上的项目工作区 |
 | Target | 接收 Build Output 并提供开发能力的物理或虚拟设备 | provider；MCU 由开发机 adapter 直管 |
@@ -43,7 +45,7 @@ Build tree、compiler cache 和依赖 cache 都不属于 Build Output。当前 M
 | 对象 | 必须满足的契约 | 不能用作替代的值 |
 |---|---|---|
 | Target | 具有稳定身份 | IP、临时容器名、用户本地别名 |
-| Environment | 用版本或内容摘要确认 development image、Build Output 与 Target Environment 属于兼容 lineage | 可变 tag 或“容器能启动” |
+| Environment | Profile 保存稳定 environment ID；每个 Builder 将其映射到已拉取并核验 identity 的 `image@sha256:<64 位小写十六进制>` | 可变 tag、宿主 image ID 或“容器能启动” |
 | Project | 具有稳定身份 | 绝对路径、目录名、Git remote |
 | 基础设施身份 | 用户、战队、K3s namespace 与 remote build 权限相互分开 | Project 或 Target 身份 |
 | Cache | 只参与性能优化 | 身份、权限或构建完整性证明 |
@@ -56,6 +58,18 @@ remote 当作项目身份。Linux Target manifest、兼容字段与握手协议�
 build `system`、系统内的 `preset` 和输出角色；不暴露 mise task 或 RM Relay 内部文件路径。
 Profile 同样只以 `adapter` 和 `board` ID 引用 target 能力，具体 OpenOCD 配置由 adapter
 模块所有。
+
+Environment image 必须包含 `/opt/rm-relay/environment/identity.toml`。当前 schema v1 固定为
+`schema_version = 1` 与 `id = "embedded-development"`；CLI 在指定 Builder 上用 BuildKit local
+exporter 读出该文件。`environment add` 只有在 lowercase SHA-256 digest 格式、
+Registry 拉取和 ID 核验全部通过后才原子更新开发机 catalog；`environment check`
+重新验证已登记引用，`environment list` 只查询指定 Builder 的本机映射。Profile、Project
+和 Git 不保存 Registry endpoint 或凭据。
+
+Environment 发布 handoff 使用 schema v1 TOML，必须记录 `environment_id`、可追溯的
+version `tag`、`digest`、`immutable_reference`、`source_revision` 与已核验的
+`linux/amd64`/`linux/arm64` 平台集。该文件是 image-production 与消费者之间的交接记录，
+不是 Registry 凭据或用户 Project 配置。
 
 ## 开发机路径
 
@@ -112,6 +126,9 @@ Development Session 数据库。
 ### 环境可复现
 
 - 官方 profile 由 Dockerfile、mise 能力配置和 Bake 固定。
+- Environment image 通过 identity 与 OCI manifest digest 交接；mutable tag 只用于生产时命名，
+  不进入 workspace 构建契约。
+- Image-production Builder 与 Workspace builder 的凭据、cache 和生命周期相互独立。
 - 项目 overlay 必须在派生镜像构建阶段生效。
 - 运行中的 development/runtime container 不得安装依赖改变正式环境。
 - Linux development 与 runtime image 必须共享 Target Environment lineage。

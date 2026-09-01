@@ -67,12 +67,17 @@ image blob 仍发布到 OCI Registry。仓库职责见
 [仓库资产地图](docs/operator-guide/repository-assets.md#规划中的仓库边界)；具体目录、Skill
 内容、发布命令、CI 和支持列表留到启动时设计。
 
-## 3. 发布镜像并验证远程构建服务
+## 3. 发布正式镜像并验证远程构建服务
 
 将正式环境镜像发布到适合国内大流量访问的 OCI Registry，减少普通用户重复构建。Registry
 采用托管服务还是战队自部署留待后续决议。官方自动生产与战队自行生产复用同一份
 Dockerfile、Bake target、验证规则和 OCI 输出契约；Environment builder、Registry、Workspace
 builder 保持原子解耦。
+
+共用 image production 入口已经实现：调用者注入 image-production Builder、版本 tag 与仓库外
+handoff 路径，任务完成双架构构建、镜像内 smoke、push 和 digest 交接。下一步是选择正式
+Registry、接入官方 CI trigger，并在有真实写入凭据的服务器上记录发布证据；战队仍可不依赖
+GitHub，以人工或自己的 CI 调用同一入口。
 
 现有 BuildKit
 workspace backend 已让 Build Output 直接返回开发机；下一步在真实服务器验证 mTLS、远端拉取、

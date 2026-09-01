@@ -6,8 +6,8 @@
 
 > [!IMPORTANT]
 > 本组文档记录已经确认的设计基线，不等于全部能力已经交付。当前仓库交付 STM32
-> 嵌入式开发基线，以及本地与远程两种 BuildKit Builder；远程服务尚未取得
-> 真实战队服务器证据。Linux 环境、物理 Linux target 和虚拟 target 仍在建设。实际能力和
+> 嵌入式开发基线，以及环境身份核验、环境发布契约、本地与远程两种 BuildKit Builder；
+> 真实 Registry push 和战队服务器证据尚未取得。Linux 环境、物理 Linux target 和虚拟 target 仍在建设。实际能力和
 > 证据等级只以[支持矩阵](../user-guide/support-matrix.md)为准。
 
 ## 先建立一个完整模型

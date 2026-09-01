@@ -37,9 +37,42 @@ docker buildx bake \
 ```
 
 本页的 Buildx builder 属于 environment image 生产，不是 `rm-relay build` 使用的 workspace
-Builder。仓库不在这里自动创建、切换或删除持久 image-production builder。未来官方自动构建
-与战队自建流水线都应继续调用这些 Bake target，通过 override 设置 tag、cache 和 output；
-不要复制 Dockerfile 或维护第二份包清单。Registry 与流水线产品尚未选定。
+Builder。仓库不在这里自动创建、切换或删除持久 image-production Builder。
+
+## 推送 OCI image
+
+发布前由运维准备一个支持 `linux/amd64`、`linux/arm64` 的 Buildx Builder，并用 Docker
+credential store 登录目标 Registry。RM Relay 不安装 Docker、不创建 Registry，也不接收登录
+凭据。
+
+三个输入都必须显式提供：
+
+```bash
+export RM_RELAY_IMAGE_BUILDER=image-factory
+export RM_RELAY_ENVIRONMENT_TAG=registry.example.org/rm-relay/embedded-development:v0.1.0
+export RM_RELAY_ENVIRONMENT_HANDOFF=/absolute/path/outside/repository/embedded-development-v0.1.0.toml
+
+mise run environment:embedded:publish
+```
+
+handoff 路径必须位于仓库外、父目录已经存在且目标文件尚不存在。任务依次执行 Bake 静态检查、
+`mcu-dev-multiarch` 构建、Dockerfile 内 smoke、Registry push 和远端 manifest 检查；最后确认
+`linux/amd64` 与 `linux/arm64` 均存在，再原子写入：
+
+```toml
+schema_version = 1
+environment_id = "embedded-development"
+tag = "registry.example.org/rm-relay/embedded-development:v0.1.0"
+digest = "sha256:<64位小写十六进制摘要>"
+immutable_reference = "registry.example.org/rm-relay/embedded-development@sha256:<64位小写十六进制摘要>"
+source_revision = "<Git commit>"
+platforms = ["linux/amd64", "linux/arm64"]
+```
+
+普通开发者只消费 `immutable_reference`。官方 GitHub 自动化、战队自建 CI 或人工发布都调用
+这项任务；触发条件、Builder 创建、cache、Registry 地址和凭据由各自部署注入，不复制
+Dockerfile、Bake target 或 smoke。任务只接受 clean Git revision，并把 commit 写入 handoff；
+Registry 与 CI 产品仍未选定。
 
 ## LTS 基线与软件源
 
@@ -161,7 +194,7 @@ docker run --rm -t \
 
 ```bash
 mise run test:distribution
-export RM_RELAY_E2E_LOCAL_ENVIRONMENT='registry.example.org/rm-relay/embedded-development@sha256:<64位十六进制摘要>'
+export RM_RELAY_E2E_LOCAL_ENVIRONMENT='registry.example.org/rm-relay/embedded-development@sha256:<64位小写十六进制摘要>'
 mise run test:e2e
 ```
 
@@ -202,12 +235,16 @@ mise run distribution:cli:snapshot
 只包含 `rm-relay[.exe]` 与 `LICENSE`；mise、development image 和 Project Template 分别通过
 自身渠道交付。
 
-## 发布与云构建扩展点
+## 自动化扩展点
 
-本仓库已提供单节点 mTLS BuildKit workspace builder 部署；尚未实现自动发布、OCI Registry
-部署和公共云服务。部署入口见[部署 mTLS BuildKit 服务](deploy-buildkit-service.md)。后续扩展应保持以下边界：
+本仓库已提供可独立调用的 environment publish task，以及单节点 mTLS workspace builder 部署；
+尚未实现官方 CI workflow、OCI Registry 部署和公共云服务。Workspace builder 部署入口见
+[部署 mTLS BuildKit 服务](deploy-buildkit-service.md)。后续 adapter 应保持以下边界：
 
 - 构建服务负责选择 builder、注入 registry tag、缓存和凭据；
 - 工具版本、Dockerfile、Bake target 和 smoke contract 继续在本目录定义；
 - 用户模板和示例作为镜像消费者，不被复制进镜像；
-- CI 配置可以独立成子库，但不得重新定义镜像内容。
+- CI 配置可以独立成子库，但只能注入现有 publish task 的输入。
+
+当前 integration test 使用 fake Docker CLI 核对参数、命令顺序、manifest 判断和仓库外 handoff；
+没有 Registry 写入凭据时，不能声称真实 push 已验证。

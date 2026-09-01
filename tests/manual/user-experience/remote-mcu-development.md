@@ -37,13 +37,15 @@ rm-relay builder add team \
   --key <absolute-client-key-path> \
   --server-name <tls-server-name>
 
-rm-relay builder set-environment team embedded-development <image@sha256:digest>
 rm-relay builder list
 rm-relay builder check team
+rm-relay environment add embedded-development <image@sha256:64位小写十六进制摘要> --builder team
+rm-relay environment list --builder team
 ```
 
-判断参数错误是否指出问题所在，`list` 是否能区分逻辑名称与实现 kind，`check` 的进度与失败信息
-能否让使用者判断是 TLS、Buildx 还是 BuildKit solve 出错。
+判断参数错误是否指出问题所在，Builder `list` 是否能区分逻辑名称与实现 kind，`check` 的进度与
+失败信息能否让使用者判断是 TLS、Buildx 还是 BuildKit solve 出错；Environment 登记还应明确
+区分 Registry 拉取失败、identity 不匹配和登记成功。
 
 ## 走完整用户路径
 

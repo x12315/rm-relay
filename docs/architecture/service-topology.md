@@ -4,9 +4,10 @@
 服务应该放在哪里、保存什么、由谁访问”的实现者和战队运维人员，不是现成部署手册。
 
 > [!IMPORTANT]
-> Workspace builder 的代码与 mTLS Compose 配置已经交付，但尚未取得真实战队服务器证据。
-> OCI Registry 和 K3s virtual target 尚未交付。Registry 采用托管服务还是战队自部署尚未决定；
-> 当前只固定 OCI digest 交接契约。本页记录服务边界，不为待决组件提供假想命令。
+> Environment image 的共用 build/verify/push 入口、Workspace builder 代码与 mTLS Compose
+> 配置已经交付；真实 Registry push 和战队服务器仍缺少部署证据。OCI Registry 与 K3s virtual
+> target 尚未交付。Registry 采用托管服务还是战队自部署尚未决定。本页记录服务边界，不为待决
+> 组件提供假想命令。
 
 ## 先按责任划角色，再决定机器数量
 
@@ -47,6 +48,11 @@ workspace。跨架构镜像生产所需的 BuildKit builder、QEMU、cache 和�
 官方自动构建与战队自行构建必须消费同一份 Dockerfile、Bake target 和验证规则；两条路径只
 在触发者、运行位置、cache 与推送凭据上不同。
 
+Environment builder 是一个执行角色，不要求部署新的 RM Relay daemon。当前
+`environment:embedded:publish` 接收现成 Buildx Builder、带版本的 OCI tag 和仓库外 handoff
+路径，完成 Bake check、双架构构建、镜像内 smoke、push 与 manifest 核验。GitHub Actions、
+战队 CI 或人工操作只负责触发并注入这些输入。
+
 ### Registry 只保存环境镜像
 
 Registry 不保存用户源码、普通 Build Output 或 target 数据。RM Relay 只依赖标准 OCI
@@ -59,8 +65,9 @@ push/pull 与 digest，不绑定具体产品。托管服务、自部署实现及
 写回客户端。临时 workspace 不能成为源码真相源，服务端只保留可删除 cache。
 
 Environment builder 与 workspace builder 可以部署在同一台机器，但入口、权限、cache 和
-验证必须分开：前者生产并推送环境，后者只消费已经确定的 digest。在可信战队或邀请制实例中，相同工具链可以
-共享 ccache；每个 job 的 workspace 和 build tree 仍相互隔离。
+验证必须分开：前者生产并推送环境，后者只消费已经确定的 digest。Environment builder 需要
+对应 Registry namespace 的写权限；workspace builder 只需要拉取权限。每个 workspace job 的
+源码和 build tree 仍相互隔离，workspace ccache 也不属于 image-production cache。
 
 ### K3s 只管理 virtual target
 
@@ -126,5 +133,6 @@ RM Relay 提供可复现配置、profile 和验证方法；战队运维负责机
 Workspace builder 已确定单节点 rootless BuildKit、mTLS、逻辑 Builder catalog 与不可变
 environment 映射，并提供[部署说明](../operator-guide/deploy-buildkit-service.md)。本地 Builder
 使用相同 workspace frontend，但由 CLI 管理独立的 Buildx `docker-container` resource。
-真实服务器上的并发、磁盘配额和长期 cache 参数仍待验证；Registry 实现、K3s storage 与
-credential 发放方式也尚未确定。本页继续只说明拓扑，不代替可执行安装说明。
+真实服务器上的并发、磁盘配额和长期 cache 参数仍待验证；真实 environment push、Registry
+实现、官方 CI adapter、K3s storage 与 credential 发放方式也尚未确定。本页继续只说明拓扑，
+不代替可执行安装说明。

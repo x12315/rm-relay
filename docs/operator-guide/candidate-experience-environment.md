@@ -34,10 +34,11 @@ RM Relay 通过 Go `os.UserCacheDir()` 选择平台惯用目录：
 ## 制备
 
 候选环境需要一个可由 BuildKit 拉取的 development image digest。当前 Registry 产品和正式
-发布入口尚未确定，因此先由维护者显式提供：
+官方 image 尚未确定，因此先由维护者显式提供；需要制作候选 digest 时使用
+[镜像构建与验证](build-and-verify-images.md#推送-oci-image)中的共用发布入口：
 
 ```bash
-export RM_RELAY_CANDIDATE_ENVIRONMENT='registry.example.org/rm-relay/embedded-development@sha256:<64位十六进制摘要>'
+export RM_RELAY_CANDIDATE_ENVIRONMENT='registry.example.org/rm-relay/embedded-development@sha256:<64位小写十六进制摘要>'
 mise run experience:prepare
 ```
 
@@ -66,6 +67,8 @@ image ID 与 template revision。任一身份变化都会中止，避免核验�
 `RM_RELAY_TEMPLATE_URL` 提供本地 Git origin，并把候选 CLI 的用户配置隔离到 `config/`。它不会
 自动 clone、build 或运行用户程序。
 人工步骤见[本地 MCU 开发体验](../../tests/manual/user-experience/local-mcu-development.md)。
+人工链路首先执行 `rm-relay environment check`，由真实 local Builder 拉取并核验候选 image；
+候选制备阶段写入映射本身不算 image 可用性证据。
 
 ## 清理
 

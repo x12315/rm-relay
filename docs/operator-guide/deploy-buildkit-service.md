@@ -72,9 +72,14 @@ rm-relay builder check team
 ```
 
 该命令验证 TLS、Buildx remote driver、BuildKit worker、scratch solve 和 local exporter。它不
-访问 workspace environment；通过后，再用
-`builder set-environment` 登记远端可拉取的 environment digest；Registry 的部署和登录方式由战队
-自行选择。
+访问 workspace environment；通过后，再让远端 Builder 拉取、核验并登记 environment：
+
+```bash
+rm-relay environment add embedded-development \
+  <image@sha256:64位小写十六进制摘要> --builder team
+```
+
+Registry 的部署和登录方式由战队自行选择。命令失败时不会把未经核验的引用写入本机 catalog。
 
 任一已经登记该 Builder 的开发机也可以通过模块 task 组合同一检查：
 

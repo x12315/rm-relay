@@ -16,11 +16,13 @@ environment digest 时选择远程 Builder。两者执行同一 BuildKit fronten
 `local` 是内建 Builder。RM Relay 不安装 Docker；开发机必须已有 Docker Desktop 或 Docker
 Engine，并提供 Buildx。
 
-先登记 Profile environment 对应的不可变 OCI 引用：
+先让 `local` Builder 拉取并核验 Profile environment。登记只有在 image 使用不可变 digest、
+Builder 能够拉取它，且镜像内 identity 与 `embedded-development` 一致时才会写入本机配置：
 
 ```bash
-rm-relay builder set-environment local embedded-development \
-  registry.example.org/rm-relay/embedded-development@sha256:<64位十六进制摘要>
+rm-relay environment add embedded-development \
+  registry.example.org/rm-relay/embedded-development@sha256:<64位小写十六进制摘要> \
+  --builder local
 ```
 
 然后直接构建：
@@ -38,8 +40,13 @@ rm-relay builder prepare local
 rm-relay builder check local
 ```
 
-`prepare` 只保证受管 Buildx resource 可用；`check` 还会执行一个无网络 scratch solve，并把
-结果导回开发机。真正的 `build` 才能证明 environment digest 可被拉取并完成项目构建。
+`prepare` 只保证受管 Buildx resource 可用；`builder check` 还会执行一个无网络 scratch solve，
+并把结果导回开发机。`environment add` 才会通过该 Builder 拉取并核验 image；需要重核已登记
+引用时执行：
+
+```bash
+rm-relay environment check embedded-development --builder local
+```
 
 若 `rm-relay.toml` 没有声明 `default_builder`，CLI 同样选择 `local`。RM Relay 只检查并调用
 现有 Docker，不静默安装软件或修改系统服务。当前尚未发布正式 environment digest，因此
@@ -62,22 +69,24 @@ rm-relay builder add team \
 远程与本地 Builder 都只接受已经推送到 OCI Registry 的不可变引用：
 
 ```bash
-rm-relay builder set-environment team embedded-development \
-  registry.example.org/rm-relay/embedded-development@sha256:<64位十六进制摘要>
+rm-relay environment add embedded-development \
+  registry.example.org/rm-relay/embedded-development@sha256:<64位小写十六进制摘要> \
+  --builder team
 ```
 
 RM Relay 不接受 mutable tag。当前仓库也不部署 Registry；该引用必须能由远端 BuildKit 拉取。
 
-最后执行真实检查：
+最后执行构建：
 
 ```bash
 rm-relay builder check team
+rm-relay environment check embedded-development --builder team
 rm-relay build --builder team
 ```
 
-`check` 不只是探测端口：它先让 Buildx bootstrap 对应 Builder，再执行与本地相同的 scratch
-solve。该检查证明远程控制面可用；只有随后执行真实 `build`，才能同时证明 environment digest
-可被 Registry 拉取并完成项目构建。
+`builder check` 不只是探测端口：它先让 Buildx bootstrap 对应 Builder，再执行与本地相同的
+scratch solve。`environment add` 已经证明远端能够拉取指定 digest 并读出正确 identity；随后
+`build` 验证完整 workspace 构建。
 
 ## Project 默认值
 
@@ -93,7 +102,14 @@ default_builder = "team"
 rm-relay build --builder local
 ```
 
-用 `rm-relay builder list` 查看本机可解析的逻辑名称。本地和远程构建都通过 Buildx local
+用 `rm-relay builder list` 查看本机可解析的逻辑名称，用下列命令查看某个 Builder 已登记的
+environment：
+
+```bash
+rm-relay environment list --builder team
+```
+
+本地和远程构建都通过 Buildx local
 exporter 把 Build Output 返回 Project 的 `install/<profile>/`；后续烧录消费同一份输出。
 
 不再使用某个远程 Builder 时，同时删除逻辑登记与 RM Relay 创建的 Buildx 资源：

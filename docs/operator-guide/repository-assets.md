@@ -14,6 +14,7 @@ internal/
 ├── cli/               公开命令树与 human/JSON 结果
 ├── project/           用户 `rm-relay.toml` 契约
 ├── profile/           受支持能力组合与 builtin Profile
+├── environment/       Environment identity 与不可变 OCI reference 契约
 ├── build/             Plan、Workflow、backend 和 Build Output
 ├── builder/           开发机 Builder catalog 与 environment 映射
 ├── target/            从已验证 Build Output 到 target 的 adapter
@@ -53,6 +54,7 @@ Project 把输出角色映射到项目内的相对路径；Profile 声明 enviro
 |---|---|
 | CLI 命令与输出契约 | `internal/cli/` |
 | Project schema 与初始化 | `internal/project/` |
+| Environment image 身份与消费者核验 | `internal/environment/` |
 | 开发机 Builder catalog 与管理 | `internal/builder/` |
 | 正式 Profile 组合 | `internal/profile/builtin/<profile>/` |
 | 构建系统解释与受控 task | `internal/build/<system>/` |
@@ -62,7 +64,7 @@ Project 把输出角色映射到项目内的相对路径；Profile 声明 enviro
 | CLI 发布脚本与 GoReleaser 配置 | `scripts/release/` |
 | mTLS BuildKit 服务部署 | `services/buildkit/` |
 | 候选体验支持 | `tests/support/candidate/` |
-| 开发镜像产品 | `environments/<image>/` |
+| 开发镜像定义、身份、构建与发布契约 | `environments/<environment>/` |
 | 用户工程起点 | `project-templates/<template>/` |
 | 完整可测行为 | `examples/<example>/` |
 | 可执行依赖方向 | `tests/architecture/` |

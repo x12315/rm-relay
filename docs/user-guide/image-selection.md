@@ -17,21 +17,29 @@ build target。
 使用边界；候选 image 的构建、双架构检查与发布准备属于
 [镜像构建与验证](../operator-guide/build-and-verify-images.md)，不作为用户上手步骤。
 
+取得维护者提供的 immutable reference 后，不需要手动 `docker pull`：
+
+```bash
+rm-relay environment add embedded-development <image@sha256:64位小写十六进制摘要> --builder local
+```
+
+CLI 让指定 Builder 拉取 image、导出 `/opt/rm-relay/environment/identity.toml` 并核对 environment
+ID；成功后才保存映射。Buildx 管理的 image cache 不等于宿主 Docker image store。
+
 当前基线是 Ubuntu 24.04 LTS、native GCC 14 和 Arm GNU 13.2.Rel1。产品级版本见
 [`environments/embedded-development/locks/versions.env`](../../environments/embedded-development/locks/versions.env)。
 镜像中的 `/opt/embedded-development/base-packages.txt` 与
 `/opt/embedded-development/embedded-packages.txt` 记录该次构建实际安装的完整版本。
 
-## 运行工作区
+## 进入构建链路
 
 ```bash
-docker run --rm -it \
-  -v "$PWD:/workspace" -w /workspace \
-  mcu-dev/toolchain:local bash
+rm-relay build
 ```
 
-容器只提供工具链。源码、构建目录和编辑器配置由工作区或用户环境管理。接下来从
-[native 构建与测试](build-native.md)选择模板或示例项目。
+CLI 根据 Project 中的 Profile 选择已登记的 digest，由 Buildx 管理容器和 cache，
+并把 Build Output 导回开发机。普通用户不需要为这条链路创建 host tag 或直接运行镜像。
+当前正式 Profile 的构建结果见 [STM32F407 固件构建](build-stm32.md)。
 
 ## USB backend 的运行边界
 
