@@ -18,6 +18,10 @@ group "multiarch" {
   targets = ["base-multiarch", "mcu-dev-multiarch"]
 }
 
+group "publish" {
+  targets = ["mcu-dev-multiarch"]
+}
+
 target "common" {
   context    = "."
   dockerfile = "environments/embedded-development/Dockerfile"

@@ -41,6 +41,8 @@ for required_file in \
     scripts/release/README.md \
     scripts/release/tasks.toml \
     environments/embedded-development/tasks.toml \
+    environments/embedded-development/identity.toml \
+    environments/embedded-development/publish.sh \
     services/buildkit/compose.yaml \
     services/buildkit/buildkitd.toml \
     services/buildkit/tasks.toml \
@@ -50,6 +52,9 @@ for required_file in \
     cmd/rm-relay/main_test.go \
     cmd/rm-relay-node/.gitkeep \
     internal/cli/application.go \
+    internal/environment/identity.go \
+    internal/environment/identity.Dockerfile \
+    internal/environment/verifier.go \
     internal/project/config.go \
     internal/profile/catalog.go \
     internal/profile/builtin/embedded-stm32f407-robomaster-c/profile.toml \
@@ -77,6 +82,7 @@ for required_file in \
     internal/target/openocd/board/robomaster-c.cfg \
     tests/architecture/dependency_direction_test.go \
     tests/integration/development_cycle_test.go \
+    tests/integration/environment_publication_test.go \
     tests/integration/fixture_test.go \
     tests/distribution/archives_test.go \
     tests/e2e/local_mcu_cycle_test.go \

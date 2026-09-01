@@ -7,3 +7,8 @@ run = "docker buildx bake --file environments/embedded-development/docker-bake.h
 description = "Build the embedded development environment for the host architecture"
 dir = "{{ config_root }}"
 run = "docker buildx bake --file environments/embedded-development/docker-bake.hcl verify-{{ arch() }}"
+
+["environment:embedded:publish"]
+description = "Build, verify, and publish the multi-platform environment image"
+dir = "{{ config_root }}"
+run = "sh environments/embedded-development/publish.sh \"${RM_RELAY_IMAGE_BUILDER:?set RM_RELAY_IMAGE_BUILDER}\" \"${RM_RELAY_ENVIRONMENT_TAG:?set RM_RELAY_ENVIRONMENT_TAG}\" \"${RM_RELAY_ENVIRONMENT_HANDOFF:?set RM_RELAY_ENVIRONMENT_HANDOFF}\""
