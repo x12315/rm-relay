@@ -27,6 +27,14 @@ script_directory="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)"
 repository_root="$(git -C "${script_directory}" rev-parse --show-toplevel)"
 repository_root="$(CDPATH= cd -- "${repository_root}" && pwd -P)"
 
+goreleaser_binary=""
+if command -v mise >/dev/null 2>&1; then
+    goreleaser_binary="$(cd "${repository_root}" && mise which goreleaser 2>/dev/null || true)"
+fi
+if [ -z "${goreleaser_binary}" ]; then
+    goreleaser_binary="$(command -v goreleaser)"
+fi
+
 if [ -n "$(git -C "${repository_root}" status --porcelain)" ]; then
     printf '%s\n' 'repository contains uncommitted changes; commit or remove them before packaging the CLI' >&2
     exit 1
@@ -66,9 +74,9 @@ git clone --quiet --no-hardlinks "${repository_root}" "${checkout}"
 (
     cd "${checkout}"
     if [ "${release_mode}" = build ]; then
-        goreleaser build --snapshot --clean --config scripts/release/goreleaser.yaml
+        "${goreleaser_binary}" build --snapshot --clean --config scripts/release/goreleaser.yaml
     else
-        goreleaser release --snapshot --clean --config scripts/release/goreleaser.yaml
+        "${goreleaser_binary}" release --snapshot --clean --config scripts/release/goreleaser.yaml
     fi
 )
 
