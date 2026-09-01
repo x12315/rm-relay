@@ -28,7 +28,7 @@ func TestRemoteMCUDevelopmentCycle(t *testing.T) {
 	projectRoot := cloneProjectTemplate(t, temporaryRoot)
 	environment := append(environmentWithout("RM_RELAY_CONFIG_DIR", "RM_RELAY_CACHE_DIR"), "RM_RELAY_CONFIG_DIR="+filepath.Join(temporaryRoot, "config"), "RM_RELAY_CACHE_DIR="+filepath.Join(temporaryRoot, "cache"))
 	runRelay(t, distributedCLI, environment, projectRoot, "builder", "add", "team", "--endpoint", values["endpoint"], "--ca", values["ca"], "--cert", values["certificate"], "--key", values["key"], "--server-name", values["server name"])
-	runRelay(t, distributedCLI, environment, projectRoot, "builder", "set-environment", "team", "embedded-development", values["environment"])
+	runRelay(t, distributedCLI, environment, projectRoot, "environment", "add", "embedded-development", values["environment"], "--builder", "team")
 	runRelay(t, distributedCLI, environment, projectRoot, "builder", "check", "team")
 	runRelay(t, distributedCLI, environment, projectRoot, "init")
 	runRelay(t, distributedCLI, environment, projectRoot, "build", "--builder", "team")

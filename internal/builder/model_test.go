@@ -43,12 +43,3 @@ func TestCatalogRejectsDuplicateLocalDefinitions(t *testing.T) {
 		t.Fatal("duplicate local definitions accepted")
 	}
 }
-
-func TestDigestReferenceRejectsMutableTags(t *testing.T) {
-	if IsDigestReference("registry.example/image:latest") {
-		t.Fatal("mutable tag accepted")
-	}
-	if !IsDigestReference("registry.example/image@sha256:" + strings.Repeat("a", 64)) {
-		t.Fatal("valid digest reference rejected")
-	}
-}

@@ -82,7 +82,7 @@ func TestLocalMCUDevelopmentCycle(t *testing.T) {
 		"RM_RELAY_CONFIG_DIR="+filepath.Join(temporaryRoot, "config"),
 	)
 
-	runRelay(t, distributedCLI, relayEnvironment, projectRoot, "builder", "set-environment", "local", "embedded-development", environmentReference)
+	runRelay(t, distributedCLI, relayEnvironment, projectRoot, "environment", "add", "embedded-development", environmentReference, "--builder", "local")
 	runRelay(t, distributedCLI, relayEnvironment, projectRoot, "init")
 	runRelay(t, distributedCLI, relayEnvironment, projectRoot, "build")
 	manifest := assertBuildOutput(t, projectRoot, producerVersion, environmentReference)

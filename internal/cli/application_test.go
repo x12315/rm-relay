@@ -67,7 +67,7 @@ func TestHelpDescribesStableCommandsWithoutExposingMise(t *testing.T) {
 		t.Fatalf("Run() exitCode = %d", exitCode)
 	}
 	help := fixture.stdout.String()
-	for _, commandName := range []string{"init", "build", "flash", "completion"} {
+	for _, commandName := range []string{"init", "build", "flash", "builder", "environment", "completion"} {
 		if !strings.Contains(help, commandName) {
 			t.Fatalf("help does not contain %q:\n%s", commandName, help)
 		}
@@ -109,7 +109,6 @@ func TestBuilderCommandsReportTheirActualOperation(t *testing.T) {
 	}{
 		{name: "add", arguments: []string{"builder", "add", "team", "--endpoint", "tcp://build.example:1234", "--ca", "/ca.pem", "--cert", "/cert.pem", "--key", "/key.pem", "--server-name", "build.example"}, want: "Builder 已登记\n"},
 		{name: "remove", arguments: []string{"builder", "remove", "team"}, want: "Builder 已删除\n"},
-		{name: "set environment", arguments: []string{"builder", "set-environment", "team", "embedded", "registry.example/image@sha256:" + strings.Repeat("a", 64)}, want: "Builder environment 已更新\n"},
 		{name: "check", arguments: []string{"builder", "check", "local"}, want: "Builder 检查通过\n"},
 		{name: "prepare", arguments: []string{"builder", "prepare", "local"}, want: "Builder 已就绪\n"},
 	}
@@ -125,6 +124,52 @@ func TestBuilderCommandsReportTheirActualOperation(t *testing.T) {
 				t.Fatalf("stdout = %q, want %q", got, test.want)
 			}
 		})
+	}
+}
+
+func TestEnvironmentCommandsUseBuilderScopedIdentity(t *testing.T) {
+	reference := "registry.example/image@sha256:" + strings.Repeat("a", 64)
+	tests := []struct {
+		name      string
+		arguments []string
+		want      string
+	}{
+		{name: "add", arguments: []string{"environment", "add", "embedded-development", reference, "--builder", "local"}, want: "Environment 已登记：embedded-development -> local\n"},
+		{name: "check", arguments: []string{"environment", "check", "embedded-development", "--builder", "local"}, want: "Environment 检查通过：embedded-development -> local\n"},
+		{name: "list", arguments: []string{"environment", "list", "--builder", "local"}, want: "embedded-development\t" + reference + "\n"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := newCLIFixture(t, testProjectID)
+			dependencies := fixture.dependencies(t)
+			dependencies.BuilderManager = fakeBuilderManager{environmentReference: reference}
+			if exitCode := Run(context.Background(), test.arguments, dependencies); exitCode != 0 {
+				t.Fatalf("Run() exitCode = %d, stderr = %s", exitCode, fixture.stderr.String())
+			}
+			if got := fixture.stdout.String(); got != test.want {
+				t.Fatalf("stdout = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestEnvironmentAddReportsMutableReferenceAsInvalidInput(t *testing.T) {
+	fixture := newCLIFixture(t, testProjectID)
+	dependencies := fixture.dependencies(t)
+	dependencies.BuilderManager = fakeBuilderManager{}
+
+	exitCode := Run(context.Background(), []string{
+		"environment", "add", "embedded-development", "registry.example/image:latest", "--format", "json",
+	}, dependencies)
+	if exitCode != 2 {
+		t.Fatalf("Run() exitCode = %d, want 2", exitCode)
+	}
+	var result failureResult
+	if err := json.Unmarshal(fixture.stdout.Bytes(), &result); err != nil {
+		t.Fatalf("decode stdout: %v\n%s", err, fixture.stdout.String())
+	}
+	if result.Operation != "environment add" || result.Error.Code != "invalid_arguments" {
+		t.Fatalf("JSON error = %#v", result)
 	}
 }
 
@@ -188,13 +233,20 @@ func mustTestBuilders(t *testing.T) builder.Catalog {
 	return catalog
 }
 
-type fakeBuilderManager struct{}
+type fakeBuilderManager struct{ environmentReference string }
 
 func (fakeBuilderManager) Add(context.Context, builder.AddRequest) error { return nil }
 func (fakeBuilderManager) Remove(context.Context, string) error          { return nil }
-func (fakeBuilderManager) SetEnvironment(string, string, string) error   { return nil }
-func (fakeBuilderManager) List() ([]builder.Definition, error) {
-	return []builder.Definition{{ID: "local", Kind: builder.KindLocalBuildKit}}, nil
+func (fakeBuilderManager) RegisterEnvironment(context.Context, string, string, string) error {
+	return nil
+}
+func (fakeBuilderManager) CheckEnvironment(context.Context, string, string) error { return nil }
+func (manager fakeBuilderManager) List() ([]builder.Definition, error) {
+	environments := map[string]string{}
+	if manager.environmentReference != "" {
+		environments["embedded-development"] = manager.environmentReference
+	}
+	return []builder.Definition{{ID: "local", Kind: builder.KindLocalBuildKit, Environments: environments}}, nil
 }
 func (fakeBuilderManager) Prepare(context.Context, string) error { return nil }
 func (fakeBuilderManager) Check(context.Context, string) error   { return nil }

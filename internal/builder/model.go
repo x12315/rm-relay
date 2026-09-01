@@ -4,6 +4,8 @@ package builder
 import (
 	"fmt"
 	"sort"
+
+	"github.com/x12315/rm-relay/internal/environment"
 )
 
 // Kind identifies the execution mechanism behind a logical Builder.
@@ -106,7 +108,7 @@ func ValidateDefinition(definition Definition) error {
 		if !IsIdentifier(environmentID) {
 			return fmt.Errorf("builder %q has invalid environment ID %q", definition.ID, environmentID)
 		}
-		if !IsDigestReference(reference) {
+		if _, err := environment.ParseDigestReference(reference); err != nil {
 			return fmt.Errorf("builder %q environment %q must use an OCI digest reference", definition.ID, environmentID)
 		}
 	}
@@ -130,25 +132,4 @@ func IsIdentifier(value string) bool {
 		return false
 	}
 	return true
-}
-
-// IsDigestReference requires an OCI reference pinned to a SHA-256 digest.
-func IsDigestReference(reference string) bool {
-	const marker = "@sha256:"
-	for index := 0; index+len(marker) <= len(reference); index++ {
-		if reference[index:index+len(marker)] != marker {
-			continue
-		}
-		digest := reference[index+len(marker):]
-		if index == 0 || len(digest) != 64 {
-			return false
-		}
-		for _, character := range digest {
-			if (character < '0' || character > '9') && (character < 'a' || character > 'f') {
-				return false
-			}
-		}
-		return true
-	}
-	return false
 }

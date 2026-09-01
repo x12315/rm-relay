@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/x12315/rm-relay/internal/builder"
+	"github.com/x12315/rm-relay/internal/environment"
 )
 
 const (
@@ -116,7 +116,7 @@ func validateState(layout Layout, state State) error {
 	if state.ImageReference != developmentImageReference || state.ImageID == "" {
 		return fmt.Errorf("candidate state image identity is invalid")
 	}
-	if !builder.IsDigestReference(state.EnvironmentReference) {
+	if _, err := environment.ParseDigestReference(state.EnvironmentReference); err != nil {
 		return fmt.Errorf("candidate state environment reference is invalid")
 	}
 	if state.TemplateRevision == "" || state.CreatedAt.IsZero() {

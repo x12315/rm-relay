@@ -13,6 +13,7 @@ import (
 
 	"github.com/x12315/rm-relay/internal/build"
 	"github.com/x12315/rm-relay/internal/builder"
+	"github.com/x12315/rm-relay/internal/environment"
 	"github.com/x12315/rm-relay/internal/execution/buildx"
 )
 
@@ -53,8 +54,9 @@ func (backend Backend) Build(ctx context.Context, plan build.Plan, definition bu
 	if err != nil {
 		return build.ExecutionEvidence{}, err
 	}
-	if !builder.IsDigestReference(reference) {
-		return build.ExecutionEvidence{}, fmt.Errorf("environment reference must be pinned by digest")
+	parsedReference, err := environment.ParseDigestReference(reference)
+	if err != nil {
+		return build.ExecutionEvidence{}, err
 	}
 	workflow, err := backend.workflows.Resolve(plan.Build.System)
 	if err != nil {
@@ -86,8 +88,7 @@ func (backend Backend) Build(ctx context.Context, plan build.Plan, definition bu
 	if err := publish(true); err != nil {
 		return build.ExecutionEvidence{}, err
 	}
-	digest := reference[strings.LastIndex(reference, "@")+1:]
-	return build.ExecutionEvidence{BuilderID: definition.ID, BuilderKind: string(definition.Kind), EnvironmentID: plan.Profile.Config.Environment.ID, EnvironmentReference: reference, EnvironmentDigest: digest}, nil
+	return build.ExecutionEvidence{BuilderID: definition.ID, BuilderKind: string(definition.Kind), EnvironmentID: plan.Profile.Config.Environment.ID, EnvironmentReference: reference, EnvironmentDigest: parsedReference.Digest}, nil
 }
 
 func reserveOutputDirectory(outputDirectory string) (string, func(bool) error, error) {

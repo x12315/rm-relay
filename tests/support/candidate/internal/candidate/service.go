@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/x12315/rm-relay/internal/builder"
+	"github.com/x12315/rm-relay/internal/environment"
 	"github.com/x12315/rm-relay/internal/execution/buildx"
 	"github.com/x12315/rm-relay/internal/execution/command"
 )
@@ -56,7 +57,7 @@ func (service Service) Prepare(ctx context.Context) (prepared Prepared, returnEr
 	if service.BinaryBuilder == nil {
 		return Prepared{}, fmt.Errorf("candidate CLI builder is not configured")
 	}
-	if !builder.IsDigestReference(service.EnvironmentReference) {
+	if _, err := environment.ParseDigestReference(service.EnvironmentReference); err != nil {
 		return Prepared{}, fmt.Errorf("RM_RELAY_CANDIDATE_ENVIRONMENT must use image@sha256:<digest>")
 	}
 	if _, err := os.Lstat(layout.Root); err == nil {

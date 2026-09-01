@@ -17,6 +17,8 @@ ENV LANG=C.UTF-8 \
 
 COPY environments/embedded-development/locks/versions.env \
      /opt/embedded-development/versions.env
+COPY environments/embedded-development/identity.toml \
+     /opt/rm-relay/environment/identity.toml
 COPY --from=certificates /etc/ssl/certs/ca-certificates.crt \
      /etc/ssl/certs/ca-certificates.crt
 
@@ -95,6 +97,8 @@ RUN chmod +x \
 WORKDIR /workspace
 
 LABEL org.opencontainers.image.base.name="ubuntu:24.04" \
+      org.rm-relay.environment.id="embedded-development" \
+      org.rm-relay.environment.schema-version="1" \
       dev.embedded.ubuntu.lts="24.04" \
       dev.embedded.native-gcc.major="14" \
       dev.embedded.catch2.version="3.4.0-1build1" \

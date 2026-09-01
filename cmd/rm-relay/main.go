@@ -13,6 +13,7 @@ import (
 	"github.com/x12315/rm-relay/internal/build/cmake"
 	"github.com/x12315/rm-relay/internal/builder"
 	"github.com/x12315/rm-relay/internal/cli"
+	"github.com/x12315/rm-relay/internal/environment"
 	"github.com/x12315/rm-relay/internal/execution/buildx"
 	"github.com/x12315/rm-relay/internal/execution/command"
 	"github.com/x12315/rm-relay/internal/execution/docker"
@@ -71,7 +72,12 @@ func main() {
 		fmt.Fprintf(os.Stderr, "rm-relay: distribution_invalid: %s\n", err)
 		os.Exit(1)
 	}
-	builderManager := builder.Service{Store: builderStore, Buildx: buildxClient, Docker: dockerClient}
+	builderManager := builder.Service{
+		Store:               builderStore,
+		Buildx:              buildxClient,
+		Docker:              dockerClient,
+		EnvironmentVerifier: environment.BuildKitVerifier{Buildx: buildxClient, Progress: os.Stderr},
+	}
 	flashAdapters, err := target.NewFlashAdapterCatalog(openocd.Adapter{
 		Runner:        processRunner,
 		MiseBinary:    miseBinary,

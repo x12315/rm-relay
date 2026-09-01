@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/x12315/rm-relay/internal/build"
 	"github.com/x12315/rm-relay/internal/build/output"
 	"github.com/x12315/rm-relay/internal/builder"
+	"github.com/x12315/rm-relay/internal/environment"
 	"github.com/x12315/rm-relay/internal/profile"
 	"github.com/x12315/rm-relay/internal/project"
 	"github.com/x12315/rm-relay/internal/target"
@@ -39,20 +41,27 @@ type application struct {
 }
 
 type commandResult struct {
-	OK        bool            `json:"ok"`
-	Operation string          `json:"operation"`
-	ProjectID string          `json:"project_id,omitempty"`
-	Profile   string          `json:"profile,omitempty"`
-	Output    string          `json:"output,omitempty"`
-	Command   []string        `json:"command,omitempty"`
-	Executed  *bool           `json:"executed,omitempty"`
-	Builders  []builderResult `json:"builders,omitempty"`
+	OK           bool                `json:"ok"`
+	Operation    string              `json:"operation"`
+	ProjectID    string              `json:"project_id,omitempty"`
+	Profile      string              `json:"profile,omitempty"`
+	Output       string              `json:"output,omitempty"`
+	Command      []string            `json:"command,omitempty"`
+	Executed     *bool               `json:"executed,omitempty"`
+	Builders     []builderResult     `json:"builders,omitempty"`
+	Environments []environmentResult `json:"environments,omitempty"`
 }
 
 type builderResult struct {
 	ID            string `json:"id"`
 	Kind          string `json:"kind"`
 	BuildxBuilder string `json:"buildx_builder,omitempty"`
+}
+
+type environmentResult struct {
+	ID        string `json:"id"`
+	BuilderID string `json:"builder_id"`
+	Reference string `json:"reference,omitempty"`
 }
 
 type commandFailure struct {
@@ -125,13 +134,13 @@ func (app *application) newRootCommand() *cobra.Command {
 	root.SetFlagErrorFunc(func(command *cobra.Command, err error) error {
 		return invalidArguments(command.Name(), err)
 	})
-	root.AddCommand(app.newInitCommand(), app.newBuildCommand(), app.newFlashCommand(), app.newBuilderCommand())
+	root.AddCommand(app.newInitCommand(), app.newBuildCommand(), app.newFlashCommand(), app.newBuilderCommand(), app.newEnvironmentCommand())
 	return root
 }
 
 func (app *application) newBuilderCommand() *cobra.Command {
 	command := &cobra.Command{Use: "builder", Short: "管理本机可用的构建资源", Args: noArguments("builder")}
-	command.AddCommand(app.newBuilderAddCommand(), app.newBuilderRemoveCommand(), app.newBuilderSetEnvironmentCommand(), app.newBuilderListCommand(), app.newBuilderPrepareCommand(), app.newBuilderCheckCommand())
+	command.AddCommand(app.newBuilderAddCommand(), app.newBuilderRemoveCommand(), app.newBuilderListCommand(), app.newBuilderPrepareCommand(), app.newBuilderCheckCommand())
 	return command
 }
 
@@ -187,17 +196,84 @@ func (app *application) newBuilderAddCommand() *cobra.Command {
 	return command
 }
 
-func (app *application) newBuilderSetEnvironmentCommand() *cobra.Command {
-	return &cobra.Command{Use: "set-environment <builder> <environment> <image@sha256:digest>", Short: "登记远端 Builder 使用的不可变环境镜像", Args: cobra.ExactArgs(3), RunE: func(_ *cobra.Command, arguments []string) error {
+func (app *application) newEnvironmentCommand() *cobra.Command {
+	command := &cobra.Command{Use: "environment", Short: "管理 Builder 可用的开发环境", Args: noArguments("environment")}
+	command.AddCommand(app.newEnvironmentAddCommand(), app.newEnvironmentCheckCommand(), app.newEnvironmentListCommand())
+	return command
+}
+
+func (app *application) newEnvironmentAddCommand() *cobra.Command {
+	var builderID string
+	command := &cobra.Command{Use: "add <environment> <image@sha256:digest>", Short: "拉取、核验并登记不可变开发环境", Args: cobra.ExactArgs(2), RunE: func(command *cobra.Command, arguments []string) error {
 		if app.dependencies.BuilderManager == nil {
-			return newCLIError("builder_invalid", "builder set-environment", 1, fmt.Errorf("Builder manager is not configured"))
+			return newCLIError("environment_invalid", "environment add", 1, fmt.Errorf("Builder manager is not configured"))
 		}
-		if err := app.dependencies.BuilderManager.SetEnvironment(arguments[0], arguments[1], arguments[2]); err != nil {
-			return newCLIError("builder_invalid", "builder set-environment", 1, err)
+		if !environment.IsIdentifier(arguments[0]) {
+			return invalidArguments("environment add", fmt.Errorf("environment ID %q is invalid", arguments[0]))
 		}
-		emitSuccess(app.outputFormat, app.dependencies, commandResult{OK: true, Operation: "builder set-environment"})
+		if _, err := environment.ParseDigestReference(arguments[1]); err != nil {
+			return invalidArguments("environment add", err)
+		}
+		if err := app.dependencies.BuilderManager.RegisterEnvironment(command.Context(), builderID, arguments[0], arguments[1]); err != nil {
+			return newCLIError("environment_unavailable", "environment add", 1, err)
+		}
+		emitSuccess(app.outputFormat, app.dependencies, commandResult{OK: true, Operation: "environment add", Environments: []environmentResult{{ID: arguments[0], BuilderID: builderID, Reference: arguments[1]}}})
 		return nil
 	}}
+	command.Flags().StringVar(&builderID, "builder", builder.LocalID, "登记 environment 的逻辑 Builder")
+	return command
+}
+
+func (app *application) newEnvironmentCheckCommand() *cobra.Command {
+	var builderID string
+	command := &cobra.Command{Use: "check <environment>", Short: "重新核验已登记开发环境", Args: cobra.ExactArgs(1), RunE: func(command *cobra.Command, arguments []string) error {
+		if app.dependencies.BuilderManager == nil {
+			return newCLIError("environment_invalid", "environment check", 1, fmt.Errorf("Builder manager is not configured"))
+		}
+		if err := app.dependencies.BuilderManager.CheckEnvironment(command.Context(), builderID, arguments[0]); err != nil {
+			return newCLIError("environment_unavailable", "environment check", 1, err)
+		}
+		emitSuccess(app.outputFormat, app.dependencies, commandResult{OK: true, Operation: "environment check", Environments: []environmentResult{{ID: arguments[0], BuilderID: builderID}}})
+		return nil
+	}}
+	command.Flags().StringVar(&builderID, "builder", builder.LocalID, "核验 environment 的逻辑 Builder")
+	return command
+}
+
+func (app *application) newEnvironmentListCommand() *cobra.Command {
+	var builderID string
+	command := &cobra.Command{Use: "list", Short: "列出指定 Builder 已登记的开发环境", Args: noArguments("environment list"), RunE: func(_ *cobra.Command, _ []string) error {
+		if app.dependencies.BuilderManager == nil {
+			return newCLIError("environment_invalid", "environment list", 1, fmt.Errorf("Builder manager is not configured"))
+		}
+		definitions, err := app.dependencies.BuilderManager.List()
+		if err != nil {
+			return newCLIError("environment_invalid", "environment list", 1, err)
+		}
+		var selected *builder.Definition
+		for index := range definitions {
+			if definitions[index].ID == builderID {
+				selected = &definitions[index]
+				break
+			}
+		}
+		if selected == nil {
+			return newCLIError("builder_invalid", "environment list", 1, fmt.Errorf("builder %q does not exist", builderID))
+		}
+		ids := make([]string, 0, len(selected.Environments))
+		for id := range selected.Environments {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		results := make([]environmentResult, 0, len(ids))
+		for _, id := range ids {
+			results = append(results, environmentResult{ID: id, BuilderID: builderID, Reference: selected.Environments[id]})
+		}
+		emitSuccess(app.outputFormat, app.dependencies, commandResult{OK: true, Operation: "environment list", Environments: results})
+		return nil
+	}}
+	command.Flags().StringVar(&builderID, "builder", builder.LocalID, "列出 environment 的逻辑 Builder")
+	return command
 }
 
 func (app *application) newBuilderListCommand() *cobra.Command {
@@ -410,8 +486,16 @@ func emitSuccess(outputFormat string, dependencies Dependencies, result commandR
 		fmt.Fprintln(dependencies.Stdout, "Builder 已登记")
 	case "builder remove":
 		fmt.Fprintln(dependencies.Stdout, "Builder 已删除")
-	case "builder set-environment":
-		fmt.Fprintln(dependencies.Stdout, "Builder environment 已更新")
+	case "environment add":
+		environment := result.Environments[0]
+		fmt.Fprintf(dependencies.Stdout, "Environment 已登记：%s -> %s\n", environment.ID, environment.BuilderID)
+	case "environment check":
+		environment := result.Environments[0]
+		fmt.Fprintf(dependencies.Stdout, "Environment 检查通过：%s -> %s\n", environment.ID, environment.BuilderID)
+	case "environment list":
+		for _, environment := range result.Environments {
+			fmt.Fprintf(dependencies.Stdout, "%s\t%s\n", environment.ID, environment.Reference)
+		}
 	case "builder check":
 		fmt.Fprintln(dependencies.Stdout, "Builder 检查通过")
 	case "builder prepare":

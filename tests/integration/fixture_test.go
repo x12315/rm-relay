@@ -123,8 +123,11 @@ type integrationBuilderManager struct{ prepared []string }
 
 func (integrationBuilderManager) Add(context.Context, builder.AddRequest) error { return nil }
 func (integrationBuilderManager) Remove(context.Context, string) error          { return nil }
-func (integrationBuilderManager) SetEnvironment(string, string, string) error   { return nil }
-func (integrationBuilderManager) List() ([]builder.Definition, error)           { return nil, nil }
+func (integrationBuilderManager) RegisterEnvironment(context.Context, string, string, string) error {
+	return nil
+}
+func (integrationBuilderManager) CheckEnvironment(context.Context, string, string) error { return nil }
+func (integrationBuilderManager) List() ([]builder.Definition, error)                    { return nil, nil }
 func (manager *integrationBuilderManager) Prepare(_ context.Context, id string) error {
 	manager.prepared = append(manager.prepared, id)
 	return nil

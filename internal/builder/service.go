@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/x12315/rm-relay/internal/environment"
 	"github.com/x12315/rm-relay/internal/execution/buildx"
 	"github.com/x12315/rm-relay/internal/execution/docker"
 )
@@ -21,7 +22,8 @@ type AddRequest struct {
 type Manager interface {
 	Add(context.Context, AddRequest) error
 	Remove(context.Context, string) error
-	SetEnvironment(string, string, string) error
+	RegisterEnvironment(context.Context, string, string, string) error
+	CheckEnvironment(context.Context, string, string) error
 	List() ([]Definition, error)
 	Prepare(context.Context, string) error
 	Check(context.Context, string) error
@@ -66,9 +68,10 @@ func (service Service) Remove(ctx context.Context, builderID string) error {
 
 // Service composes persistent logical mappings with official Buildx resources.
 type Service struct {
-	Store  Store
-	Buildx buildx.Client
-	Docker docker.Client
+	Store               Store
+	Buildx              buildx.Client
+	Docker              docker.Client
+	EnvironmentVerifier environment.Verifier
 }
 
 // Add validates credentials, creates the Buildx resource, then commits the logical mapping.
@@ -109,13 +112,30 @@ func (service Service) Add(ctx context.Context, request AddRequest) error {
 	return nil
 }
 
-// SetEnvironment pins one Profile environment ID to an immutable registry reference.
-func (service Service) SetEnvironment(builderID, environmentID, reference string) error {
-	if !IsIdentifier(environmentID) {
+// RegisterEnvironment verifies and pins one environment image for a logical Builder.
+func (service Service) RegisterEnvironment(ctx context.Context, builderID, environmentID, reference string) error {
+	if !environment.IsIdentifier(environmentID) {
 		return fmt.Errorf("environment ID %q is invalid", environmentID)
 	}
-	if !IsDigestReference(reference) {
-		return fmt.Errorf("environment reference must use image@sha256:<digest>")
+	if _, err := environment.ParseDigestReference(reference); err != nil {
+		return err
+	}
+	if service.EnvironmentVerifier == nil {
+		return fmt.Errorf("environment verifier is not configured")
+	}
+	definition, err := service.resolve(builderID)
+	if err != nil {
+		return err
+	}
+	if err := service.Prepare(ctx, builderID); err != nil {
+		return err
+	}
+	identity, err := service.EnvironmentVerifier.Verify(ctx, definition.BuildxBuilder, reference)
+	if err != nil {
+		return err
+	}
+	if identity.ID != environmentID {
+		return fmt.Errorf("environment image identity %q does not match requested ID %q", identity.ID, environmentID)
 	}
 	definitions, err := service.Store.Load()
 	if err != nil {
@@ -144,6 +164,32 @@ func (service Service) SetEnvironment(builderID, environmentID, reference string
 	return service.Store.Save(definitions)
 }
 
+// CheckEnvironment re-verifies the image currently pinned for one logical Builder.
+func (service Service) CheckEnvironment(ctx context.Context, builderID, environmentID string) error {
+	definition, err := service.resolve(builderID)
+	if err != nil {
+		return err
+	}
+	reference, err := definition.EnvironmentReference(environmentID)
+	if err != nil {
+		return err
+	}
+	if service.EnvironmentVerifier == nil {
+		return fmt.Errorf("environment verifier is not configured")
+	}
+	if err := service.Prepare(ctx, builderID); err != nil {
+		return err
+	}
+	identity, err := service.EnvironmentVerifier.Verify(ctx, definition.BuildxBuilder, reference)
+	if err != nil {
+		return err
+	}
+	if identity.ID != environmentID {
+		return fmt.Errorf("environment image identity %q does not match registered ID %q", identity.ID, environmentID)
+	}
+	return nil
+}
+
 // List returns the built-in local Builder and sorted persistent definitions.
 func (service Service) List() ([]Definition, error) {
 	definitions, err := service.Store.Load()
@@ -160,6 +206,18 @@ func (service Service) List() ([]Definition, error) {
 	}
 	sort.Slice(listed, func(i, j int) bool { return listed[i].ID < listed[j].ID })
 	return listed, nil
+}
+
+func (service Service) resolve(builderID string) (Definition, error) {
+	definitions, err := service.Store.Load()
+	if err != nil {
+		return Definition{}, err
+	}
+	catalog, err := NewCatalog(definitions...)
+	if err != nil {
+		return Definition{}, err
+	}
+	return catalog.Resolve(builderID)
 }
 
 // Prepare makes one registered Builder ready without changing the user's active Buildx selection.

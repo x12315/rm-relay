@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/x12315/rm-relay/internal/environment"
 	"github.com/x12315/rm-relay/internal/execution/buildx"
 	"github.com/x12315/rm-relay/internal/execution/docker"
 )
@@ -55,6 +56,19 @@ func (fakeDocker) InspectImage(context.Context, string) (string, error) { return
 func (fakeDocker) Run(context.Context, docker.RunRequest) error         { return nil }
 func (fakeDocker) TagImage(context.Context, string, string) error       { return nil }
 func (fakeDocker) RemoveImage(context.Context, string) error            { return nil }
+
+type fakeEnvironmentVerifier struct {
+	identityID string
+	err        error
+	builder    string
+	reference  string
+}
+
+func (verifier *fakeEnvironmentVerifier) Verify(_ context.Context, buildxBuilder, reference string) (environment.Identity, error) {
+	verifier.builder = buildxBuilder
+	verifier.reference = reference
+	return environment.Identity{SchemaVersion: 1, ID: verifier.identityID}, verifier.err
+}
 func TestAddCreatesBuildxThenPersistsLogicalDefinition(t *testing.T) {
 	root := t.TempDir()
 	paths := makeTLSFiles(t, root)
@@ -79,26 +93,27 @@ func TestAddCreatesBuildxThenPersistsLogicalDefinition(t *testing.T) {
 	}
 }
 
-func TestSetEnvironmentRequiresImmutableDigest(t *testing.T) {
+func TestRegisterEnvironmentRequiresImmutableDigest(t *testing.T) {
 	store := Store{Directory: filepath.Join(t.TempDir(), "config")}
 	if err := store.Save([]Definition{{ID: "team", Kind: KindRemoteBuildKit, BuildxBuilder: "rm-relay-team", Environments: map[string]string{}}}); err != nil {
 		t.Fatal(err)
 	}
-	service := Service{Store: store}
-	if err := service.SetEnvironment("team", "embedded-development", "registry/image:latest"); err == nil {
+	service := Service{Store: store, Buildx: &fakeBuildx{}, EnvironmentVerifier: &fakeEnvironmentVerifier{identityID: "embedded-development"}}
+	if err := service.RegisterEnvironment(context.Background(), "team", "embedded-development", "registry/image:latest"); err == nil {
 		t.Fatal("mutable image accepted")
 	}
 	reference := "registry/image@sha256:" + strings.Repeat("a", 64)
-	if err := service.SetEnvironment("team", "embedded-development", reference); err != nil {
+	if err := service.RegisterEnvironment(context.Background(), "team", "embedded-development", reference); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestSetEnvironmentCreatesPersistentLocalMapping(t *testing.T) {
+func TestRegisterEnvironmentCreatesPersistentLocalMappingAfterVerification(t *testing.T) {
 	store := Store{Directory: filepath.Join(t.TempDir(), "config")}
-	service := Service{Store: store}
+	verifier := &fakeEnvironmentVerifier{identityID: "embedded-development"}
+	service := Service{Store: store, Buildx: &fakeBuildx{}, Docker: fakeDocker{}, EnvironmentVerifier: verifier}
 	reference := "registry/image@sha256:" + strings.Repeat("b", 64)
-	if err := service.SetEnvironment(LocalID, "embedded-development", reference); err != nil {
+	if err := service.RegisterEnvironment(context.Background(), LocalID, "embedded-development", reference); err != nil {
 		t.Fatal(err)
 	}
 	definitions, err := store.Load()
@@ -107,6 +122,45 @@ func TestSetEnvironmentCreatesPersistentLocalMapping(t *testing.T) {
 	}
 	if len(definitions) != 1 || definitions[0].ID != LocalID || definitions[0].Environments["embedded-development"] != reference {
 		t.Fatalf("definitions = %#v", definitions)
+	}
+	if verifier.builder != LocalBuildxBuilder || verifier.reference != reference {
+		t.Fatalf("verification = builder %q, reference %q", verifier.builder, verifier.reference)
+	}
+}
+
+func TestRegisterEnvironmentDoesNotPersistFailedIdentity(t *testing.T) {
+	store := Store{Directory: filepath.Join(t.TempDir(), "config")}
+	service := Service{Store: store, Buildx: &fakeBuildx{}, Docker: fakeDocker{}, EnvironmentVerifier: &fakeEnvironmentVerifier{identityID: "wrong-environment"}}
+	reference := "registry/image@sha256:" + strings.Repeat("b", 64)
+
+	err := service.RegisterEnvironment(context.Background(), LocalID, "embedded-development", reference)
+	if err == nil || !strings.Contains(err.Error(), "identity") {
+		t.Fatalf("RegisterEnvironment() error = %v", err)
+	}
+	definitions, loadError := store.Load()
+	if loadError != nil {
+		t.Fatal(loadError)
+	}
+	if len(definitions) != 0 {
+		t.Fatalf("failed registration persisted %#v", definitions)
+	}
+}
+
+func TestCheckEnvironmentUsesThePersistedBuilderMapping(t *testing.T) {
+	store := Store{Directory: filepath.Join(t.TempDir(), "config")}
+	reference := "registry/image@sha256:" + strings.Repeat("c", 64)
+	if err := store.Save([]Definition{{ID: "team", Kind: KindRemoteBuildKit, BuildxBuilder: "rm-relay-team", Environments: map[string]string{"embedded-development": reference}}}); err != nil {
+		t.Fatal(err)
+	}
+	verifier := &fakeEnvironmentVerifier{identityID: "embedded-development"}
+	buildxClient := &fakeBuildx{}
+	service := Service{Store: store, Buildx: buildxClient, EnvironmentVerifier: verifier}
+
+	if err := service.CheckEnvironment(context.Background(), "team", "embedded-development"); err != nil {
+		t.Fatal(err)
+	}
+	if buildxClient.inspectCallCount != 1 || verifier.builder != "rm-relay-team" || verifier.reference != reference {
+		t.Fatalf("inspect calls = %d, verification = %q %q", buildxClient.inspectCallCount, verifier.builder, verifier.reference)
 	}
 }
 
