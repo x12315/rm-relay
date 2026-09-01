@@ -31,7 +31,8 @@ rm-relay environment add embedded-development \
 rm-relay build --builder local
 ```
 
-第一次构建时，CLI 会准备名为 `rm-relay-local` 的 Buildx `docker-container` resource，并把
+第一次构建时，CLI 会把逻辑 Builder `local` 映射到名为 `rm-relay-local-workspace-buildx` 的
+Buildx `docker-container` resource，并把
 BuildKit image 固定到 OCI digest；后续构建复用该资源及其 cache。CLI 不执行 `docker buildx use`，不会
 改变用户在其他项目中选择的 Builder。也可以单独准备或检查：
 

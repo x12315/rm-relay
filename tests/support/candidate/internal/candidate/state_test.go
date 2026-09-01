@@ -107,7 +107,7 @@ func validState(layout Layout) State {
 		CLISHA256:            strings.Repeat("a", 64),
 		BuilderID:            "local",
 		BuilderKind:          "local-buildkit",
-		BuildxBuilder:        "rm-relay-local",
+		BuildxBuilder:        "rm-relay-local-workspace-buildx",
 		EnvironmentID:        "embedded-development",
 		EnvironmentReference: "registry.example/environment@sha256:" + strings.Repeat("b", 64),
 		TemplateRevision:     "abcdef0123456789",

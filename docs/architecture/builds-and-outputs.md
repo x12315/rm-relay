@@ -102,7 +102,7 @@ Backend 先将 local exporter 写入受管临时目录，确认声明产物存�
 | Managed Data | `.rm-relay/data/` | 是，取回后由开发机保管 |
 | BuildKit、ccache、依赖 cache、remote workspace | 对应 Builder 管理 | 否，可删除 |
 
-切换 Builder 或清空 cache 不得改变构建语义。本地 cache 留在 `rm-relay-local` BuildKit
+切换 Builder 或清空 cache 不得改变构建语义。本地 cache 留在 `rm-relay-local-workspace-buildx` BuildKit
 resource，远端 cache 留在编译服务器；首版不在二者之间同步 cache，也不把 cache 传到 target。
 
 ccache 是显式依赖，不是 CMake 默认能力。可信战队或邀请制 backend 可以让相同环境与

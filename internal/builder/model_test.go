@@ -5,6 +5,15 @@ import (
 	"testing"
 )
 
+func TestLocalBuilderMapsToDedicatedWorkspaceBuildxResource(t *testing.T) {
+	if LocalID != "local" {
+		t.Fatalf("local logical Builder ID = %q", LocalID)
+	}
+	if LocalBuildxBuilder != "rm-relay-local-workspace-buildx" {
+		t.Fatalf("local physical Buildx resource = %q", LocalBuildxBuilder)
+	}
+}
+
 func TestCatalogAlwaysProvidesLocalBuilder(t *testing.T) {
 	catalog, err := NewCatalog()
 	if err != nil {

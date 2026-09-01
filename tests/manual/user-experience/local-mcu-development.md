@@ -77,5 +77,6 @@ exit
 mise run experience:clean
 ```
 
-`experience:clean` 删除本场景产生的外置 workspace 和隔离配置，不删除借用的 `rm-relay-local`、
+`experience:clean` 删除本场景产生的外置 workspace 和隔离配置，不删除借用的
+`rm-relay-local-workspace-buildx`、
 environment image 或 build cache。若本次使用了临时 Registry，回到对应运维 how-to 另行清理。

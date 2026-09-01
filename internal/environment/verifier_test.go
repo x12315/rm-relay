@@ -30,14 +30,14 @@ func TestBuildKitVerifierExportsAndParsesIdentity(t *testing.T) {
 	executor := &recordingBuildExecutor{content: "schema_version = 1\nid = \"embedded-development\"\n"}
 	verifier := BuildKitVerifier{Buildx: executor, Progress: io.Discard}
 
-	identity, err := verifier.Verify(context.Background(), "rm-relay-local", reference)
+	identity, err := verifier.Verify(context.Background(), "rm-relay-local-workspace-buildx", reference)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if identity.ID != "embedded-development" {
 		t.Fatalf("identity = %#v", identity)
 	}
-	if executor.request.Builder != "rm-relay-local" || executor.request.BuildArguments["RM_RELAY_ENVIRONMENT"] != reference {
+	if executor.request.Builder != "rm-relay-local-workspace-buildx" || executor.request.BuildArguments["RM_RELAY_ENVIRONMENT"] != reference {
 		t.Fatalf("Build() request = %#v", executor.request)
 	}
 	dockerfile, err := io.ReadAll(executor.request.Dockerfile)
@@ -51,7 +51,7 @@ func TestBuildKitVerifierExportsAndParsesIdentity(t *testing.T) {
 
 func TestBuildKitVerifierRejectsMutableReferenceBeforeBuild(t *testing.T) {
 	executor := &recordingBuildExecutor{}
-	_, err := (BuildKitVerifier{Buildx: executor}).Verify(context.Background(), "rm-relay-local", "registry.example/image:latest")
+	_, err := (BuildKitVerifier{Buildx: executor}).Verify(context.Background(), "rm-relay-local-workspace-buildx", "registry.example/image:latest")
 	if err == nil {
 		t.Fatal("Verify() accepted mutable reference")
 	}

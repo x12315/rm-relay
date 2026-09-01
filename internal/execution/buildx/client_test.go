@@ -28,23 +28,23 @@ func (runner *recordingRunner) Run(_ context.Context, request command.Request) (
 
 func TestCreateLocalUsesPinnedDockerContainerDriverWithoutChangingSelection(t *testing.T) {
 	runner := &recordingRunner{}
-	request := CreateLocalRequest{Name: "rm-relay-local", Image: "moby/buildkit:v0.32.2@sha256:" + strings.Repeat("a", 64)}
+	request := CreateLocalRequest{Name: "rm-relay-local-workspace-buildx", Image: "moby/buildkit:v0.32.2@sha256:" + strings.Repeat("a", 64)}
 	if err := (CLI{Runner: runner}).CreateLocal(context.Background(), request); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"buildx", "create", "--name", "rm-relay-local", "--driver", "docker-container", "--driver-opt", "image=" + request.Image, "--bootstrap"}
+	want := []string{"buildx", "create", "--name", "rm-relay-local-workspace-buildx", "--driver", "docker-container", "--driver-opt", "image=" + request.Image, "--bootstrap"}
 	if !reflect.DeepEqual(runner.requests[0].Arguments, want) {
 		t.Fatalf("arguments = %#v, want %#v", runner.requests[0].Arguments, want)
 	}
 }
 
 func TestListBuildersDecodesJSONLines(t *testing.T) {
-	runner := &recordingRunner{results: []command.Result{{Stdout: "{\"Name\":\"rm-relay-local\",\"Driver\":\"docker-container\"}\n{\"Name\":\"rm-relay-team\",\"Driver\":\"remote\"}\n"}}}
+	runner := &recordingRunner{results: []command.Result{{Stdout: "{\"Name\":\"rm-relay-local-workspace-buildx\",\"Driver\":\"docker-container\"}\n{\"Name\":\"rm-relay-team\",\"Driver\":\"remote\"}\n"}}}
 	builders, err := (CLI{Runner: runner}).ListBuilders(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []BuilderSummary{{Name: "rm-relay-local", Driver: "docker-container"}, {Name: "rm-relay-team", Driver: "remote"}}
+	want := []BuilderSummary{{Name: "rm-relay-local-workspace-buildx", Driver: "docker-container"}, {Name: "rm-relay-team", Driver: "remote"}}
 	if !reflect.DeepEqual(builders, want) {
 		t.Fatalf("builders = %#v, want %#v", builders, want)
 	}

@@ -18,8 +18,8 @@ const (
 	KindRemoteBuildKit Kind = "remote-buildkit"
 	// LocalID is the built-in logical Builder available without user configuration.
 	LocalID = "local"
-	// LocalBuildxBuilder is the only workstation Buildx resource owned by RM Relay.
-	LocalBuildxBuilder = "rm-relay-local"
+	// LocalBuildxBuilder is the workstation Buildx resource reserved for user workspace builds.
+	LocalBuildxBuilder = "rm-relay-local-workspace-buildx"
 	// LocalBuildKitImage pins the BuildKit daemon used by the local Builder.
 	LocalBuildKitImage = "moby/buildkit:v0.32.2@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8"
 )

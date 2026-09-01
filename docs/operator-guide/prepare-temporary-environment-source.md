@@ -13,16 +13,16 @@ environment digest。它以 Linux Docker Engine 与 Buildx 为保证基线；mac
 
 ```text
 rm-relay-temporary-registry
-rm-relay-environment-image-builder
-rm-relay-local
+rm-relay-environment-image-buildx
+rm-relay-local-workspace-buildx
 ```
 
 先分别检查：
 
 ```bash
 docker container inspect rm-relay-temporary-registry
-docker buildx inspect rm-relay-environment-image-builder
-docker buildx inspect rm-relay-local
+docker buildx inspect rm-relay-environment-image-buildx
+docker buildx inspect rm-relay-local-workspace-buildx
 ```
 
 新环境中三条命令都应报告对象不存在。任一对象已经存在时停止，不删除、不替换，也不尝试把
@@ -52,33 +52,35 @@ Linux host network。两条命令的参数相同，但资源职责不同：
 
 | Buildx resource | 使用者 | 职责 |
 | --- | --- | --- |
-| `rm-relay-environment-image-builder` | 环境镜像构建服务 | 从 Dockerfile 构建开发环境，并 push 到临时 Registry |
-| `rm-relay-local` | RM Relay 的逻辑 Builder `local` | 从 Registry 拉取开发环境，在其中编译用户 workspace |
+| `rm-relay-environment-image-buildx` | 环境镜像构建服务 | 从 Dockerfile 构建开发环境，并 push 到临时 Registry |
+| `rm-relay-local-workspace-buildx` | RM Relay 的逻辑 Builder `local` | 从 Registry 拉取开发环境，在其中编译用户 workspace |
 
 因此二者必须保持独立的 cache 和生命周期：前者属于镜像生产，后者属于日常项目构建。这里的
-`rm-relay-local` 是 Docker Buildx resource 名称；普通用户选择的仍是逻辑 ID `local`。
+`rm-relay-local-workspace-buildx` 是 Docker Buildx resource 名称；普通用户选择的仍是逻辑 ID
+`local`。
 
 ```bash
 docker buildx create \
-  --name rm-relay-environment-image-builder \
+  --name rm-relay-environment-image-buildx \
   --driver docker-container \
   --driver-opt image=moby/buildkit:v0.32.2@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8 \
   --driver-opt network=host
 
 docker buildx create \
-  --name rm-relay-local \
+  --name rm-relay-local-workspace-buildx \
   --driver docker-container \
   --driver-opt image=moby/buildkit:v0.32.2@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8 \
   --driver-opt network=host
 
-docker buildx inspect --bootstrap rm-relay-environment-image-builder
-docker buildx inspect --bootstrap rm-relay-local
+docker buildx inspect --bootstrap rm-relay-environment-image-buildx
+docker buildx inspect --bootstrap rm-relay-local-workspace-buildx
 ```
 
 第一个 Builder 的 Platforms 必须同时包含 `linux/amd64` 与 `linux/arm64`。Docker Engine 的官方
 BuildKit 通常可以使用自带 QEMU；若平台缺失，先按
 [Docker multi-platform 文档](https://docs.docker.com/build/building/multi-platform/)补齐主机能力，
-不要把发布矩阵降为单架构。`rm-relay-local` 是 Candidate 后续借用的 workspace Builder。
+不要把发布矩阵降为单架构。`rm-relay-local-workspace-buildx` 是 Candidate 中逻辑 Builder
+`local` 后续调用的 Buildx resource。
 
 ## 4. 生成不可变 reference
 
@@ -89,7 +91,7 @@ revision 的版本字符串：
 export RM_RELAY_MAINTENANCE_ROOT=/absolute/path/outside/repository
 mkdir -p "$RM_RELAY_MAINTENANCE_ROOT"
 
-export RM_RELAY_IMAGE_BUILDER=rm-relay-environment-image-builder
+export RM_RELAY_IMAGE_BUILDER=rm-relay-environment-image-buildx
 export RM_RELAY_ENVIRONMENT_TAG=localhost:5000/rm-relay/embedded-development:<version>
 export RM_RELAY_ENVIRONMENT_HANDOFF="$RM_RELAY_MAINTENANCE_ROOT/embedded-development-<version>.toml"
 
@@ -104,8 +106,8 @@ mise run service:environment-image-builder:publish
 先退出并清理 Candidate。确认没有其他构建仍在使用这些资源后，再按创建顺序的反向移除：
 
 ```bash
-docker buildx rm rm-relay-local
-docker buildx rm rm-relay-environment-image-builder
+docker buildx rm rm-relay-local-workspace-buildx
+docker buildx rm rm-relay-environment-image-buildx
 docker container rm --force rm-relay-temporary-registry
 ```
 
