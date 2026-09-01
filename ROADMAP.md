@@ -32,7 +32,7 @@ RoboMaster C 已完成首个 macOS 实板闭环。下一步根据 RM 队伍的�
 
 ## 2. 建立统一入口与 profile 模型
 
-当前 CLI 已能组织本地 Docker 与远程 BuildKit 构建，由固定 Workflow 执行 CMake，并以 Project、
+当前 CLI 已能组织本地与远程 BuildKit 构建，由固定 Workflow 执行 CMake，并以 Project、
 Profile、Builder、Build Output 和 target adapter 串起 STM32F407 链路。远程链路目前有自动测试
 和 mTLS Compose 契约，仍需取得真实战队服务器证据。下一步在这些契约上接入 Linux target。
 CMake Presets、CMake、colcon 与原生调试后端仍是各自领域的事实源。
@@ -69,7 +69,12 @@ image blob 仍发布到 OCI Registry。仓库职责见
 
 ## 3. 发布镜像并验证远程构建服务
 
-将正式环境镜像发布到国内 OCI Registry，减少普通用户重复构建产生的大流量访问。现有 BuildKit
+将正式环境镜像发布到适合国内大流量访问的 OCI Registry，减少普通用户重复构建。Registry
+采用托管服务还是战队自部署留待后续决议。官方自动生产与战队自行生产复用同一份
+Dockerfile、Bake target、验证规则和 OCI 输出契约；Environment builder、Registry、Workspace
+builder 保持原子解耦。
+
+现有 BuildKit
 workspace backend 已让 Build Output 直接返回开发机；下一步在真实服务器验证 mTLS、远端拉取、
 cache 和多人使用边界。开发机 Docker 与远程 backend 继续使用同一项目声明和下游 target 链路。
 

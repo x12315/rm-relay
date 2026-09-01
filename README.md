@@ -4,7 +4,7 @@
 Linux 应用开发和 RM 常见开发板、PC、边缘计算板卡。
 
 > [!IMPORTANT]
-> 项目仍在建设。目前已跑通 STM32 项目初始化、本地容器构建、Build Output 校验与 OpenOCD
+> 项目仍在建设。目前已跑通 STM32 项目初始化、本地 BuildKit 构建、Build Output 校验与 OpenOCD
 > 命令解析。远程 BuildKit backend 与 mTLS Compose 部署已经进入代码基线，但尚未取得真实
 > 战队服务器证据；快速体验服务器、IDE 一键配置、Linux 应用环境、target 数据回收和
 > target 受控运行尚未交付。面向普通用户的原子化 Quick Start 也尚未形成；路线图和架构
@@ -34,8 +34,8 @@ RM 队伍的成员和工程经验随赛季快速流动。一套环境如果只�
 ## 当前能力
 
 当前仓库提供 C++20/STM32 开发镜像、`rm-relay` CLI、跨平台 CMake Project Template，
-以及一份在 host 测试和 MCU 固件中复用相同控制逻辑的 PI 示例。CLI 直接调用 Docker，
-再由镜像内 mise 执行固定 CMake Workflow，将 ELF、BIN、MAP 和校验 manifest 导出到开发机。
+以及一份在 host 测试和 MCU 固件中复用相同控制逻辑的 PI 示例。CLI 管理本地或远程 Buildx
+resource，再由镜像内 mise 执行固定 CMake Workflow，将 ELF、BIN、MAP 和校验 manifest 导出到开发机。
 镜像覆盖 `linux/amd64` 与 `linux/arm64`；GoReleaser 配置可以生成 Darwin、Linux、Windows
 的 amd64/arm64 CLI snapshot，真实主机验证目前以 Apple Silicon macOS 为主。
 
@@ -57,16 +57,16 @@ RoboMaster C 是首个支持的 board profile，不是项目结构中心。当�
 和虚拟 target 链路。它与本地、战队服务器使用同一 CLI，不建设浏览器 IDE，也不承诺
 生产级可用性。公开注册和面向陌生用户的强隔离服务属于后续方向。
 
-### 本地 Docker（当前可用）
+### 本地 BuildKit（代码链路已完成）
 
-当前作为源码仓库内的开发基线使用。工具链在本机容器中运行，源码和构建产物保留在工作区；
-USB、烧录与调试按宿主平台接入。CLI、正式 image 与独立 Project Template 的普通用户分发
-入口尚未交付。
+RM Relay 在现有 Docker/Buildx 上管理独立的本地 Builder，源码和构建产物保留在开发机；
+USB、烧录与调试按宿主平台接入。CLI、正式 OCI image digest 与独立 Project Template 的
+普通用户分发入口尚未交付，因此当前仍是维护者验证路径。
 
 ### 战队远程构建（已配置，待实机验证）
 
 仓库提供 rootless BuildKit 的 mTLS Compose 配置，以及开发机侧 Builder 登记、真实 solve 检查和
-远程 workspace backend。Registry、网络接入和证书签发仍由战队选择。参见
+远程 workspace backend。Registry 采用托管还是自部署尚未决定；网络接入和证书签发仍由战队负责。参见
 [Builder 配置](docs/user-guide/builders.md)与[部署 mTLS BuildKit 服务](docs/operator-guide/deploy-buildkit-service.md)。
 
 想先理解项目将如何工作，阅读[开发平台架构](docs/architecture/README.md)和

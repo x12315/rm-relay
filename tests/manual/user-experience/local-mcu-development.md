@@ -7,6 +7,7 @@ STM32 构建，并找到后续烧录入口。当前人工证据来自 Apple Sili
 开始前应已经运行：
 
 ```bash
+export RM_RELAY_CANDIDATE_ENVIRONMENT='registry.example.org/rm-relay/embedded-development@sha256:<64位十六进制摘要>'
 mise run experience:prepare
 mise run experience:enter
 ```

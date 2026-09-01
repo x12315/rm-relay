@@ -5,8 +5,8 @@
 
 > [!IMPORTANT]
 > Workspace builder 的代码与 mTLS Compose 配置已经交付，但尚未取得真实战队服务器证据。
-> OCI Registry 和 K3s virtual target 尚未交付。本页记录完整服务边界；已实现部分的部署入口
-> 链接到 operator guide，未实现部分不提供假想命令。
+> OCI Registry 和 K3s virtual target 尚未交付。Registry 采用托管服务还是战队自部署尚未决定；
+> 当前只固定 OCI digest 交接契约。本页记录服务边界，不为待决组件提供假想命令。
 
 ## 先按责任划角色，再决定机器数量
 
@@ -44,19 +44,22 @@ development image + 源码快照 → workspace builder → Build Output → 开�
 
 它消费 RM Relay 的 Dockerfile、mise 能力配置和 Bake target，不编译用户每天修改的
 workspace。跨架构镜像生产所需的 BuildKit builder、QEMU、cache 和发布流程都属于这里。
+官方自动构建与战队自行构建必须消费同一份 Dockerfile、Bake target 和验证规则；两条路径只
+在触发者、运行位置、cache 与推送凭据上不同。
 
 ### Registry 只保存环境镜像
 
 Registry 不保存用户源码、普通 Build Output 或 target 数据。RM Relay 只依赖标准 OCI
-能力，不绑定商业平台；国内 Registry 实例优先承载大体积镜像流量。
+push/pull 与 digest，不绑定具体产品。托管服务、自部署实现及其运维流程留待后续决议；无论
+选择哪条路径，都不能改变 Builder 的 environment ID 到 immutable digest 映射。
 
 ### Workspace builder 消费环境
 
 它在固定 development image 中运行 CMake、colcon、测试或交叉编译，并把 Build Output
 写回客户端。临时 workspace 不能成为源码真相源，服务端只保留可删除 cache。
 
-Environment builder 与 workspace builder 可以共享底层 BuildKit，但入口、权限、cache 和
-验证必须分开：前者生产环境，后者消费环境。在可信战队或邀请制实例中，相同工具链可以
+Environment builder 与 workspace builder 可以部署在同一台机器，但入口、权限、cache 和
+验证必须分开：前者生产并推送环境，后者只消费已经确定的 digest。在可信战队或邀请制实例中，相同工具链可以
 共享 ccache；每个 job 的 workspace 和 build tree 仍相互隔离。
 
 ### K3s 只管理 virtual target
@@ -102,7 +105,7 @@ provider 才能独立替换。
 
 | 来源 | 使用的基础设施 | 场景 |
 |---|---|---|
-| `local` | 本机 Docker、cache 和宿主调试后端 | 熟悉 Docker 的个人开发 |
+| `local` | 本机受管 BuildKit、独立 cache 和宿主调试后端 | 已安装 Docker 的个人开发 |
 | `team` | 战队 Registry、workspace builder、K3s virtual target | 队内长期使用与培训 |
 | `invite` | 维护者临时提供的同类服务 | 友队试用和设计验证 |
 
@@ -121,6 +124,7 @@ RM Relay 提供可复现配置、profile 和验证方法；战队运维负责机
 ## 仍待部署验证的内容
 
 Workspace builder 已确定单节点 rootless BuildKit、mTLS、逻辑 Builder catalog 与不可变
-environment 映射，并提供[部署说明](../operator-guide/deploy-buildkit-service.md)。真实服务器上的
-并发、磁盘配额和长期 cache 参数仍待验证；K3s 的 storage 与 credential 发放方式也尚未确定。
-本页继续只说明拓扑，不代替可执行安装说明。
+environment 映射，并提供[部署说明](../operator-guide/deploy-buildkit-service.md)。本地 Builder
+使用相同 workspace frontend，但由 CLI 管理独立的 Buildx `docker-container` resource。
+真实服务器上的并发、磁盘配额和长期 cache 参数仍待验证；Registry 实现、K3s storage 与
+credential 发放方式也尚未确定。本页继续只说明拓扑，不代替可执行安装说明。

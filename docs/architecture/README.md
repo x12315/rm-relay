@@ -6,7 +6,7 @@
 
 > [!IMPORTANT]
 > 本组文档记录已经确认的设计基线，不等于全部能力已经交付。当前仓库交付 STM32
-> 嵌入式开发基线，以及本地 Docker、远程 BuildKit 两种 workspace backend；远程服务尚未取得
+> 嵌入式开发基线，以及本地与远程两种 BuildKit Builder；远程服务尚未取得
 > 真实战队服务器证据。Linux 环境、物理 Linux target 和虚拟 target 仍在建设。实际能力和
 > 证据等级只以[支持矩阵](../user-guide/support-matrix.md)为准。
 
@@ -25,7 +25,7 @@ RM Relay 解决的是开发链路问题，不是机器人应用问题。用户�
 选择 development profile
         │
         ▼
-local backend 或 remote workspace builder
+local BuildKit 或 remote workspace builder
         │
         ▼
 Build Output 返回开发机
@@ -76,14 +76,14 @@ development/runtime 环境和项目 overlay 仍是后续实现，详见
 
 ### 2. 构建只回答“如何得到可交付结果”
 
-Local backend 和 remote backend 消费相同的项目声明与 development profile。构建系统仍是
+Local 与 remote Builder 消费相同的项目声明与 development profile。构建系统仍是
 CMake、colcon、Ninja、CTest 等原生工具；`mise` 组织常用任务，`rm-relay` 只编排
 跨容器、跨机器和 target 相关操作。
 
 两种 backend 的共同出口都是开发机上的 Build Output。Remote workspace 是一次性工作区，
 服务端 cache 可以删除；workspace builder 不直接把结果部署到 target。当前 MCU 模板已由
 CMake install 将 ELF/BIN/MAP 导出到 `install/<profile>`，并生成内容校验 manifest。
-Remote backend 已通过 Buildx local exporter 返回同一目录，并在发布新输出前使用受管临时目录；
+统一 backend 已通过 Buildx local exporter 返回同一目录，并在发布新输出前使用受管临时目录；
 真实服务器证据仍待补充。详见[构建与输出](builds-and-outputs.md)。
 
 ### 3. Target 接入回答“结果去哪里、如何调试”

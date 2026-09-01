@@ -70,14 +70,18 @@ development image      供 local/remote backend 消费
 | 项目 overlay | 项目特有的环境扩展 | 修改运行中的官方环境 |
 
 mise 有两个独立安装边界。开发机上的 `rm-relay` 当前只在 OpenOCD adapter 中从 `PATH`
-调用宿主 mise；local build 由 CLI 直接调用 Docker。Development image 内固定自身的 mise
-版本，只执行镜像随附的私有 CMake 配置。CLI archive 不捆绑 mise，用户项目也不提供
+调用宿主 mise；workspace build 由 CLI 通过 Buildx 启动。Development image 内固定自身的
+mise 版本，只执行镜像随附的私有 CMake 配置。CLI archive 不捆绑 mise，用户项目也不提供
 `mise.toml`，两边的安装与升级不能互相替代。
 
 目前仓库已经实现 Dockerfile/Bake 这部分：作为环境输出的 `base` 与 `mcu-dev` 都有
 `linux/amd64`、`linux/arm64` target。Dockerfile 中的其他 helper stage 只为这些输出准备
 文件。当前的 CMake Workflow 已由 development image 内的受控 mise task 执行；更多
 能力组合、正式 Dev Container Template 和派生环境流程仍待实现。
+
+Profile 只保存稳定的 environment ID，不保存本机 tag 或 Registry 地址。每个逻辑 Builder
+分别把 environment ID 映射到 `image@sha256:<digest>`；因此本地与远程构建消费同一身份契约，
+也不会让开发机 image store 中的可变 tag 成为项目事实。
 
 环境镜像不打包 IDE、用户扩展或个人配置。Dev Container Template 可以给 VS Code 等编辑器
 提供 mount、设备和任务建议，但必须继续调用 mise、CMake、OpenOCD 等已有入口，不能建立

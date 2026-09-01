@@ -7,7 +7,7 @@
 
 ## 功能入口
 
-1. 先阅读[选择本地或远程 Builder](builders.md)，准备本机 Docker 或登记战队 BuildKit 服务。
+1. 先阅读[选择本地或远程 Builder](builders.md)，准备本机 Docker/Buildx 或登记战队 BuildKit 服务。
 2. 已获得 development image 后，阅读[镜像选择与运行](image-selection.md)，确认能力与宿主
    边界并进入 `mcu-dev` 镜像。
 3. 用[native 构建与测试](build-native.md)确认 host 路径，或直接按
@@ -19,7 +19,7 @@
 
 | 目标 | 阅读入口 |
 |---|---|
-| 选择本地 Docker 或登记远程 BuildKit | [Builder 配置](builders.md) |
+| 选择本地或远程 BuildKit Builder | [Builder 配置](builders.md) |
 | 选择镜像、运行容器和处理宿主设备边界 | [镜像选择与运行](image-selection.md) |
 | 运行 native Clang、GCC 和 sanitizer 测试 | [native 构建与测试](build-native.md) |
 | 生成并检查 STM32F407 ELF/BIN/MAP | [STM32F407 固件构建](build-stm32.md) |

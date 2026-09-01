@@ -36,9 +36,10 @@ docker buildx bake \
   multiarch --set '*.output=type=cacheonly'
 ```
 
-仓库不自动创建、切换或删除持久 Buildx builder。未来 CI、registry 发布和云编译应
-继续调用这些 target，通过 Bake override 设置 tag、cache 和 output；不要复制
-Dockerfile 或维护第二份包清单。
+本页的 Buildx builder 属于 environment image 生产，不是 `rm-relay build` 使用的 workspace
+Builder。仓库不在这里自动创建、切换或删除持久 image-production builder。未来官方自动构建
+与战队自建流水线都应继续调用这些 Bake target，通过 override 设置 tag、cache 和 output；
+不要复制 Dockerfile 或维护第二份包清单。Registry 与流水线产品尚未选定。
 
 ## LTS 基线与软件源
 
@@ -156,19 +157,20 @@ docker run --rm -t \
 这些命令应在候选 development image 内执行。前三个 workflow 由 CTest 发现并运行 Catch2
 测试，最后一个生成 F407 固件，但不访问硬件。
 
-最后验证 CLI archive 与完整本地链路：
+最后验证 CLI archive。完整本地链路还需要一个已推送的 immutable environment：
 
 ```bash
 mise run test:distribution
+export RM_RELAY_E2E_LOCAL_ENVIRONMENT='registry.example.org/rm-relay/embedded-development@sha256:<64位十六进制摘要>'
 mise run test:e2e
 ```
 
 `test:distribution` 检查 Darwin、Linux、Windows 的 amd64/arm64 archive 和 SHA-256；它不在
 当前主机运行其他平台的二进制。`test:e2e` 解压当前平台 archive，真实执行 Git clone、
-`rm-relay init`、Docker 构建、Build Output 校验和 OpenOCD dry-run。两项任务都在临时目录生成
+`rm-relay init`、受管 Buildx 构建、Build Output 校验和 OpenOCD dry-run。两项任务都在临时目录生成
 并消费自己的候选制品，不向仓库写入 `dist/`，结束后也不保留可供人工核验的环境。缺少 Git、
-Docker、可用的 Docker daemon 或本地 image 时，E2E 会直接失败，不会跳过。dry-run 只解析
-adapter 配置并生成宿主 mise/OpenOCD 命令，不执行 mise 或 OpenOCD。
+Docker 或可用的 Docker daemon 时，实际执行会失败；未设置 environment digest 时，本地 E2E
+明确跳过。dry-run 只解析 adapter 配置并生成宿主 mise/OpenOCD 命令，不执行 mise 或 OpenOCD。
 
 这组结果最多证明 `host-tested`、`cross-compiled` 和 OpenOCD `configured`。真实烧录、启动
 和源码调试仍以[支持矩阵](../user-guide/support-matrix.md)的硬件证据为准。

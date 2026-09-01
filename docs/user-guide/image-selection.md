@@ -42,7 +42,7 @@ docker run --rm -it \
   USB 设备。
 - Windows 当前仅为规划平台，需在真实 Windows 主机验证后才能更新支持状态。
 
-当前 `rm-relay` 直接调用 Docker 完成 local build，镜像内 mise 执行固定 CMake Workflow；
+当前 `rm-relay` 通过受管 Buildx resource 完成 local build，镜像内 mise 执行固定 CMake Workflow；
 OpenOCD adapter 才通过宿主 mise 调用 OpenOCD。GDB 和 DFU 仍使用原生工具，不另建构建或
 调试协议。任何写入操作都应先根据设备文档确认芯片、接口、alternate setting（DFU 备用
 接口）和目标地址。
