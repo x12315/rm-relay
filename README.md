@@ -75,8 +75,9 @@ USB、烧录与调试按宿主平台接入。CLI 已支持拉取、核验并登�
 [仓库资产地图](docs/architecture/repository-assets.md)、[项目路线](ROADMAP.md)、
 [开发者人工核验](tests/manual/README.md)、[社区工作](docs/community/README.md)与
 [贡献指南](CONTRIBUTING.md)。当前功能的使用方式从[使用指南](docs/user-guide/README.md)
-进入，CLI 制品维护见[发布脚本](scripts/release/README.md)，environment image 维护见
-[`embedded-development` 维护指南](environments/embedded-development/MAINTAINING.md)，战队服务部署从
+进入，CLI 制品维护见[发布脚本](scripts/release/README.md)，环境定义维护见
+[`embedded-development` 维护指南](environments/embedded-development/MAINTAINING.md)，镜像生产见
+[环境镜像构建服务](services/environment-image-builder/README.md)，服务部署与备用维护路径从
 [运维指南](docs/operator-guide/README.md)进入。
 
 ## 发起与许可证

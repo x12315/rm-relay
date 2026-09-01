@@ -15,7 +15,7 @@
 [PR 模板](.github/pull_request_template.md)，提示提交者说明问题、解决方案、发布说明条目、
 备选方案、测试覆盖和补充材料。填写时删除首尾的 HTML 注释标记、模板提示及不适用的章节，
 不保留空标题。长期保留的逻辑和缺陷修复应有测试；使用方式发生变化时同步修改文档。验证入口见
-根级 mise task；修改 environment image 时另按
+根级 mise task；修改 environment 定义时另按
 [`embedded-development` 维护指南](environments/embedded-development/MAINTAINING.md)完成构建与验证。
 
 ## 审查规则

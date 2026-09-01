@@ -25,7 +25,8 @@ mise 和 uv 版本。Ubuntu APT 包跟随 `noble`、`noble-updates` 与 `noble-s
 2. 构建前检查所选 Ubuntu 镜像站的同步状态。
 3. 分别构建 `linux/arm64` 与 `linux/amd64`，运行镜像 smoke、模板和示例 workflow。
 4. 保存并审查两个架构的工具输出和 `dpkg` 清单。
-5. 发布不可变版本 tag，并记录 OCI manifest digest。
+5. 交给[环境镜像构建服务](../../../services/environment-image-builder/README.md)发布版本 tag，并记录
+   OCI manifest digest。
 
 APT 必须继续使用 `/usr/share/keyrings/ubuntu-archive-keyring.gpg`。不得使用
 `Trusted: yes`、`AllowUnauthenticated` 或 `AllowInsecureRepositories`。

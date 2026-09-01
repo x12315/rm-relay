@@ -1,14 +1,17 @@
 # 远程 MCU 构建体验
 
-本场景检查普通用户能否从一台开发机登记战队 Builder、完成真实远程构建，并继续使用返回本地的
-Build Output。它要求已有可达的 mTLS BuildKit 服务和远端可拉取的 environment digest。
+本场景检查普通用户能否在一台开发机上选择已登记的战队 Builder、完成真实远程构建，并继续使用
+返回本地的 Build Output。它要求已有可达的 mTLS BuildKit 服务和远端可拉取的 environment digest。
 
-## 制备测试用品
+## 准备已有 Builder
 
-维护者先运行自动测试，并按[候选体验环境](../../support/candidate/README.md)
-制备仓库外候选 CLI、development image、模板 Git origin 和空 workspace：
+开始前，开发机的普通 Builder catalog 中应已经登记待测的 `team` Builder；证书签发、服务部署和
+首次登记不属于本场景。按[Candidate 说明](../../support/candidate/README.md)将它与待测 digest
+复制进隔离环境：
 
 ```bash
+export RM_RELAY_CANDIDATE_BUILDER=team
+export RM_RELAY_CANDIDATE_ENVIRONMENT='<image@sha256:64位小写十六进制摘要>'
 mise run experience:prepare
 mise run experience:enter
 ```
@@ -21,31 +24,21 @@ test -n "$RM_RELAY_TEMPLATE_URL"
 rm-relay --version
 ```
 
-另外准备运维提供的 endpoint、TLS server name、CA、客户端证书、私钥、BuildKit image digest 和
-environment digest。
-证书内容不得写入测试记录。
+另外记录运维提供的 BuildKit image digest 和 environment digest；证书内容不得写入测试记录。
 
-## 登记与检查 Builder
+## 检查借用的 Builder
 
 在候选 shell 中输入：
 
 ```bash
-rm-relay builder add team \
-  --endpoint tcp://<server>:1234 \
-  --ca <absolute-ca-path> \
-  --cert <absolute-client-certificate-path> \
-  --key <absolute-client-key-path> \
-  --server-name <tls-server-name>
-
 rm-relay builder list
 rm-relay builder check team
-rm-relay environment add embedded-development <image@sha256:64位小写十六进制摘要> --builder team
-rm-relay environment list --builder team
+rm-relay environment check embedded-development --builder team
 ```
 
-判断参数错误是否指出问题所在，Builder `list` 是否能区分逻辑名称与实现 kind，`check` 的进度与
-失败信息能否让使用者判断是 TLS、Buildx 还是 BuildKit solve 出错；Environment 登记还应明确
-区分 Registry 拉取失败、identity 不匹配和登记成功。
+判断 Builder `list` 是否能区分逻辑名称与实现 kind，`check` 的进度与失败信息能否让使用者判断
+是 TLS、Buildx 还是 BuildKit solve 出错；Environment 检查还应明确区分 Registry 拉取失败、
+identity 不匹配和验证成功。
 
 ## 走完整用户路径
 
@@ -71,7 +64,7 @@ candidate revision:
 workstation OS / architecture:
 BuildKit image digest supplied by operator:
 environment digest:
-builder registration and check:
+borrowed Builder check:
 remote build feedback:
 local Build Output and flash discovery:
 evidence reached: remote solve completed; cross-compiled; OpenOCD configured
@@ -89,4 +82,5 @@ exit
 mise run experience:clean
 ```
 
-本场景不验证 Registry 部署、证书签发、网络穿透、真实烧录或源码调试。
+Candidate 清理不会删除借用的 `team` Buildx resource、证书、Registry image 或远程 cache。本场景
+不验证 Registry 部署、Builder 首次登记、证书签发、网络穿透、真实烧录或源码调试。

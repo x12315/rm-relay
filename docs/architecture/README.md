@@ -153,7 +153,7 @@ RM Relay 首版复用 BuildKit、Registry、Compose 和 K3s 已有控制面，�
 6. **平台不接管应用启动。** 普通程序、脚本、`ros2 run` 和 `ros2 launch` 由用户执行，
    RM Relay 不提供通用 `run/stop` 状态机。
 
-## 自研组件为什么只有两个
+## 主线运行组件为什么只有两个
 
 RM Relay 只自研必须理解上述边界的薄层：
 
@@ -165,8 +165,10 @@ RM Relay 只自研必须理解上述边界的薄层：
 `mise`、BuildKit、OCI Registry、K3s、Mutagen、CMake、colcon、OpenOCD 和 GDB 继续承担各自
 已有的职责。只有现有工具无法表达平台契约时，薄组件才增加逻辑。
 
-这两个组件目前留在 monorepo。只有某个模块形成独立使用者、依赖、发布节奏和维护者后，
-才考虑拆入 RM Relay umbrella project 下的子仓库。
+环境镜像构建服务是围绕 Docker Bake 的维护入口，不是常驻 daemon 或另一套普通用户 CLI；
+Candidate 则只服务候选版本验收。它们不会扩大上述运行组件。`rm-relay` 与 `rm-relay-node` 当前
+留在 monorepo；只有某个模块形成独立使用者、依赖、发布节奏和维护者后，才考虑拆入 RM Relay
+umbrella project 下的子仓库。
 
 ## 不属于这条开发链路的能力
 

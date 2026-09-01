@@ -80,9 +80,11 @@ mise 有两个独立安装边界。开发机上的 `rm-relay` 当前只在 OpenO
 mise 版本，只执行镜像随附的私有 CMake 配置。CLI archive 不捆绑 mise，用户项目也不提供
 `mise.toml`，两边的安装与升级不能互相替代。
 
-目前仓库已经实现 Dockerfile/Bake、镜像 identity 和 OCI 发布入口：作为环境输出的 `base` 与 `mcu-dev` 都有
-`linux/amd64`、`linux/arm64` target。Dockerfile 中的其他 helper stage 只为这些输出准备
-文件。每个可消费 image 固定携带 `/opt/rm-relay/environment/identity.toml`，当前
+目前仓库已经实现 Dockerfile/Bake、镜像 identity，以及与定义解耦的 OCI 生产入口：作为环境
+输出的 `base` 与 `mcu-dev` 都有 `linux/amd64`、`linux/arm64` target。Dockerfile 中的其他
+helper stage 只为这些输出准备文件。`environments/` 负责描述内容，
+`services/environment-image-builder/` 消费任意 clean 环境源码并完成 push 与 digest handoff；
+Registry 另行保存 image。每个可消费 image 固定携带 `/opt/rm-relay/environment/identity.toml`，当前
 schema v1 声明 `id = "embedded-development"`；
 `rm-relay environment add` 通过所选 Builder 导出该文件，确认 ID 和 digest 后才保存映射。
 当前的 CMake Workflow 已由 development image 内的受控 mise task 执行；更多

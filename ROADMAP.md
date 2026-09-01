@@ -47,9 +47,9 @@ Dev Container Template 同样属于核心 profile 契约，不作为 IDE 插件�
 
 ### 环境定义仓库
 
-当前环境定义继续保留在主仓库。Profile schema、环境与 image 的映射、独立验证和发布流程
-稳定后，再建立 `rm-relay-environments`，分别组织官方默认与社区环境定义；构建后的
-image blob 仍发布到 OCI Registry。仓库职责见
+当前环境定义暂存于主仓库，后续将迁入 `rm-relay-environments`，分别组织官方默认与社区的
+Dockerfile、Bake、版本锁和能力验证。该仓库只记录软件环境描述资产；Profile、镜像生产服务与
+OCI 存储不随之迁入。构建后的 image blob 仍发布到 OCI Registry。仓库职责见
 [仓库资产地图](docs/architecture/repository-assets.md#规划中的仓库边界)。
 
 ### 可选 IDE 与 Agent integration
@@ -74,8 +74,8 @@ image blob 仍发布到 OCI Registry。仓库职责见
 Dockerfile、Bake target、验证规则和 OCI 输出契约；Environment builder、Registry、Workspace
 builder 保持原子解耦。
 
-共用 image production 入口已经实现：调用者注入 image-production Builder、版本 tag 与仓库外
-handoff 路径，任务完成双架构构建、镜像内 smoke、push 和 digest 交接。下一步是选择正式
+共用 image production 入口已经实现：调用者注入环境源码、image-production Builder、版本 tag
+与源码外 handoff 路径，任务完成双架构构建、镜像内 smoke、push 和 digest 交接。下一步是选择正式
 Registry、接入官方 CI trigger，并在有真实写入凭据的服务器上记录发布证据；战队仍可不依赖
 GitHub，以人工或自己的 CI 调用同一入口。
 

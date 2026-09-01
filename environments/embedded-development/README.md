@@ -1,25 +1,20 @@
-# embedded-development 镜像产品
+# embedded-development 环境定义
 
-这里维护 MCU 开发工具链镜像，供镜像维护者和构建服务部署者使用。普通开发者只需使用
-构建好的 `mcu-dev/toolchain` 镜像，不需要修改 Dockerfile。
+本目录定义 RM Relay 当前的 MCU 开发环境。它面向环境维护者；普通开发者只消费已经发布并由
+Builder 核验的不可变 OCI reference。
 
-## 交付内容
+## 目录负责什么
 
-- `Dockerfile`：`base` 与 `mcu-dev` 两个镜像 stage 的唯一构建定义。
-- `docker-bake.hcl`：ARM64、AMD64 与 multi-platform 的标准 Buildx 入口。
-- `identity.toml`：schema v1 固定声明 `id = "embedded-development"`，供 RM Relay CLI 核验。
-- `locks/`：Ubuntu LTS、native GCC、Arm GNU 与 uv 的产品级版本基线。
-- `smoke/`：镜像构建时和构建后都可运行的工具能力检查。
-- `publish.sh`：官方自动化与战队自建共用的 build、verify、OCI push 入口。
+- `Dockerfile` 定义 `base` 与 `mcu-dev` 两个可交付 stage；
+- `docker-bake.hcl` 定义 `linux/amd64`、`linux/arm64` 和 multi-platform 构建矩阵；
+- `identity.toml` 固定声明 `id = "embedded-development"`；
+- `locks/` 记录 Ubuntu、编译器与工具的版本基线；
+- `smoke/` 在镜像内检查工具版本，并让 GCC、Clang 和 Arm GNU 实际编译 C++20 probe。
 
-`base` 提供 host C++20 构建、ccache 与质量工具，并内置 RM Relay 受控 CMake
-Workflow；`mcu-dev` 在其上增加 GNU Arm Embedded、
-OpenOCD、GDB 和 `dfu-util`。镜像只交付工具链，不包含用户应用、IDE、运行时服务或
-个人设备配置。
+`base` 提供 host C++20 构建、ccache 和质量工具；`mcu-dev` 增加 GNU Arm Embedded、
+OpenOCD、GDB 与 `dfu-util`。两者都只包含开发工具，不包含 IDE、用户应用、目标机 runtime
+或个人设备配置。
 
-发布入口不创建 Buildx Builder、不登录 Registry、不管理 cache，也不选择托管产品。调用者提供 image-production
-Builder、带版本的 OCI tag 和仓库外 handoff 路径；发布要求 clean Git revision，成功后得到可交给
-`rm-relay environment add` 的 immutable reference。该 Builder 与普通开发者执行
-`rm-relay build` 使用的 workspace Builder 保持独立。
-
-构建、验证和发布方式见[维护指南](MAINTAINING.md)。
+本目录不创建 Buildx Builder、不登录或部署 Registry，也不拥有 OCI push 和发布 handoff。
+镜像生产由独立的[环境镜像构建服务](../../services/environment-image-builder/README.md)完成，
+OCI 存储仍是另一项服务。构建和检查环境定义见[维护指南](MAINTAINING.md)。

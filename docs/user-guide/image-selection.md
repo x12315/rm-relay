@@ -14,8 +14,9 @@ build target。
 工具链耦合。设计边界见[环境与 profile](../architecture/environments-and-profiles.md)。
 
 公开镜像尚未发布，因此普通用户目前没有稳定的 image 获取入口。本页只说明已获得 image 后的
-使用边界；候选 image 的构建、双架构检查与发布准备属于
-[`embedded-development` 维护指南](../../environments/embedded-development/MAINTAINING.md)，不作为用户上手步骤。
+使用边界；环境定义检查与 OCI image 生产分别属于
+[`embedded-development` 维护指南](../../environments/embedded-development/MAINTAINING.md)和
+[环境镜像构建服务](../../services/environment-image-builder/README.md)，不作为用户上手步骤。
 
 取得维护者提供的 immutable reference 后，不需要手动 `docker pull`：
 

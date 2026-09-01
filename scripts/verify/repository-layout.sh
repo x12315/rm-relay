@@ -90,6 +90,7 @@ for required_file in \
     tests/e2e/local_mcu_cycle_test.go \
     tests/manual/README.md \
     tests/manual/user-experience/local-mcu-development.md \
+    tests/manual/user-experience/remote-mcu-development.md \
     scripts/verify/repository-layout.sh \
     scripts/verify/toolchain-source-policy.sh \
     environments/embedded-development/README.md \
@@ -106,6 +107,7 @@ for required_file in \
     docs/architecture/repository-assets.md \
     docs/operator-guide/README.md \
     docs/operator-guide/deploy-buildkit-service.md \
+    docs/operator-guide/prepare-temporary-environment-source.md \
     tests/support/candidate/README.md; do
     assert_file_exists "${required_file}"
 done
@@ -153,7 +155,8 @@ for operator_document in "${repository_root}/docs/operator-guide"/*; do
     [ -e "${operator_document}" ] || continue
     case "${operator_document}" in
         "${repository_root}/docs/operator-guide/README.md"|\
-        "${repository_root}/docs/operator-guide/deploy-buildkit-service.md") ;;
+        "${repository_root}/docs/operator-guide/deploy-buildkit-service.md"|\
+        "${repository_root}/docs/operator-guide/prepare-temporary-environment-source.md") ;;
         *)
             printf 'undeclared operator guide document: %s\n' "${operator_document#"${repository_root}/"}" >&2
             exit 1

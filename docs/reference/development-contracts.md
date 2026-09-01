@@ -66,7 +66,7 @@ Registry 拉取和 ID 核验全部通过后才原子更新开发机 catalog；`e
 重新验证已登记引用，`environment list` 只查询指定 Builder 的本机映射。Profile、Project
 和 Git 不保存 Registry endpoint 或凭据。
 
-Environment 发布 handoff 使用 schema v1 TOML，必须记录 `environment_id`、可追溯的
+Environment image builder 发布的 handoff 使用 schema v1 TOML，必须记录 `environment_id`、可追溯的
 version `tag`、`digest`、`immutable_reference`、`source_revision` 与已核验的
 `linux/amd64`/`linux/arm64` 平台集。该文件是 image-production 与消费者之间的交接记录，
 不是 Registry 凭据或用户 Project 配置。

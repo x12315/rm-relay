@@ -1,21 +1,38 @@
 # 开发者人工核验
 
-人工核验用于判断自动测试难以可靠判断的用户体验：文档顺序是否足以完成任务，命令和错误提示
-是否易懂，输出能否让人判断下一步，以及证据等级是否表达准确。
+人工核验只判断自动测试难以可靠判断的用户体验：入口是否找得到，文档顺序能否完成任务，
+命令和错误是否容易理解，输出是否说明下一步。Schema、archive、checksum、命令参数和模块契约
+属于自动测试；发现缺口时补测试或 code review，不让核验者手工复算。
 
-archive 内容、checksum、manifest、错误码和模块契约属于自动测试。发现这些方面缺少覆盖时，应补
-测试或进行 code review，不让核验者手工复算。
+## 组合一套候选链路
 
-## 执行顺序
+人工场景使用真实模块，不再建立一套测试专用 mini 流程：
 
-1. 先通过 `test:unit`、`test:architecture`、`test:integration`、`test:release` 和适用的 E2E；
-2. 按[候选体验环境](../support/candidate/README.md)运行
-   `experience:prepare` 与 `experience:enter`；
-3. 在候选 shell 中选择下方场景，逐条输入普通用户命令；
-4. 退出 shell 后运行 `experience:clean`。
+```text
+已有 Builder + immutable environment reference
+                         │
+                         ▼
+                 Candidate prepare
+                         │
+                         ▼
+候选 CLI + 隔离配置 + template origin + 空 workspace
+                         │
+                         ▼
+                 人工输入用户命令
+```
 
-候选环境制备不是人工测试结论。它只在仓库外提供候选 CLI、development image、Git template
-origin 和空工作区。
+按以下顺序执行：
+
+1. 运行 `test:unit`、`test:architecture`、`test:integration`、`test:release` 和适用的 E2E；
+2. 选择已经可用的 Builder 与 environment digest；没有正式来源时，先在 Linux 主机按
+   [备用 how-to](../../docs/operator-guide/prepare-temporary-environment-source.md)取得 digest；
+3. 按[Candidate 说明](../support/candidate/README.md)运行 `experience:prepare` 和
+   `experience:enter`；
+4. 在 Candidate shell 中选择下方场景，逐条输入普通用户命令并作认知判断；
+5. 退出 shell，运行 `experience:clean`；使用临时来源时再由维护者回收其外部资源。
+
+Candidate 制备本身不是人工测试结论。它不构建 image、不部署 Registry，也不拥有 Builder；
+这些前置资源的正确性由各自模块验证。
 
 ## 当前场景
 

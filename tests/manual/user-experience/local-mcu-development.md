@@ -4,15 +4,8 @@
 STM32 构建，并找到后续烧录入口。当前人工证据来自 Apple Silicon macOS；其他宿主不能继承
 这次结果。
 
-开始前应已经运行：
-
-```bash
-export RM_RELAY_CANDIDATE_ENVIRONMENT='registry.example.org/rm-relay/embedded-development@sha256:<64位小写十六进制摘要>'
-mise run experience:prepare
-mise run experience:enter
-```
-
-候选 shell 会显示 CLI、development image、template identity 和建议的 clone 命令。当前目录是
+开始前应已按[Candidate 说明](../../support/candidate/README.md)选择 `local` Builder、制备并进入
+候选环境。Candidate shell 会显示 CLI、Builder、environment 与 template identity；当前目录是
 仓库外的空工作区。
 
 ## 取得项目
@@ -84,5 +77,5 @@ exit
 mise run experience:clean
 ```
 
-`experience:clean` 删除本场景产生的外置 workspace，并恢复制备前的 development image tag；不会
-清理共享 build cache。
+`experience:clean` 删除本场景产生的外置 workspace 和隔离配置，不删除借用的 `rm-relay-local`、
+environment image 或 build cache。若本次使用了临时 Registry，回到对应运维 how-to 另行清理。

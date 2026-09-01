@@ -22,8 +22,10 @@ internal/
 
 scripts/release/       CLI 构建、snapshot 与未来 release
 services/buildkit/     战队远程 BuildKit 的 Compose 部署
+services/environment-image-builder/
+                       环境定义到 OCI image/handoff 的生产入口
 
-environments/           可独立构建和发布的开发环境
+environments/           开发环境定义、版本基线与镜像内 smoke
 project-templates/      用户项目起点；当前由 monorepo 提供
 examples/               有完整行为与测试的示例
 tests/
@@ -65,8 +67,9 @@ Project 把输出角色映射到项目内的相对路径；Profile 声明 enviro
 | 通用进程与工具调用边界 | `internal/execution/` |
 | CLI 发布脚本与 GoReleaser 配置 | `scripts/release/` |
 | mTLS BuildKit 服务部署 | `services/buildkit/` |
+| 环境镜像 build/check/push 与 handoff | `services/environment-image-builder/` |
 | 候选体验支持 | `tests/support/candidate/` |
-| 开发镜像定义、身份、构建与发布契约 | `environments/<environment>/` |
+| 开发环境 Dockerfile、Bake、身份、版本与 smoke | `environments/<environment>/` |
 | 用户工程起点 | `project-templates/<template>/` |
 | 完整可测行为 | `examples/<example>/` |
 | 可执行依赖方向 | `tests/architecture/` |
@@ -83,13 +86,15 @@ GoReleaser 定义 CLI 平台矩阵与 archive，Docker Bake 定义 image 构建�
 代码中维护第二份目标列表。
 
 各模块的 mise task 与事实源就近保存：`scripts/release/tasks.toml`、
-`environments/embedded-development/tasks.toml`、`services/buildkit/tasks.toml` 和
-`tests/support/candidate/tasks.toml` 分别拥有 Release、environment、service 和候选体验操作。根级
-`mise.toml` 只固定维护工具并 include 这些入口；跨模块流程可以组合 task，不复制底层命令。
+`services/environment-image-builder/tasks.toml`、`services/buildkit/tasks.toml` 和
+`tests/support/candidate/tasks.toml` 分别拥有 CLI Release、镜像生产、workspace service 与候选
+体验操作。根级 `mise.toml` 只固定维护工具并 include 这些入口；跨模块流程组合 task，不复制
+底层命令。
 
-维护说明也跟随负责的资产：CLI Release 说明位于 `scripts/release/`，environment image 维护
-说明位于对应 `environments/<environment>/`，候选体验说明位于 `tests/support/candidate/`。
-`docs/operator-guide/` 只保留战队运维实际部署和维护长期服务所需的指南。
+维护说明也跟随负责的资产：CLI Release 说明位于 `scripts/release/`，环境定义说明位于
+`environments/<environment>/`，镜像生产说明位于 `services/environment-image-builder/`，候选体验
+说明位于 `tests/support/candidate/`。`docs/operator-guide/` 保存长期服务部署，以及正式服务缺失
+时确有需要的备用维护流程。
 
 ## 规划中的仓库边界
 
@@ -99,9 +104,10 @@ RM Relay 按独立使用者、发布节奏和维护者拆分仓库，不按生�
 |---|---|---|
 | `rm-relay` | CLI、未来的 target daemon、公共契约和主线测试 | 当前主仓库 |
 | `rm-relay-template-*` | 每个可独立 clone 的 Project Template | 规划中；当前模板仍在主仓库 |
-| `rm-relay-environments` | 官方与社区环境定义、image/profile 映射、兼容性验证与发布 | 规划中 |
+| `rm-relay-environments` | 官方与社区 Dockerfile、Bake、版本锁与环境能力验证 | 规划中；当前定义仍在主仓库 |
 | `rm-relay-integrations` | 可选 VS Code/VSCodium 预设和 Agent Skill | 规划中 |
 
-`environments/` 在环境定义形成独立发布边界前继续留在主仓库。Integration 只消费
+`environments/` 后续会迁入独立仓库；该仓库只保存软件环境的描述与验证资产，不承载 Registry、
+镜像生产服务或用户 workspace 构建。Integration 只消费
 公开 CLI、schema 和 Profile ID，核心链路不反向依赖它。Project Template 迁出后仍是核心
 入口；一仓库一模板保证用户可以直接 clone，不再复制 monorepo 子目录。
