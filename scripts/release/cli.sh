@@ -63,11 +63,14 @@ trap cleanup EXIT HUP INT TERM
 checkout="${temporary_root}/repository"
 git clone --quiet --no-hardlinks "${repository_root}" "${checkout}"
 
-if [ "${release_mode}" = build ]; then
-    goreleaser build --snapshot --clean --config scripts/release/goreleaser.yaml
-else
-    goreleaser release --snapshot --clean --config scripts/release/goreleaser.yaml
-fi
+(
+    cd "${checkout}"
+    if [ "${release_mode}" = build ]; then
+        goreleaser build --snapshot --clean --config scripts/release/goreleaser.yaml
+    else
+        goreleaser release --snapshot --clean --config scripts/release/goreleaser.yaml
+    fi
+)
 
 cp -R "${checkout}/dist/." "${staging_directory}/"
 mv -- "${staging_directory}" "${output_directory}"
