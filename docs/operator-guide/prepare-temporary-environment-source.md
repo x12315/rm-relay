@@ -48,7 +48,15 @@ container 后一并消失。
 ## 3. 创建两类 Buildx Builder
 
 Registry 地址写作 `localhost:5000`。BuildKit 运行在 container 中，因此两个 Builder 都显式使用
-Linux host network；它们仍是两个独立资源，cache 和用途不能合并。
+Linux host network。两条命令的参数相同，但资源职责不同：
+
+| Buildx resource | 使用者 | 职责 |
+| --- | --- | --- |
+| `rm-relay-environment-image-builder` | 环境镜像构建服务 | 从 Dockerfile 构建开发环境，并 push 到临时 Registry |
+| `rm-relay-local` | RM Relay 的逻辑 Builder `local` | 从 Registry 拉取开发环境，在其中编译用户 workspace |
+
+因此二者必须保持独立的 cache 和生命周期：前者属于镜像生产，后者属于日常项目构建。这里的
+`rm-relay-local` 是 Docker Buildx resource 名称；普通用户选择的仍是逻辑 ID `local`。
 
 ```bash
 docker buildx create \
