@@ -5,9 +5,10 @@
 [Target 接入与数据链路](targets-and-access.md)。
 
 > [!IMPORTANT]
-> 当前仓库已经实现嵌入式 local build，但尚未实现统一 `rm-relay` 入口、remote workspace
-> builder 和 `install/<profile>` 输出边界。实际可执行命令见
-> [STM32 固件构建](../user-guide/build-stm32.md)，本文描述目标构建契约。
+> 当前仓库已经实现统一 BuildKit backend：本地使用受管 Buildx `docker-container` resource，
+> 远程使用 Buildx remote resource，共用 frontend、cache mount、local exporter 与
+> `install/<profile>` 输出边界。远程服务尚未取得真实战队服务器证据。使用入口见
+> [Builder 配置](../user-guide/builders.md)。
 
 ## 先分开两条看似相同的构建链路
 
@@ -30,25 +31,26 @@ Local 与 remote backend 的入口和出口保持相同：
                   │
           ┌───────┴────────┐
           ▼                ▼
- local Docker        workspace builder
+ local BuildKit      remote BuildKit
           │                │
           └───────┬────────┘
                   ▼
          Build Output 返回开发机
 ```
 
-`mise` 组织项目任务。未来的 `rm-relay` 只协调容器、远程 backend 与 target；编译和测试仍
-由 CMake、colcon、Ninja、CTest 等原生工具执行。用户也可以绕过 mise 和 `rm-relay` 直接
-调用这些工具。
+`rm-relay` 管理命名 Buildx resource，并在统一 frontend 中调用 development image 内的 mise
+Workflow。用户项目只声明 build `system`、`preset` 和输出角色；编译和测试仍由 CMake、
+colcon、Ninja、CTest 等原生工具执行。用户可以直接调用这些原生工具检查项目，但无需操作
+RM Relay 使用的 Buildx resource。
 
 通用 C/C++ 项目以 CMake 为官方基线，ROS 2 workspace 在外层使用 colcon。首版不再增加
 Meson、Xmake、Bazel、Nix 或自定义构建描述；ccache 通过 CMake compiler launcher 或
 colcon 的底层 CMake 参数接入，不改变构建图。
 
-Remote backend 使用 BuildKit 的 context 传输、cache 和 local exporter。编译服务器运行 RM
-Relay 维护的通用 workspace 构建定义，不读取用户自带的第二份应用 Dockerfile。一次 job
-结束并把结果写回开发机后，源码快照和临时 workspace 可以删除；项目特有构建知识仍随源码
-存在。
+Local 与 remote backend 都使用 BuildKit 的 context 传输、cache 和 local exporter。两者运行
+RM Relay 维护的同一份 workspace 构建定义，不读取用户自带的第二份应用 Dockerfile。一次
+remote job 结束并把结果写回开发机后，源码快照和临时 workspace 可以删除；项目特有构建
+知识仍随源码存在。
 
 Workspace builder 不直接部署任何 target。这个中断点是有意设计的：local/remote build
 可以复用同一条下游 target 链路，构建服务和设备接入也能独立部署或替换。
@@ -76,17 +78,18 @@ Build tree 包含 object、CMake cache、绝对路径和中间文件，既不可
 RM Relay 当前不定义新的应用包格式或强制压缩包。CMake Install Tree、ROS 2 Install Space
 和 MCU 固件文件已经能表达下游需要的内容。
 
-### 当前实现与目标契约的差距
+当前 MCU 模板由 RM Relay 内部的 CMake Workflow 执行 configure、build 与 install，项目
+不携带 mise task。两种 backend 成功后检查 Profile 要求的输出角色，并在
+`install/<profile>/rm-relay-output.json` 的 schema v2 记录：
 
-当前 MCU 模板和 PI 示例已经生成 ELF、BIN、MAP，但仍直接位于：
+- `schema_version`、`project_id`、`profile_id`、`profile_digest` 和 `producer_version`；
+- Builder 的逻辑 `id` 与实现 `kind`；
+- environment 的 `id`、实际 `reference` 与 `digest`；
+- 每个 artifact 的语义 `role`、相对 `path`、`size` 与 `sha256`。
 
-```text
-build/stm32f407-robomaster-c/firmware/
-```
-
-因此这些文件当前可以被 user guide 的烧录/调试命令消费，却还没有通过统一的
-`install/<profile>` 导出边界。把模板迁移到 install model 是实现工作，不能因为架构已经
-定义 Build Output 就写成“统一输出链路已交付”。
+Backend 先将 local exporter 写入受管临时目录，确认声明产物存在后再原子发布整个 install tree；失败构建不会留下可供 target
+消费的新 manifest。Target adapter 只接收重新校验过的 Build Output；PI 示例仍保留直接 CMake
+构建，用于验证构建系统本身。
 
 ## Cache 只改变速度
 
@@ -94,13 +97,13 @@ build/stm32f407-robomaster-c/firmware/
 
 | 状态 | 所在位置 | 是否项目资产 |
 |---|---|---|
-| 开发机 build tree | `build/<profile>/` | 否，可重新生成 |
+| 开发机 build tree | 原生构建时的 `build/<profile>/` | 否，可重新生成 |
 | Build Output | `install/<profile>/`（目标契约） | 是，开发机可见 |
 | Managed Data | `.rm-relay/data/` | 是，取回后由开发机保管 |
-| BuildKit、ccache、依赖 cache、remote workspace | backend 管理 | 否，可删除 |
+| BuildKit、ccache、依赖 cache、remote workspace | 对应 Builder 管理 | 否，可删除 |
 
-切换 builder 或清空 cache 不得改变构建语义。首版不在开发机与编译服务器之间复制 cache，
-也不把 cache 传到 target。
+切换 Builder 或清空 cache 不得改变构建语义。本地 cache 留在 `rm-relay-local-workspace-buildx` BuildKit
+resource，远端 cache 留在编译服务器；首版不在二者之间同步 cache，也不把 cache 传到 target。
 
 ccache 是显式依赖，不是 CMake 默认能力。可信战队或邀请制 backend 可以让相同环境与
 工具链的用户共享 ccache，但 job workspace 和 build tree 仍彼此隔离。若以后提供不受信任
@@ -155,6 +158,8 @@ ROS 2、Nav2、OpenCV 等成熟依赖优先使用目标架构 binary package。�
 
 ## 仍待组件设计确定的内容
 
-Remote workspace 构建定义格式、Build Output manifest、失败后的断点恢复和 runtime
-compatibility schema 尚未确定。后续设计可以补充这些内部契约，但必须保持：项目声明随
+Workspace 构建定义已经由固定 frontend、不可变 environment 与 local exporter 落实，并由
+本地和远程 Builder 共用。
+远程失败后的断点恢复和 runtime compatibility schema 尚未确定。后续设计必须沿用现有 Project、
+Profile、Execution Plan 与 Build Output 边界：项目声明随
 源码存在，服务端保持通用，Build Output 先回开发机，cache 不成为项目真相源。

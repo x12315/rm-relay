@@ -1,0 +1,10 @@
+min_version = "2026.8.14"
+
+[tasks."rm-relay:build"]
+description = "Build and install one RM Relay CMake preset"
+dir = "{{cwd}}"
+run = [
+  'cmake --preset "$RM_RELAY_BUILD_PRESET" -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache',
+  'cmake --build --preset "$RM_RELAY_BUILD_PRESET"',
+  'cmake --install "build/$RM_RELAY_BUILD_PRESET" --prefix "$RM_RELAY_OUTPUT_DIR"',
+]

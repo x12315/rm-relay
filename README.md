@@ -4,9 +4,11 @@
 Linux 应用开发和 RM 常见开发板、PC、边缘计算板卡。
 
 > [!IMPORTANT]
-> 项目仍在建设。目前可用的是 STM32 嵌入式开发基线；快速体验服务器、IDE 一键配置、
-> 战队部署方案、Linux 应用环境、远程构建，以及由统一 CLI 提供的 target 接入和数据回收
-> 尚未交付。路线图和架构文档表达建设方向，不代表已经支持。
+> 项目仍在建设。目前已跑通 STM32 项目初始化、本地 BuildKit 构建、Build Output 校验与 OpenOCD
+> 命令解析。不可变环境的身份核验、发布契约、远程 BuildKit backend 与 mTLS Compose 部署已进入代码基线，
+> 但尚未取得真实 Registry push 和战队服务器证据；快速体验服务器、IDE 一键配置、Linux 应用环境、target 数据回收和
+> target 受控运行尚未交付。面向普通用户的原子化 Quick Start 也尚未形成；路线图和架构
+> 文档表达建设方向，不代表已经支持。
 
 RM 队伍的成员和工程经验随赛季快速流动。一套环境如果只能由少数人安装、升级和排错，
 很容易在交接后失效。RM Relay 将重复出现的工具链配置、项目入口和验证方法整理成可复现
@@ -31,9 +33,12 @@ RM 队伍的成员和工程经验随赛季快速流动。一套环境如果只�
 
 ## 当前能力
 
-当前仓库提供 C++20/STM32 开发镜像、可复制的跨平台 CMake 项目模板，以及一份在 host
-测试和 MCU 固件中复用相同控制逻辑的 PI 示例。镜像覆盖 `linux/amd64` 与
-`linux/arm64`，真实主机验证目前以 Apple Silicon macOS 为主。
+当前仓库提供 C++20/STM32 开发镜像、`rm-relay` CLI、跨平台 CMake Project Template，
+以及一份在 host 测试和 MCU 固件中复用相同控制逻辑的 PI 示例。CLI 管理本地或远程 Buildx
+resource，经指定 Builder 核验并登记不可变的 environment image，再由镜像内 mise 执行固定
+CMake Workflow，将 ELF、BIN、MAP 和校验 manifest 导出到开发机。
+镜像覆盖 `linux/amd64` 与 `linux/arm64`；GoReleaser 配置可以生成 Darwin、Linux、Windows
+的 amd64/arm64 CLI snapshot，真实主机验证目前以 Apple Silicon macOS 为主。
 
 STM32F407 和 RoboMaster C 已能完成交叉编译；RoboMaster C 已在 macOS 通过 ROM DFU
 完成写入与回读校验，并通过 ST-Link、OpenOCD 和 GDB 完成固件加载、断点与变量检查。
@@ -53,40 +58,27 @@ RoboMaster C 是首个支持的 board profile，不是项目结构中心。当�
 和虚拟 target 链路。它与本地、战队服务器使用同一 CLI，不建设浏览器 IDE，也不承诺
 生产级可用性。公开注册和面向陌生用户的强隔离服务属于后续方向。
 
-### 本地 Docker（当前可用）
+### 本地 BuildKit（代码链路已完成）
 
-适合已有基本 Docker 使用经验的开发者。工具链在本机容器中运行，源码和构建产物保留在
-工作区；USB、烧录与调试按宿主平台接入。
+RM Relay 在现有 Docker/Buildx 上管理独立的本地 Builder，源码和构建产物保留在开发机；
+USB、烧录与调试按宿主平台接入。CLI 已支持拉取、核验并登记正式 OCI image digest；
+官方 Registry 与独立 Project Template 的普通用户分发入口尚未交付，因此当前仍是维护者验证路径。
 
-### 战队部署（规划中）
+### 战队远程构建（已配置，待实机验证）
 
-面向战队运维人员，在战队服务器上组合 Registry、远程 workspace 构建与 K3s 虚拟 target，
-为成员提供稳定入口。部署文档尚未交付；当前维护者可以先参考
-[镜像构建与验证](docs/operator-guide/build-and-verify-images.md)。
-
-## 本地 Docker 快速开始
-
-以下命令需要 Docker 与 Buildx，从仓库根目录执行。它们会构建本机架构镜像，在本地
-`build/` 目录运行测试并生成固件，不会写入开发板 Flash。
-
-```bash
-docker version
-docker buildx version
-docker buildx bake \
-  --file toolkit/container-images/embedded-development/docker-bake.hcl \
-  mcu-dev --load
-sh validation/project-contracts/verify-repository-layout.sh
-sh validation/project-contracts/verify-project-builds.sh
-```
-
-验证包含模板和 PI 示例的 native Clang、native GCC、ASan/UBSan 测试，以及
-STM32F407/RoboMaster C 交叉编译。镜像选择、native/STM32 构建、实板接入、IDE 示例和
-故障排查统一从[使用指南](docs/user-guide/README.md)进入。
+仓库提供 rootless BuildKit 的 mTLS Compose 配置，以及开发机侧 Builder 登记、真实 solve 检查和
+远程 workspace backend。Registry 采用托管还是自部署尚未决定；网络接入和证书签发仍由战队负责。参见
+[Builder 配置](docs/user-guide/builders.md)与[部署 mTLS BuildKit 服务](docs/operator-guide/deploy-buildkit-service.md)。
 
 想先理解项目将如何工作，阅读[开发平台架构](docs/architecture/README.md)和
 [开发契约参考](docs/reference/development-contracts.md)。维护项目或参与建设时，再阅读
-[仓库资产地图](docs/operator-guide/repository-assets.md)、[项目路线](ROADMAP.md)、
-[社区工作](docs/community/README.md)与[贡献指南](CONTRIBUTING.md)。
+[仓库资产地图](docs/architecture/repository-assets.md)、[项目路线](ROADMAP.md)、
+[开发者人工核验](tests/manual/README.md)、[社区工作](docs/community/README.md)与
+[贡献指南](CONTRIBUTING.md)。当前功能的使用方式从[使用指南](docs/user-guide/README.md)
+进入，CLI 制品维护见[发布脚本](scripts/release/README.md)，环境定义维护见
+[`embedded-development` 维护指南](environments/embedded-development/MAINTAINING.md)，镜像生产见
+[环境镜像构建服务](services/environment-image-builder/README.md)，服务部署与备用维护路径从
+[运维指南](docs/operator-guide/README.md)进入。
 
 ## 发起与许可证
 

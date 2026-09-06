@@ -5,8 +5,8 @@ debugger 和开发数据如何回到开发机。构建这一输出的过程见
 [构建与输出](builds-and-outputs.md)。
 
 > [!IMPORTANT]
-> 当前仓库只实现 MCU 的部分烧录与调试路径。物理 Linux、虚拟 Linux、统一的 target
-> adapter 与 `rm-relay-node` 仍是设计基线；真实支持状态见
+> 当前仓库实现了 MCU OpenOCD adapter 与部分实板烧录、调试路径。物理 Linux、虚拟 Linux
+> 及 `rm-relay-node` 仍是设计基线；真实支持状态见
 > [支持矩阵](../user-guide/support-matrix.md)。
 
 ## Target 从开发机 Build Output 接手

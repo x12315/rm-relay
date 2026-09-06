@@ -1,0 +1,115 @@
+// Package candidate owns the disposable local environment used to review one RM Relay candidate.
+package candidate
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+)
+
+// Layout identifies every path owned by one repository's candidate experience environment.
+type Layout struct {
+	RepositoryRoot  string
+	RepositoryKey   string
+	Root            string
+	StatePath       string
+	BinaryDirectory string
+	BinaryPath      string
+	ConfigDirectory string
+	TemplateOrigin  string
+	Workspace       string
+	Logs            string
+}
+
+// ResolveLayout maps one canonical repository to its platform user-cache location.
+func ResolveLayout(repositoryRoot, userCacheRoot string) (Layout, error) {
+	canonicalRepository, err := canonicalDirectory(repositoryRoot)
+	if err != nil {
+		return Layout{}, fmt.Errorf("resolve repository root: %w", err)
+	}
+	cacheRoot, err := filepath.Abs(userCacheRoot)
+	if err != nil {
+		return Layout{}, fmt.Errorf("resolve user cache root: %w", err)
+	}
+	cacheRoot, err = resolvePotentialPath(cacheRoot)
+	if err != nil {
+		return Layout{}, fmt.Errorf("resolve user cache root: %w", err)
+	}
+	if pathWithin(canonicalRepository, cacheRoot) {
+		return Layout{}, fmt.Errorf("user cache root must be outside repository root")
+	}
+	digest := sha256.Sum256([]byte(canonicalRepository))
+	repositoryKey := hex.EncodeToString(digest[:8])
+	root := filepath.Join(cacheRoot, "rm-relay", "experience", repositoryKey)
+	binaryDirectory := filepath.Join(root, "bin")
+	binaryName := "rm-relay"
+	if runtime.GOOS == "windows" {
+		binaryName += ".exe"
+	}
+	return Layout{
+		RepositoryRoot:  canonicalRepository,
+		RepositoryKey:   repositoryKey,
+		Root:            root,
+		StatePath:       filepath.Join(root, "state.json"),
+		BinaryDirectory: binaryDirectory,
+		BinaryPath:      filepath.Join(binaryDirectory, binaryName),
+		ConfigDirectory: filepath.Join(root, "config"),
+		TemplateOrigin:  filepath.Join(root, "template.git"),
+		Workspace:       filepath.Join(root, "workspace"),
+		Logs:            filepath.Join(root, "logs"),
+	}, nil
+}
+
+func pathWithin(parent, child string) bool {
+	relativePath, err := filepath.Rel(parent, child)
+	return err == nil && relativePath != ".." && !strings.HasPrefix(relativePath, ".."+string(filepath.Separator))
+}
+
+func resolvePotentialPath(path string) (string, error) {
+	existingPath := filepath.Clean(path)
+	remaining := make([]string, 0, 4)
+	for {
+		resolvedPath, err := filepath.EvalSymlinks(existingPath)
+		if err == nil {
+			for index := len(remaining) - 1; index >= 0; index-- {
+				resolvedPath = filepath.Join(resolvedPath, remaining[index])
+			}
+			return resolvedPath, nil
+		}
+		if !os.IsNotExist(err) {
+			return "", err
+		}
+		parent := filepath.Dir(existingPath)
+		if parent == existingPath {
+			return "", err
+		}
+		remaining = append(remaining, filepath.Base(existingPath))
+		existingPath = parent
+	}
+}
+
+func canonicalDirectory(path string) (string, error) {
+	if path == "" {
+		return "", fmt.Errorf("path must not be empty")
+	}
+	absolutePath, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	resolvedPath, err := filepath.EvalSymlinks(absolutePath)
+	if err != nil {
+		return "", err
+	}
+	info, err := os.Stat(resolvedPath)
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("%q is not a directory", resolvedPath)
+	}
+	return filepath.Clean(resolvedPath), nil
+}

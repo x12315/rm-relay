@@ -5,9 +5,10 @@
 数据由谁保管，以及当前实现与目标设计之间还有哪些距离。
 
 > [!IMPORTANT]
-> 本组文档记录已经确认的设计基线，不等于全部能力已经交付。当前仓库只交付 STM32
-> 嵌入式开发基线；统一 CLI、Linux 环境、远程构建、物理 Linux target 和虚拟 target
-> 仍在建设。实际能力和证据等级只以[支持矩阵](../user-guide/support-matrix.md)为准。
+> 本组文档记录已经确认的设计基线，不等于全部能力已经交付。当前仓库交付 STM32
+> 嵌入式开发基线，以及环境身份核验、环境发布契约、本地与远程两种 BuildKit Builder；
+> 真实 Registry push 和战队服务器证据尚未取得。Linux 环境、物理 Linux target 和虚拟 target 仍在建设。实际能力和
+> 证据等级只以[支持矩阵](../user-guide/support-matrix.md)为准。
 
 ## 先建立一个完整模型
 
@@ -24,7 +25,7 @@ RM Relay 解决的是开发链路问题，不是机器人应用问题。用户�
 选择 development profile
         │
         ▼
-local backend 或 remote workspace builder
+local BuildKit 或 remote workspace builder
         │
         ▼
 Build Output 返回开发机
@@ -69,20 +70,21 @@ Development profile 固定工具链、依赖、目标架构和兼容基线。项
 不同环境。
 
 当前仓库已经把 `base` 和 `mcu-dev` 作为可选择的环境 stage，并分别为 `linux/amd64`、
-`linux/arm64` 定义了 Bake target。算力侧 development/runtime 环境、mise 能力层、官方
-profile 和项目 overlay 是后续实现必须遵守的设计，详见
+`linux/arm64` 定义了 Bake target。首个嵌入式 Profile 与 mise 能力层已经接入；算力侧
+development/runtime 环境和项目 overlay 仍是后续实现，详见
 [环境与 profile](environments-and-profiles.md)。
 
 ### 2. 构建只回答“如何得到可交付结果”
 
-Local backend 和 remote backend 消费相同的项目声明与 development profile。构建系统仍是
-CMake、colcon、Ninja、CTest 等原生工具；`mise` 组织常用任务，未来的 `rm-relay` 只编排
+Local 与 remote Builder 消费相同的项目声明与 development profile。构建系统仍是
+CMake、colcon、Ninja、CTest 等原生工具；`mise` 组织常用任务，`rm-relay` 只编排
 跨容器、跨机器和 target 相关操作。
 
 两种 backend 的共同出口都是开发机上的 Build Output。Remote workspace 是一次性工作区，
-服务端 cache 可以删除；workspace builder 不直接把结果部署到 target。当前 MCU 模板仍直接从
-`build/stm32f407-robomaster-c/firmware/` 使用 ELF/BIN/MAP，统一的 `install/<profile>`
-边界尚未落地。设计与现状的差异见[构建与输出](builds-and-outputs.md)。
+服务端 cache 可以删除；workspace builder 不直接把结果部署到 target。当前 MCU 模板已由
+CMake install 将 ELF/BIN/MAP 导出到 `install/<profile>`，并生成内容校验 manifest。
+统一 backend 已通过 Buildx local exporter 返回同一目录，并在发布新输出前使用受管临时目录；
+真实服务器证据仍待补充。详见[构建与输出](builds-and-outputs.md)。
 
 ### 3. Target 接入回答“结果去哪里、如何调试”
 
@@ -151,7 +153,7 @@ RM Relay 首版复用 BuildKit、Registry、Compose 和 K3s 已有控制面，�
 6. **平台不接管应用启动。** 普通程序、脚本、`ros2 run` 和 `ros2 launch` 由用户执行，
    RM Relay 不提供通用 `run/stop` 状态机。
 
-## 自研组件为什么只有两个
+## 主线运行组件为什么只有两个
 
 RM Relay 只自研必须理解上述边界的薄层：
 
@@ -163,8 +165,10 @@ RM Relay 只自研必须理解上述边界的薄层：
 `mise`、BuildKit、OCI Registry、K3s、Mutagen、CMake、colcon、OpenOCD 和 GDB 继续承担各自
 已有的职责。只有现有工具无法表达平台契约时，薄组件才增加逻辑。
 
-这两个组件目前留在 monorepo。只有某个模块形成独立使用者、依赖、发布节奏和维护者后，
-才考虑拆入 RM Relay umbrella project 下的子仓库。
+环境镜像构建服务是围绕 Docker Bake 的维护入口，不是常驻 daemon 或另一套普通用户 CLI；
+Candidate 则只服务候选版本验收。它们不会扩大上述运行组件。`rm-relay` 与 `rm-relay-node` 当前
+留在 monorepo；只有某个模块形成独立使用者、依赖、发布节奏和维护者后，才考虑拆入 RM Relay
+umbrella project 下的子仓库。
 
 ## 不属于这条开发链路的能力
 
@@ -185,4 +189,4 @@ sandbox 不阻塞当前开发闭环，见[路线图的后续可选模块](../../
 | 某个术语、身份、目录或生命周期的准确契约 | [开发契约参考](../reference/development-contracts.md) |
 | 现在究竟支持哪些平台和后端 | [支持矩阵](../user-guide/support-matrix.md) |
 | 下一步按什么顺序建设 | [路线图](../../ROADMAP.md) |
-| 镜像、模板、示例和 validation 在仓库中如何分工 | [仓库资产地图](../operator-guide/repository-assets.md) |
+| 源码、镜像、模板、示例、测试和静态检查如何分工 | [仓库资产地图](repository-assets.md) |

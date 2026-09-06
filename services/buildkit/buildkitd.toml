@@ -1,0 +1,13 @@
+root = "/home/user/.local/share/buildkit"
+
+[worker.oci]
+  enabled = true
+  gc = true
+
+[[worker.oci.gcpolicy]]
+  keepBytes = 21474836480
+  keepDuration = 604800
+
+[[worker.oci.gcpolicy]]
+  all = true
+  keepBytes = 10737418240

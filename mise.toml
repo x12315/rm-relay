@@ -1,0 +1,26 @@
+min_version = "2026.8.14"
+
+[tools]
+go = "1.26.7"
+"go:gotest.tools/gotestsum" = "1.13.0"
+"go:github.com/goreleaser/goreleaser/v2" = "2.17.1"
+
+[settings]
+activate_aggressive = true
+task.run_auto_install = false
+
+[task_config]
+includes = [
+  "scripts/release/tasks.toml",
+  "services/buildkit/tasks.toml",
+  "services/environment-image-builder/tasks.toml",
+  "tests/tasks.toml",
+  "tests/support/candidate/tasks.toml",
+]
+
+[tasks.verify]
+description = "Verify repository layout and toolchain policy"
+run = [
+  "sh scripts/verify/repository-layout.sh",
+  "sh scripts/verify/toolchain-source-policy.sh",
+]

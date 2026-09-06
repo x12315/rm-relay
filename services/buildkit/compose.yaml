@@ -1,0 +1,26 @@
+name: rm-relay-buildkit
+
+services:
+  buildkit:
+    image: moby/buildkit:v0.32.2-rootless@sha256:504731e577c20559c00f968f33219f30115e70be29ab96728d1d06e963fc494b
+    user: "1000:1000"
+    restart: unless-stopped
+    security_opt:
+      - seccomp=unconfined
+      - apparmor=unconfined
+      - systempaths=unconfined
+    command:
+      - --addr=tcp://0.0.0.0:1234
+      - --tlscacert=/run/rm-relay-tls/ca.pem
+      - --tlscert=/run/rm-relay-tls/cert.pem
+      - --tlskey=/run/rm-relay-tls/key.pem
+      - --config=/etc/buildkit/buildkitd.toml
+    ports:
+      - "${RM_RELAY_BUILDKIT_LISTEN_ADDRESS:-127.0.0.1}:1234:1234"
+    volumes:
+      - "${RM_RELAY_BUILDKIT_TLS_DIR:?set RM_RELAY_BUILDKIT_TLS_DIR}:/run/rm-relay-tls:ro"
+      - ./buildkitd.toml:/etc/buildkit/buildkitd.toml:ro
+      - buildkit-state:/home/user/.local/share/buildkit
+
+volumes:
+  buildkit-state:

@@ -12,7 +12,7 @@ OpenOCD/GDB 源码调试闭环。
 ```text
 开发机源码
   ↓
-mise tasks / rm-relay CLI
+rm-relay CLI
   ↓
 在开发机本地构建或由编译服务器远程构建
   ↓
@@ -32,45 +32,56 @@ RoboMaster C 已完成首个 macOS 实板闭环。下一步根据 RM 队伍的�
 
 ## 2. 建立统一入口与 profile 模型
 
-引入 mise 组织工具版本、项目环境和常用任务，并开发薄的跨平台 `rm-relay` CLI，处理
-本地/远程 backend 和 target 接入。CMake Presets、CMake、colcon 与原生调试后端仍是各自
-领域的事实源。
+当前 CLI 已能组织本地与远程 BuildKit 构建，由固定 Workflow 执行 CMake，并以 Project、
+Profile、Builder、Build Output 和 target adapter 串起 STM32F407 链路。远程链路目前有自动测试
+和 mTLS Compose 契约，仍需取得真实战队服务器证据。下一步在这些契约上接入 Linux target。
+CMake Presets、CMake、colcon 与原生调试后端仍是各自领域的事实源。
 
 环境镜像通过 Dockerfile 能力层与 Bake 官方 profile 组合；每个正式 profile 提供独立
 Dev Container Template，项目扩展以 mise overlay 构建成不可变的派生镜像。当前嵌入式
 模板和示例迁移到这套入口后，再用相同方法扩展算力侧环境。
 
-Project Template 继续作为核心资产：用户当前可以复制并改名，未来也可由 `rm-relay init`
-通过交互式向导生成和配置。Dev Container Template 同样属于核心 profile 契约，不作为 IDE
-插件拆分。
+Project Template 继续作为核心资产。当前模板暂存在 monorepo；结构和声明稳定后，将迁入
+可独立 clone 的模板仓库。`rm-relay init` 只为已有源码项目建立身份，不生成或下载项目。
+Dev Container Template 同样属于核心 profile 契约，不作为 IDE 插件拆分。
 
 ### 环境定义仓库
 
-当前环境定义继续保留在主仓库。Profile schema、环境与 image 的映射、独立验证和发布流程
-稳定后，再建立 `rm-relay-environments`，分别组织官方默认与社区环境定义；构建后的
-image blob 仍发布到 OCI Registry。仓库职责见
-[仓库资产地图](docs/operator-guide/repository-assets.md#rm-relay-的仓库边界)。
+当前环境定义暂存于主仓库，后续将迁入 `rm-relay-environments`，分别组织官方默认与社区的
+Dockerfile、Bake、版本锁和能力验证。该仓库只记录软件环境描述资产；Profile、镜像生产服务与
+OCI 存储不随之迁入。构建后的 image blob 仍发布到 OCI Registry。仓库职责见
+[仓库资产地图](docs/architecture/repository-assets.md#规划中的仓库边界)。
 
 ### 可选 IDE 与 Agent integration
 
 可选 integration 不阻塞基本开发链路，也不在当前阶段创建仓库。满足以下条件后，再设计并
 建立独立的 `rm-relay-integrations`：
 
-- `rm-relay init` 已能稳定生成项目；
+- `rm-relay init`、Project identity 与机器可读结果已经稳定；
 - profile 名称、项目声明 schema、Project Template 和 Build Output 边界已经稳定；
 - CLI 提供适合 IDE 和 Agent 消费的机器可读结果；
 - 核心仓库能用 contract test 验证外部 integration 没有复制构建、烧录或调试逻辑。
 
 当前[VS Code 示例](docs/user-guide/vscode-example.md)只是可复制的参考片段，不是一键导入或
 独立发布的 integration package。规划仓库的资产边界见
-[仓库资产地图](docs/operator-guide/repository-assets.md#rm-relay-的仓库边界)；具体目录、Skill
+[仓库资产地图](docs/architecture/repository-assets.md#规划中的仓库边界)；具体目录、Skill
 内容、发布命令、CI 和支持列表留到启动时设计。
 
-## 3. 发布镜像与远程构建体验
+## 3. 发布正式镜像并验证远程构建服务
 
-将正式环境镜像发布到国内 OCI Registry，减少普通用户重复构建产生的大流量访问。在固定
-development image 上建立 BuildKit workspace builder，让 Build Output 直接返回开发机；
-开发机上的 Docker 与远程 backend 使用同一项目声明和下游 target 链路。
+将正式环境镜像发布到适合国内大流量访问的 OCI Registry，减少普通用户重复构建。Registry
+采用托管服务还是战队自部署留待后续决议。官方自动生产与战队自行生产复用同一份
+Dockerfile、Bake target、验证规则和 OCI 输出契约；Environment builder、Registry、Workspace
+builder 保持原子解耦。
+
+共用 image production 入口已经实现：调用者注入环境源码、image-production Builder、版本 tag
+与源码外 handoff 路径，任务完成双架构构建、镜像内 smoke、push 和 digest 交接。下一步是选择正式
+Registry、接入官方 CI trigger，并在有真实写入凭据的服务器上记录发布证据；战队仍可不依赖
+GitHub，以人工或自己的 CI 调用同一入口。
+
+现有 BuildKit
+workspace backend 已让 Build Output 直接返回开发机；下一步在真实服务器验证 mTLS、远端拉取、
+cache 和多人使用边界。开发机 Docker 与远程 backend 继续使用同一项目声明和下游 target 链路。
 
 编译服务器保留 BuildKit cache、依赖 cache 和可信范围内共享的 ccache。开发机上的 cache
 独立保存，不与编译服务器同步。

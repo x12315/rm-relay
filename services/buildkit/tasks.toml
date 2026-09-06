@@ -1,0 +1,19 @@
+["service:buildkit:config"]
+description = "Validate the BuildKit service deployment configuration"
+dir = "{{ config_root }}"
+run = "docker compose --file services/buildkit/compose.yaml config"
+
+["service:buildkit:up"]
+description = "Start the mTLS BuildKit service"
+dir = "{{ config_root }}"
+run = "docker compose --file services/buildkit/compose.yaml up --detach"
+
+["service:buildkit:down"]
+description = "Stop the BuildKit service without deleting its cache volume"
+dir = "{{ config_root }}"
+run = "docker compose --file services/buildkit/compose.yaml down"
+
+["service:buildkit:verify"]
+description = "Run the real solve check through a configured logical Builder"
+dir = "{{ config_root }}"
+run = "rm-relay builder check ${RM_RELAY_BUILDER:?set RM_RELAY_BUILDER}"

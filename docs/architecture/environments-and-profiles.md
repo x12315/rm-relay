@@ -5,8 +5,9 @@
 [架构入口](README.md#先建立一个完整模型)。
 
 > [!IMPORTANT]
-> 当前仓库只交付 `mcu-dev` 嵌入式开发镜像。本文其余算力侧内容是后续实现必须遵守的
-> 设计基线，不是已经发布的镜像清单。
+> 当前仓库只交付 embedded-development 镜像产品，其中 `base` 是 host C++ 能力输出，
+> `mcu-dev` 对应当前 MCU Profile。本文其余算力侧内容是后续实现必须遵守的设计基线，
+> 不是已经发布的镜像清单。
 
 ## Profile 是经过验证的使用组合
 
@@ -57,7 +58,13 @@ docker-bake.hcl         选择并发布官方 profile 组合
         │
 Dev Container Template 描述 mount、设备接入和 IDE 建议
         │
-development image      供 local/remote backend 消费
+带 identity 的 development image
+        │
+        ▼
+OCI digest             由指定 Builder 拉取、核验并登记
+        │
+        ▼
+local/remote backend   只消费已登记的 immutable reference
 ```
 
 | 配置层 | 负责 | 不负责 |
@@ -68,9 +75,24 @@ development image      供 local/remote backend 消费
 | Dev Container Template | profile 对应的 mount、USB/GPU 和 IDE 建议 | 成为唯一构建入口 |
 | 项目 overlay | 项目特有的环境扩展 | 修改运行中的官方环境 |
 
-目前仓库已经实现 Dockerfile/Bake 这部分：作为环境输出的 `base` 与 `mcu-dev` 都有
-`linux/amd64`、`linux/arm64` target。Dockerfile 中的其他 helper stage 只为这些输出准备
-文件。mise 能力片段、正式 Dev Container Template 和派生环境流程仍待实现。
+mise 有两个独立安装边界。开发机上的 `rm-relay` 当前只在 OpenOCD adapter 中从 `PATH`
+调用宿主 mise；workspace build 由 CLI 通过 Buildx 启动。Development image 内固定自身的
+mise 版本，只执行镜像随附的私有 CMake 配置。CLI archive 不捆绑 mise，用户项目也不提供
+`mise.toml`，两边的安装与升级不能互相替代。
+
+目前仓库已经实现 Dockerfile/Bake、镜像 identity，以及与定义解耦的 OCI 生产入口：作为环境
+输出的 `base` 与 `mcu-dev` 都有 `linux/amd64`、`linux/arm64` target。Dockerfile 中的其他
+helper stage 只为这些输出准备文件。`environments/` 负责描述内容，
+`services/environment-image-builder/` 消费任意 clean 环境源码并完成 push 与 digest handoff；
+Registry 另行保存 image。每个可消费 image 固定携带 `/opt/rm-relay/environment/identity.toml`，当前
+schema v1 声明 `id = "embedded-development"`；
+`rm-relay environment add` 通过所选 Builder 导出该文件，确认 ID 和 digest 后才保存映射。
+当前的 CMake Workflow 已由 development image 内的受控 mise task 执行；更多
+能力组合、正式 Dev Container Template 和派生环境流程仍待实现。
+
+Profile 只保存稳定的 environment ID，不保存本机 tag 或 Registry 地址。每个逻辑 Builder
+分别把 environment ID 映射到经过自身拉取和 identity 核验的 `image@sha256:<64 位小写十六进制>`；因此本地
+与远程构建消费同一身份契约，也不会让开发机 image store 中的可变 tag 成为项目事实。
 
 环境镜像不打包 IDE、用户扩展或个人配置。Dev Container Template 可以给 VS Code 等编辑器
 提供 mount、设备和任务建议，但必须继续调用 mise、CMake、OpenOCD 等已有入口，不能建立
@@ -83,15 +105,16 @@ Project Template 与 Dev Container Template 都属于 RM Relay 的核心资产�
 
 | 核心资产 | 固定的入口 | 消费方式 | 当前状态 |
 |---|---|---|---|
-| Project Template | 用户项目的源码、CMake、测试和目标配置结构 | 当前由用户复制并改名；未来也可由 `rm-relay init` 交互式生成 | `toolkit/project-templates/cross-platform-cpp/` 已实现 |
+| Project Template | 用户项目的源码、CMake、测试和目标配置结构 | 当前由 monorepo 提供；未来从独立模板仓库 clone | `project-templates/cross-platform-cpp/` 已实现 |
 | Dev Container Template | profile 对应的 environment、mount、设备接入和 IDE 建议 | 用户按 profile 创建 development container | 尚未实现 |
 
-Project Template 与项目声明、profile 和 Build Output 契约共同演进，不能作为可选插件拆出核心
-仓库。Dev Container Template 也属于 profile 的环境交付，不等同于某个 IDE 的专用配置。
+Project Template 与项目声明、profile 和 Build Output 契约共同演进。迁入独立仓库只改变
+分发方式，不把它降为可选插件；`rm-relay init` 始终只负责已有项目的 identity。Dev
+Container Template 也属于 profile 的环境交付，不等同于某个 IDE 的专用配置。
 
 环境定义与可选 integration 以后可以形成独立仓库，但不改变上述两类核心 Template 的归属。
 三个仓库分别组织什么、当前资产为何仍留在 monorepo，集中见
-[仓库资产地图](../operator-guide/repository-assets.md#rm-relay-的仓库边界)。
+[仓库资产地图](repository-assets.md#规划中的仓库边界)。
 
 ## 项目依赖通过派生镜像进入
 

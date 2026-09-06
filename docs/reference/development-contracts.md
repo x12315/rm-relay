@@ -14,6 +14,8 @@
 |---|---|---|
 | Project | 用户的一项逻辑软件项目，可以包含多个 package 或仓库 | 开发机上的源码与项目声明 |
 | Profile | 一组经过验证的环境、架构和 target 兼容要求 | RM Relay Bake 与 profile 配置 |
+| Environment image | 带 RM Relay identity、供 workspace Builder 消费的 OCI development image | `environments/` 定义；OCI Registry 分发 |
+| Builder | 在本机或远端执行一次 workspace BuildKit solve 的逻辑资源 | 开发机 `rm-relay` catalog；Buildx 提供执行连接 |
 | Build Job | 一次 local 或 remote build 操作 | build backend |
 | Build Output | 可以交给烧录、传输或 debugger 的构建结果 | 开发机上的项目工作区 |
 | Target | 接收 Build Output 并提供开发能力的物理或虚拟设备 | provider；MCU 由开发机 adapter 直管 |
@@ -34,23 +36,40 @@ Build Output 沿用现有构建系统的输出形式：
 | ROS 2 workspace | colcon Install Space |
 | MCU | ELF、BIN、MAP 等固件文件 |
 
-Build tree、compiler cache 和依赖 cache 都不属于 Build Output。当前 MCU 模板已经生成上述
-固件文件，但仍位于 `build/stm32f407-robomaster-c/firmware/`；统一
-`install/<profile>` 出口是目标契约，尚未实现。
+Build tree、compiler cache 和依赖 cache 都不属于 Build Output。当前 MCU 模板已将固件导出
+到 `install/<profile>`，并以 `rm-relay-output.json` 记录 Project、Profile、image 与内容
+校验信息。
 
 ## 身份与兼容性
 
 | 对象 | 必须满足的契约 | 不能用作替代的值 |
 |---|---|---|
 | Target | 具有稳定身份 | IP、临时容器名、用户本地别名 |
-| Environment | 用版本或内容摘要确认 development image、Build Output 与 Target Environment 属于兼容 lineage | 可变 tag 或“容器能启动” |
+| Environment | Profile 保存稳定 environment ID；每个 Builder 将其映射到已拉取并核验 identity 的 `image@sha256:<64 位小写十六进制>` | 可变 tag、宿主 image ID 或“容器能启动” |
 | Project | 具有稳定身份 | 绝对路径、目录名、Git remote |
 | 基础设施身份 | 用户、战队、K3s namespace 与 remote build 权限相互分开 | Project 或 Target 身份 |
 | Cache | 只参与性能优化 | 身份、权限或构建完整性证明 |
 
 Project identity 用于关联项目声明、build tree 和增量传输，不得充当用户身份或访问凭据。
-公开 schema 确定前，模板不得给所有新项目放入同一个固定 ID。Target manifest、兼容字段与
-握手协议也要等组件设计完成后再进入本 reference。
+模板保留空 ID，`rm-relay init` 为从模板建立的项目生成 UUID v4；不能把模板 ID、路径或 Git
+remote 当作项目身份。Linux Target manifest、兼容字段与握手协议仍需等对应组件设计完成。
+
+用户项目只通过 `rm-relay.toml` 声明 RM Relay 信息。每个 build 绑定 Profile、
+build `system`、系统内的 `preset` 和输出角色；不暴露 mise task 或 RM Relay 内部文件路径。
+Profile 同样只以 `adapter` 和 `board` ID 引用 target 能力，具体 OpenOCD 配置由 adapter
+模块所有。
+
+Environment image 必须包含 `/opt/rm-relay/environment/identity.toml`。当前 schema v1 固定为
+`schema_version = 1` 与 `id = "embedded-development"`；CLI 在指定 Builder 上用 BuildKit local
+exporter 读出该文件。`environment add` 只有在 lowercase SHA-256 digest 格式、
+Registry 拉取和 ID 核验全部通过后才原子更新开发机 catalog；`environment check`
+重新验证已登记引用，`environment list` 只查询指定 Builder 的本机映射。Profile、Project
+和 Git 不保存 Registry endpoint 或凭据。
+
+Environment image builder 发布的 handoff 使用 schema v1 TOML，必须记录 `environment_id`、可追溯的
+version `tag`、`digest`、`immutable_reference`、`source_revision` 与已核验的
+`linux/amd64`/`linux/arm64` 平台集。该文件是 image-production 与消费者之间的交接记录，
+不是 Registry 凭据或用户 Project 配置。
 
 ## 开发机路径
 
@@ -63,9 +82,8 @@ Project identity 用于关联项目声明、build tree 和增量传输，不得�
 └── .rm-relay/data/        从 target 取回的 Managed Data
 ```
 
-这是目标契约，不是当前所有模板都已采用的路径。现有可执行命令仍以
-[STM32 固件构建](../user-guide/build-stm32.md)记录的 `build/.../firmware/` 为准，迁移完成后
-才能修改该操作入口。
+统一 CLI 已在 MCU 模板采用这一路径。直接调用 CMake 时仍可查看 `build/.../firmware/`，但
+target adapter 只消费经过 manifest 校验的 `install/<profile>`。
 
 Remote job workspace、BuildKit cache、ccache 和依赖下载 cache 由 backend 管理，不进入
 项目目录契约。开发机 cache 与编译服务器 cache 互不复制；删除或切换 cache 不得改变构建语义。
@@ -108,6 +126,9 @@ Development Session 数据库。
 ### 环境可复现
 
 - 官方 profile 由 Dockerfile、mise 能力配置和 Bake 固定。
+- Environment image 通过 identity 与 OCI manifest digest 交接；mutable tag 只用于生产时命名，
+  不进入 workspace 构建契约。
+- Image-production Builder 与 Workspace builder 的凭据、cache 和生命周期相互独立。
 - 项目 overlay 必须在派生镜像构建阶段生效。
 - 运行中的 development/runtime container 不得安装依赖改变正式环境。
 - Linux development 与 runtime image 必须共享 Target Environment lineage。
